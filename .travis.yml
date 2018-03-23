@@ -1,0 +1,21 @@
+dist: trusty
+language: java
+
+services: docker
+
+rust:
+  - stable
+jdk:
+  - oraclejdk8
+addons:
+  apt:
+    packages:
+      - oracle-java8-installer
+
+before_install:
+  - curl https://sh.rustup.rs -sSf | sh -s -- -y
+  - source ~/.cargo/env
+
+script:
+  - mvn -f java/pom.xml clean install
+  - cargo build --manifest-path=rust/Cargo.toml
