@@ -176,7 +176,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
     <scope>provided</scope>
 </dependency>
 ```
