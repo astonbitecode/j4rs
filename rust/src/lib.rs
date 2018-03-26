@@ -39,7 +39,7 @@ use std::mem;
 
 // TODO: Seems that this is not needed
 // Initialize the environment
-include!(concat!(env!("OUT_DIR"), "/j4rs_env.rs"));
+include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
@@ -47,22 +47,22 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
     let mut default_classpath_entry = std::env::current_exe()?;
     default_classpath_entry.pop();
     default_classpath_entry.push("jassets");
-    default_classpath_entry.push("j4rs-0.1.0.jar");
+    default_classpath_entry.push("j4rs-0.1.1.jar");
     // Create a default classpath entry for the tests
     let mut tests_classpath_entry = std::env::current_exe()?;
     tests_classpath_entry.pop();
     tests_classpath_entry.pop();
     tests_classpath_entry.push("jassets");
-    tests_classpath_entry.push("j4rs-0.1.0.jar");
+    tests_classpath_entry.push("j4rs-0.1.1.jar");
 
     let default_class_path = format!("-Djava.class.path={}{}{}",
                                      default_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.1.0.jar"),
+                                         .unwrap_or("./jassets/j4rs-0.1.1.jar"),
                                      utils::classpath_sep(),
                                      tests_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.1.0.jar"));
+                                         .unwrap_or("./jassets/j4rs-0.1.1.jar"));
 
     let classpath = classpath_entries
         .iter()
@@ -73,21 +73,7 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
             });
     println!("Setting classpath to {}", classpath);
 
-    // The default classpath contains the j4rs
-    let mut default_library_path_entry = std::env::current_exe()?;
-    default_library_path_entry.pop();
-    // Create a default classpath entry for the tests
-    let mut tests_library_path_entry = std::env::current_exe()?;
-    tests_library_path_entry.pop();
-    tests_library_path_entry.push("deps");
-    let default_library_path = format!("-Djava.library.path={}{}{}",
-                                       default_library_path_entry
-                                           .to_str()
-                                           .unwrap_or("."),
-                                       utils::classpath_sep(),
-                                       tests_library_path_entry
-                                           .to_str()
-                                           .unwrap_or("."));
+    let default_library_path = format!("-Djava.library.path={}", _deps_dir());
     println!("Setting library path to {}", default_library_path);
 
     // Populate the JVM Options
@@ -112,6 +98,7 @@ mod lib_unit_tests {
     use std::{thread, time};
 
     #[test]
+    #[ignore]
     fn create_instance_and_invoke() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
 
@@ -146,7 +133,6 @@ mod lib_unit_tests {
     }
 
     #[test]
-    #[ignore]
     fn callback() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
         //        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], vec![]).unwrap();

@@ -7,26 +7,25 @@ use std::error::Error;
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
-use std::path::{self, Path};
+use std::path::{Path, PathBuf};
 
 fn main() {
-    // cargo:rustc-link-search=native=/usr/lib/jvm/default-runtime/jre/lib/amd64/server
-    // export LD_LIBRARY_PATH=/usr/lib/jvm/default-runtime/jre/lib/amd64/server
     let out_dir = env::var("OUT_DIR").unwrap();
     let ld_library_path = get_ld_library_path();
 
     // Set the build environment
     println!("cargo:rustc-env=LD_LIBRARY_PATH={}", ld_library_path);
     println!("cargo:rustc-link-search=native={}", ld_library_path);
-    // Generate a src file that will contain the setting of the LD_LIBRARY_PATH during runtime;
-    generate_src(&out_dir, &ld_library_path);
+
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java();
-    copy_jars_to_exec_directory(&out_dir);
-    let _ = initialize_env(&ld_library_path).expect("Initialize Environment");
+    let exec_dir = copy_jars_to_exec_directory(&out_dir);
+    initialize_env(&ld_library_path).expect("Initialize Environment");
+    generate_src(&out_dir, exec_dir);
 }
 
+// Finds and returns the directory that contains the libjvm library
 fn get_ld_library_path() -> String {
     // Find the JAVA_HOME
     let java_home = env::var("JAVA_HOME").unwrap_or("".to_owned());
@@ -35,7 +34,7 @@ fn get_ld_library_path() -> String {
         Please make sure that Java is installed (version 1.8 at least) and the JAVA_HOME environment is set.");
     }
 
-    let query = format!("{}/**/libjvm.so", java_home);
+    let query = format!("{}/**/libjvm.*", java_home);
 
     let paths_vec: Vec<String> = glob(&query).unwrap()
         .filter_map(Result::ok)
@@ -53,20 +52,30 @@ fn get_ld_library_path() -> String {
     paths_vec[0].clone()
 }
 
-fn generate_src(out_dir: &str, ld_library_path: &str) {
-    let dest_path = Path::new(&out_dir).join("j4rs_env.rs");
+fn generate_src(out_dir: &str, exec_dir: PathBuf) {
+    let dest_path = Path::new(&out_dir).join("j4rs_init.rs");
     let mut f = File::create(&dest_path).unwrap();
 
-    let contents = format!("
-use std::env;
+    let mut exec_dir_mut = exec_dir.clone();
+    exec_dir_mut.push("deps");
 
-pub fn _init_env() {{
-    env::set_var(\"LD_LIBRARY_PATH\", \"{}\");
+    let exec_dir_str = exec_dir.to_str().unwrap();
+    let deps_dir_str = exec_dir_mut.to_str().unwrap();
+
+    let contents = format!(
+        "fn _exec_dir() -> &'static str {{
+    \"{}\"
 }}
-", ld_library_path);
+
+fn _deps_dir() -> &'static str {{
+    \"{}\"
+}}
+", exec_dir_str, deps_dir_str);
+
     f.write_all(contents.as_bytes()).unwrap();
 }
 
+// Copies the jars from the `java` directory to the source directory of rust.
 fn copy_jars_from_java() {
     // If the java directory exists, copy the generated jars in the `jassets` directory
     if File::open("../java").is_ok() {
@@ -79,20 +88,23 @@ fn copy_jars_from_java() {
         let _ = fs::create_dir_all(jassets_path_buf.clone())
             .map_err(|error| panic!("Cannot create dir '{:?}': {:?}", jassets_path_buf, error));
 
-        let jar_source_path = "../java/target/j4rs-0.1.0.jar";
+        let jar_source_path = "../java/target/j4rs-0.1.1.jar";
         let lib_source_path = "../java/target/lib";
         let ref options = fs_extra::dir::CopyOptions::new();
         let _ = fs_extra::copy_items(vec![lib_source_path, jar_source_path].as_ref(), jassets_path, options);
     }
 }
 
-fn copy_jars_to_exec_directory(out_dir: &str) {
-    let jassets_output_dir = format!("{}{}..{}..{}..{}",
-                                     out_dir,
-                                     path::MAIN_SEPARATOR,
-                                     path::MAIN_SEPARATOR,
-                                     path::MAIN_SEPARATOR,
-                                     path::MAIN_SEPARATOR);
+// Copies the jars to and returns the PathBuf of the exec directory.
+fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
+    let mut exec_dir_path_buf = PathBuf::from(out_dir);
+    exec_dir_path_buf.pop();
+    exec_dir_path_buf.pop();
+    exec_dir_path_buf.pop();
+
+    let jassets_output = exec_dir_path_buf.clone();
+    let jassets_output_dir = jassets_output.to_str().unwrap();
+
 
     let home = env::var("CARGO_MANIFEST_DIR").unwrap();
     let jassets_path_buf = Path::new(&home).join("jassets");
@@ -100,8 +112,12 @@ fn copy_jars_to_exec_directory(out_dir: &str) {
 
     let ref options = fs_extra::dir::CopyOptions::new();
     let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options);
+    exec_dir_path_buf
 }
 
+// Appends the jni lib directory in the case that it is not contained in the LD_LIBRARY_PATH.
+// Appends the entry in the .profile.
+// TODO: Handle Windows case
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let home_buf = env::home_dir().unwrap();
     let home = home_buf.to_str().unwrap_or("");

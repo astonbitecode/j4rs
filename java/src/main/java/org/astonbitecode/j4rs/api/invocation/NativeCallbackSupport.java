@@ -28,12 +28,10 @@ public class NativeCallbackSupport {
 
     private Optional<FunctionPointer> functionPointerOpt = Optional.empty();
 
-    static {
-        try {
-            String libpath = System.getProperty("java.library.path");
-            System.loadLibrary("j4rs");
-        } catch (UnsatisfiedLinkError e) {
-        }
+    static void initialize(String libname) throws UnsatisfiedLinkError {
+        String libpath = System.getProperty("java.library.path");
+        System.out.println("Loading native library " + libname + " from path " + libpath);
+        System.loadLibrary(libname);
     }
 
     /**
@@ -42,7 +40,7 @@ public class NativeCallbackSupport {
      * @param obj The {@link Object} to pass in the callback.
      */
     protected void doCallback(Object obj) {
-        if (functionPointerOpt.isPresent()) {
+        if (functionPointerOpt.isPresent() && obj != null) {
             docallback(functionPointerOpt.get().getAddress(), new JsonInvocationImpl(obj, obj.getClass()));
         } else {
             throw new InvocationException("Cannot do callback. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackSupport)");

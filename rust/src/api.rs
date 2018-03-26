@@ -41,6 +41,7 @@ use jni_sys::{
 use libc::c_char;
 use ::errors;
 use std::ptr;
+use std::fs;
 use std::os::raw::c_void;
 use ::utils;
 use serde::Serialize;
@@ -232,7 +233,7 @@ impl Jvm {
                         (exclear)(jni_environment);
                         Err(errors::J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_owned()))
                     } else {
-                        Ok(Jvm {
+                        let jvm = Jvm {
 //                            _jvm: jvm,
                             jni_env: jni_environment,
 //                            _jni_find_class: fc,
@@ -254,7 +255,38 @@ impl Jvm {
                             factory_create_for_static_method: factory_create_for_static_method,
                             native_invocation_class: native_invocation_class,
                             invocation_arg_class: invocation_arg_class,
-                        })
+                        };
+                        // Pass to the Java world the name of the j4rs library.
+                        let found_libs: Vec<String> = fs::read_dir(super::_deps_dir())?
+                            .filter(|entry| {
+                                entry.is_ok()
+                            })
+                            .filter(|entry| {
+                                let entry = entry.as_ref().unwrap();
+                                let file_name = entry.file_name();
+                                let file_name = file_name.to_str().unwrap();
+                                file_name.contains("j4rs") && file_name.contains(".rlib")
+                            })
+                            .map(|entry| entry.
+                                unwrap().
+                                file_name().
+                                to_str().
+                                unwrap().
+                                to_owned())
+                            .collect();
+
+                        if found_libs.len() > 0 {
+                            let a_lib = found_libs[0].clone().replace("lib", "");
+                            let dot_splitted: Vec<&str> = a_lib.split(".").collect();
+                            jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport",
+                                              "initialize",
+                                              &vec![InvocationArg::from(dot_splitted[0])])?;
+
+                            Ok(jvm)
+                        } else {
+                            Err(errors::J4RsError::GeneralError(
+                                format!("Could not find the j4rs lib in {}", super::_deps_dir())))
+                        }
                     }
                 }
                 (_, _, _, _, _, _, _, _, _, _, _, _, _) => {
@@ -1066,7 +1098,7 @@ mod api_unit_tests {
     fn new_invocation_arg() {
         let _ = InvocationArg::new("something", "somethingelse");
 
-        let gr = GuiResponse::ProvidedPassword {password: "passs".to_string(), number: 1};
+        let gr = GuiResponse::ProvidedPassword { password: "passs".to_string(), number: 1 };
         let json = serde_json::to_string(&gr).unwrap();
         println!("{:?}", json);
         let res: Result<GuiResponse, _> = serde_json::from_str(&json);
@@ -1075,7 +1107,7 @@ mod api_unit_tests {
 
     #[derive(Serialize, Deserialize, Debug)]
     enum GuiResponse {
-        ProvidedPassword {password: String, number: usize}
+        ProvidedPassword { password: String, number: usize }
     }
 
     #[test]
