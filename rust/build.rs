@@ -78,7 +78,7 @@ fn _deps_dir() -> &'static str {{
 // Copies the jars from the `java` directory to the source directory of rust.
 fn copy_jars_from_java() {
     // If the java directory exists, copy the generated jars in the `jassets` directory
-    if File::open("../java").is_ok() {
+    if File::open("../java/target/j4rs-0.1.1.jar").is_ok() {
         let home = env::var("CARGO_MANIFEST_DIR").unwrap();
         let jassets_path_buf = Path::new(&home).join("jassets");
         let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
