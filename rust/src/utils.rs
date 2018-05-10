@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use libc::c_char;
-use std::ffi::{CStr, CString};
-use std::{mem, str};
+use std::ffi::{CStr, CString, OsStr};
+use std::{mem, str, self};
+use ::errors;
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -38,4 +39,20 @@ pub fn classpath_sep() -> &'static str {
 #[cfg(target_os = "windows")]
 pub fn classpath_sep() -> &'static str {
     ";"
+}
+
+pub fn java_library_path() -> errors::Result<String> {
+    let mut deps_fallback = std::env::current_exe()?;
+    deps_fallback.pop();
+
+    if deps_fallback.file_name() == Some(OsStr::new("deps")) {
+        deps_fallback.pop();
+    }
+
+    deps_fallback.push("deps");
+
+    Ok(format!("-Djava.library.path={}",
+               deps_fallback
+                   .to_str()
+                   .unwrap_or("./deps/")))
 }
