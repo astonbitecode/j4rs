@@ -73,7 +73,15 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
             });
     println!("Setting classpath to {}", classpath);
 
-    let default_library_path = format!("-Djava.library.path={}", _deps_dir());
+    let mut deps_fallback = std::env::current_exe()?;
+    deps_fallback.pop();
+    deps_fallback.push("deps");
+    let default_library_path = format!("-Djava.library.path={}{}{}",
+                                       _deps_dir(),
+                                       utils::classpath_sep(),
+                                       deps_fallback
+                                           .to_str()
+                                           .unwrap_or("./deps/"));
     println!("Setting library path to {}", default_library_path);
 
     // Populate the JVM Options
