@@ -265,7 +265,7 @@ impl Jvm {
                                 let entry = entry.as_ref().unwrap();
                                 let file_name = entry.file_name();
                                 let file_name = file_name.to_str().unwrap();
-                                file_name.contains("j4rs") && file_name.contains(".rlib")
+                                file_name.contains("j4rs") && file_name.contains(".so")
                             })
                             .map(|entry| entry.
                                 unwrap().
