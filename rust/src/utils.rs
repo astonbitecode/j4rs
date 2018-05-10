@@ -42,6 +42,10 @@ pub fn classpath_sep() -> &'static str {
 }
 
 pub fn java_library_path() -> errors::Result<String> {
+    Ok(format!("-Djava.library.path={}", deps_dir()?))
+}
+
+pub fn deps_dir() -> errors::Result<String> {
     let mut deps_fallback = std::env::current_exe()?;
     deps_fallback.pop();
 
@@ -51,8 +55,7 @@ pub fn java_library_path() -> errors::Result<String> {
 
     deps_fallback.push("deps");
 
-    Ok(format!("-Djava.library.path={}",
-               deps_fallback
-                   .to_str()
-                   .unwrap_or("./deps/")))
+    Ok(deps_fallback
+        .to_str()
+        .unwrap_or("./deps/").to_owned())
 }

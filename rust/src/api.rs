@@ -257,7 +257,7 @@ impl Jvm {
                             invocation_arg_class: invocation_arg_class,
                         };
                         // Pass to the Java world the name of the j4rs library.
-                        let found_libs: Vec<String> = fs::read_dir(super::_deps_dir())?
+                        let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
                             .filter(|entry| {
                                 entry.is_ok()
                             })
@@ -285,7 +285,7 @@ impl Jvm {
                             Ok(jvm)
                         } else {
                             Err(errors::J4RsError::GeneralError(
-                                format!("Could not find the j4rs lib in {}", super::_deps_dir())))
+                                format!("Could not find the j4rs lib in {}", utils::deps_dir()?)))
                         }
                     }
                 }
