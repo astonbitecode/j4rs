@@ -165,7 +165,38 @@ impl Jvm {
 
             Err(errors::J4RsError::JavaError(format!("Could not create the JVM: {}", error_message).to_string()))
         } else {
-            Self::try_from(jni_environment)
+            let jvm = Self::try_from(jni_environment)?;
+            // Pass to the Java world the name of the j4rs library.
+            let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
+                .filter(|entry| {
+                    entry.is_ok()
+                })
+                .filter(|entry| {
+                    let entry = entry.as_ref().unwrap();
+                    let file_name = entry.file_name();
+                    let file_name = file_name.to_str().unwrap();
+                    file_name.contains("j4rs") && file_name.contains(".so")
+                })
+                .map(|entry| entry.
+                    unwrap().
+                    file_name().
+                    to_str().
+                    unwrap().
+                    to_owned())
+                .collect();
+
+            if found_libs.len() > 0 {
+                let a_lib = found_libs[0].clone().replace("lib", "");
+                let dot_splitted: Vec<&str> = a_lib.split(".").collect();
+                jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport",
+                                  "initialize",
+                                  &vec![InvocationArg::from(dot_splitted[0])])?;
+
+                Ok(jvm)
+            } else {
+                Err(errors::J4RsError::GeneralError(
+                    format!("Could not find the j4rs lib in {}", utils::deps_dir()?)))
+            }
         }
     }
 
@@ -256,37 +287,7 @@ impl Jvm {
                             native_invocation_class: native_invocation_class,
                             invocation_arg_class: invocation_arg_class,
                         };
-                        // Pass to the Java world the name of the j4rs library.
-                        let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
-                            .filter(|entry| {
-                                entry.is_ok()
-                            })
-                            .filter(|entry| {
-                                let entry = entry.as_ref().unwrap();
-                                let file_name = entry.file_name();
-                                let file_name = file_name.to_str().unwrap();
-                                file_name.contains("j4rs") && file_name.contains(".so")
-                            })
-                            .map(|entry| entry.
-                                unwrap().
-                                file_name().
-                                to_str().
-                                unwrap().
-                                to_owned())
-                            .collect();
-
-                        if found_libs.len() > 0 {
-                            let a_lib = found_libs[0].clone().replace("lib", "");
-                            let dot_splitted: Vec<&str> = a_lib.split(".").collect();
-                            jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport",
-                                              "initialize",
-                                              &vec![InvocationArg::from(dot_splitted[0])])?;
-
-                            Ok(jvm)
-                        } else {
-                            Err(errors::J4RsError::GeneralError(
-                                format!("Could not find the j4rs lib in {}", utils::deps_dir()?)))
-                        }
+                        Ok(jvm)
                     }
                 }
                 (_, _, _, _, _, _, _, _, _, _, _, _, _) => {
