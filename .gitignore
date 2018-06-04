@@ -2,6 +2,6 @@
 **/target/
 **/*.rs.bk
 **/.idea/
-*.iml
+**/*.iml
 **/Cargo.lock
 **/settings/

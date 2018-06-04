@@ -58,7 +58,6 @@ public class MyTest extends NativeCallbackSupport {
                             return a + "\n" + b;
                         }
                 );
-        System.out.println("+++++++++++++" + str);
     }
 
     public void aMethod() {
@@ -66,7 +65,7 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public static void StaticMethod() {
-        System.out.println("MIKO");
+        System.out.println("Static");
     }
 
     public void performCallback() {
