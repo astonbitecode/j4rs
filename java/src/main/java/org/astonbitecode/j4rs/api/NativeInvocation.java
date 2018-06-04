@@ -51,6 +51,7 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     /**
      * Casts a the object that is contained in a NativeInvocation to an object of class clazz.
      *
+     * @param <T>     Generically defined return type
      * @param from    The {@link NativeInvocation} to cast.
      * @param toClass The class that the provided {@link NativeInvocation} should be casted to
      * @return A {@link NativeInvocation} instance containing the result of the cast.

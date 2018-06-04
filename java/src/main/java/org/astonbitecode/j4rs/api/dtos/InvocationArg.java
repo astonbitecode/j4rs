@@ -60,6 +60,8 @@ public class InvocationArg {
      * If java, the argument is taken straight by the Java code as Object. If
      * rust, the argument is a json document that need to be deserialized to an
      * Object.
+     *
+     * @return The The argFrom
      */
     public String getArgFrom() {
         return argFrom;
@@ -67,6 +69,8 @@ public class InvocationArg {
 
     /**
      * The type of this argument. This is used when json objects come from Rust, in order to be mapped to proper Java Objects.
+     *
+     * @return The classname
      */
     public String getClassName() {
         return className;
