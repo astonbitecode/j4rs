@@ -5,6 +5,7 @@ use glob::glob;
 use std::{env, fs};
 use std::error::Error;
 use std::fmt;
+#[allow(unused_imports)]
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
@@ -118,6 +119,7 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
 // Appends the jni lib directory in the case that it is not contained in the LD_LIBRARY_PATH.
 // Appends the entry in the .profile.
 // TODO: Handle Windows case
+#[cfg(target_os = "linux")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let home_buf = env::home_dir().unwrap();
     let home = home_buf.to_str().unwrap_or("");
@@ -138,7 +140,16 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
             }
         };
         println!("cargo:warning=The contents of $HOME/.profile changed, by adding the libjni location in the LD_LIBRARY_PATH env variable.\
-         This is done becaust the jni shared library is needed by j4rs. In order to use j4rs in this session, please source the $HOME/.profile, or log out and log in.");
+         This is done because the jni shared library is needed by j4rs. In order to use j4rs in this session, please source the $HOME/.profile, or log out and log in.");
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
+    let existing = env::var("LD_LIBRARY_PATH")?;
+    if !existing.contains(ld_library_path) {
+        println!("cargo:warning=Please add the libjni location in the LD_LIBRARY_PATH env variable.");
     }
     Ok(())
 }
