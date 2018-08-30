@@ -31,7 +31,7 @@ fn get_ld_library_path() -> String {
     // Find the JAVA_HOME
     let java_home = env::var("JAVA_HOME").unwrap_or("".to_owned());
     if java_home.is_empty() {
-        println!("cargo:warning=JAVA_HOME is not set. j4rs cannot work without it... \
+        panic!("JAVA_HOME is not set. j4rs cannot work without it... \
         Please make sure that Java is installed (version 1.8 at least) and the JAVA_HOME environment is set.");
     }
 
@@ -47,7 +47,7 @@ fn get_ld_library_path() -> String {
         .collect();
 
     if paths_vec.is_empty() {
-        println!("cargo:warning=Could not find the libjvm.so in any subdirectory of {}. Please make sure that the JAVA_HOME variable is set correctly.", java_home);
+        println!("cargo:warning=Could not find the libjvm.so in any subdirectory of {}. Please make sure that the JAVA_HOME is set correctly.", java_home);
     }
 
     paths_vec[0].clone()
