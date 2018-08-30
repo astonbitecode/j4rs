@@ -47,7 +47,7 @@ fn get_ld_library_path() -> String {
         .collect();
 
     if paths_vec.is_empty() {
-        println!("cargo:warning=Could not find the libjvm.so in any subdirectory of {}. Please make sure that the JAVA_HOME is set correctly.", java_home);
+        panic!("Could not find the libjvm.so in any subdirectory of {}", java_home);
     }
 
     paths_vec[0].clone()

@@ -11,15 +11,15 @@ matrix:
   include:
 
     # Linux
-    - env: TARGET=arm-unknown-linux-gnueabi DISABLE_TESTS=1
-    - env: TARGET=armv7-unknown-linux-gnueabihf DISABLE_TESTS=1
-    - env: TARGET=i686-unknown-linux-gnu DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-linux-gnu DISABLE_TESTS=1
+    - env: TARGET=arm-unknown-linux-gnueabi
+    - env: TARGET=armv7-unknown-linux-gnueabihf
+    - env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-gnu
 
     # OSX
-    - env: TARGET=i686-apple-darwin DISABLE_TESTS=1
+    - env: TARGET=i686-apple-darwin
       os: osx
-    - env: TARGET=x86_64-apple-darwin DISABLE_TESTS=1
+    - env: TARGET=x86_64-apple-darwin
       os: osx
 
     # *BSD
@@ -27,12 +27,12 @@ matrix:
     - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
 
     # Windows
-    - env: TARGET=x86_64-pc-windows-gnu DISABLE_TESTS=1
+    - env: TARGET=x86_64-pc-windows-gnu
 
     # Testing other channels
-    - env: TARGET=x86_64-unknown-linux-gnu DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-linux-gnu
       rust: nightly
-    - env: TARGET=x86_64-apple-darwin DISABLE_TESTS=1
+    - env: TARGET=x86_64-apple-darwin
       os: osx
       rust: nightly
 
