@@ -12,24 +12,22 @@ use std::path::{Path, PathBuf};
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
-    let ld_library_path_opt = get_ld_library_path();
+    let ld_library_path = get_ld_library_path();
 
     // Set the build environment
-    if let Some(ld_library_path) = ld_library_path_opt {
-        println!("cargo:rustc-env=LD_LIBRARY_PATH={}", ld_library_path);
-        println!("cargo:rustc-link-search=native={}", ld_library_path);
-        initialize_env(&ld_library_path).expect("Initialize Environment");
-    }
+    println!("cargo:rustc-env=LD_LIBRARY_PATH={}", ld_library_path);
+    println!("cargo:rustc-link-search=native={}", ld_library_path);
 
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java();
     let exec_dir = copy_jars_to_exec_directory(&out_dir);
+    initialize_env(&ld_library_path).expect("Initialize Environment");
     generate_src(&out_dir, exec_dir);
 }
 
 // Finds and returns the directory that contains the libjvm library
-fn get_ld_library_path() -> Option<String> {
+fn get_ld_library_path() -> String {
     // Find the JAVA_HOME
     let java_home = env::var("JAVA_HOME").unwrap_or("".to_owned());
     if java_home.is_empty() {
@@ -50,11 +48,9 @@ fn get_ld_library_path() -> Option<String> {
 
     if paths_vec.is_empty() {
         println!("cargo:warning=Could not find the libjvm.so in any subdirectory of {}. Please make sure that the JAVA_HOME variable is set correctly.", java_home);
-        None
-    } else {
-        Some(paths_vec[0].clone())
     }
 
+    paths_vec[0].clone()
 }
 
 fn generate_src(out_dir: &str, exec_dir: PathBuf) {
