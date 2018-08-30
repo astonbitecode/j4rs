@@ -31,7 +31,7 @@ pub fn to_java_string(string: &str) -> *const c_char {
     ptr
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 pub fn classpath_sep() -> &'static str {
     ":"
 }
