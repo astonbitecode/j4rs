@@ -54,8 +54,7 @@ install:
 
 script:
   - mvn -f java/pom.xml clean install
-  #- cargo build --manifest-path=rust/Cargo.toml
-  - echo $JAVA_HOME
+  - cargo build --manifest-path=rust/Cargo.toml
   - cd rust
   - bash ../ci/script.sh
 
