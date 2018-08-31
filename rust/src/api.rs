@@ -175,7 +175,10 @@ impl Jvm {
                     let entry = entry.as_ref().unwrap();
                     let file_name = entry.file_name();
                     let file_name = file_name.to_str().unwrap();
-                    file_name.contains("j4rs") && file_name.contains(".so")
+                    file_name.contains("j4rs") && (
+                        file_name.contains(".so") ||
+                            file_name.contains(".dll") ||
+                            file_name.contains(".dylib"))
                 })
                 .map(|entry| entry.
                     unwrap().
@@ -675,7 +678,7 @@ pub enum InvocationArg {
 impl InvocationArg {
     /// Creates a InvocationArg::Rust.
     /// This is default for the Args that are created from the Rust code.
-    pub fn new<T: ? Sized>(arg: &T, class_name: &str) -> InvocationArg
+    pub fn new<T: ?Sized>(arg: &T, class_name: &str) -> InvocationArg
         where T: Serialize
     {
         let json = serde_json::to_string(arg).unwrap();
