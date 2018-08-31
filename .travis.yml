@@ -8,6 +8,13 @@ os:
 rust:
   - stable
 
+matrix:
+  include:
+    - os: osx
+      osx_image: xcode9.4
+    - os: linux
+      jdk: openjdk8
+
 before_install:
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
   - source ~/.cargo/env
