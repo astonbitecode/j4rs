@@ -7,13 +7,12 @@ os:
 
 rust:
   - stable
-jdk:
-  - oraclejdk8
 
 before_install:
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
   - source ~/.cargo/env
 
 script:
+  - echo $JAVA_HOME
   - mvn -f java/pom.xml clean install
   - cargo build --manifest-path=rust/Cargo.toml
