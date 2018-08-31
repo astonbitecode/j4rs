@@ -5,6 +5,8 @@ rust:
   - stable
 
 matrix:
+  allow_failures:
+    - os: osx
   include:
     - os: osx
       osx_image: xcode9.4
