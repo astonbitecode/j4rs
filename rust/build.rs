@@ -147,7 +147,7 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
 
 #[cfg(not(target_os = "linux"))]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
-    let existing = env::var("LD_LIBRARY_PATH")?;
+    let existing = env::var("LD_LIBRARY_PATH").unwrap_or("".to_owned());
     if !existing.contains(ld_library_path) {
         println!("cargo:warning=Please add the libjni location in the LD_LIBRARY_PATH env variable.");
     }
