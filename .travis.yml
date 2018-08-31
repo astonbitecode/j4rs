@@ -1,16 +1,14 @@
 dist: trusty
 language: java
-
 services: docker
+os:
+- linux
+- osx
 
 rust:
   - stable
 jdk:
   - oraclejdk8
-addons:
-  apt:
-    packages:
-      - oracle-java8-installer
 
 before_install:
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
