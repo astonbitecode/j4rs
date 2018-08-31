@@ -47,22 +47,22 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
     let mut default_classpath_entry = std::env::current_exe()?;
     default_classpath_entry.pop();
     default_classpath_entry.push("jassets");
-    default_classpath_entry.push("j4rs-0.1.3.jar");
+    default_classpath_entry.push("j4rs-0.1.4.jar");
     // Create a default classpath entry for the tests
     let mut tests_classpath_entry = std::env::current_exe()?;
     tests_classpath_entry.pop();
     tests_classpath_entry.pop();
     tests_classpath_entry.push("jassets");
-    tests_classpath_entry.push("j4rs-0.1.3.jar");
+    tests_classpath_entry.push("j4rs-0.1.4.jar");
 
     let default_class_path = format!("-Djava.class.path={}{}{}",
                                      default_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.1.3.jar"),
+                                         .unwrap_or("./jassets/j4rs-0.1.4.jar"),
                                      utils::classpath_sep(),
                                      tests_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.1.3.jar"));
+                                         .unwrap_or("./jassets/j4rs-0.1.4.jar"));
 
     let classpath = classpath_entries
         .iter()
