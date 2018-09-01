@@ -89,10 +89,13 @@ fn copy_jars_from_java() {
         let _ = fs::create_dir_all(jassets_path_buf.clone())
             .map_err(|error| panic!("Cannot create dir '{:?}': {:?}", jassets_path_buf, error));
 
+        let full_jar_source_path = "../java/target/j4rs-0.1.4-jar-with-dependencies.jar";
         let jar_source_path = "../java/target/j4rs-0.1.4.jar";
         let lib_source_path = "../java/target/lib";
         let ref options = fs_extra::dir::CopyOptions::new();
-        let _ = fs_extra::copy_items(vec![lib_source_path, jar_source_path].as_ref(), jassets_path, options);
+        let _ = fs_extra::copy_items(vec![
+            lib_source_path, full_jar_source_path, jar_source_path
+        ].as_ref(), jassets_path, options);
     }
 }
 
