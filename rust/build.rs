@@ -79,7 +79,7 @@ fn _deps_dir() -> &'static str {{
 // Copies the jars from the `java` directory to the source directory of rust.
 fn copy_jars_from_java() {
     // If the java directory exists, copy the generated jars in the `jassets` directory
-    if File::open("../java/target/j4rs-0.1.4.jar").is_ok() {
+    if File::open("../java/target/j4rs-0.1.4-jar-with-dependencies.jar").is_ok() {
         let home = env::var("CARGO_MANIFEST_DIR").unwrap();
         let jassets_path_buf = Path::new(&home).join("jassets");
         let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
@@ -89,13 +89,9 @@ fn copy_jars_from_java() {
         let _ = fs::create_dir_all(jassets_path_buf.clone())
             .map_err(|error| panic!("Cannot create dir '{:?}': {:?}", jassets_path_buf, error));
 
-        let full_jar_source_path = "../java/target/j4rs-0.1.4-jar-with-dependencies.jar";
-        let jar_source_path = "../java/target/j4rs-0.1.4.jar";
-        let lib_source_path = "../java/target/lib";
+        let jar_source_path = "../java/target/j4rs-0.1.4-jar-with-dependencies.jar";
         let ref options = fs_extra::dir::CopyOptions::new();
-        let _ = fs_extra::copy_items(vec![
-            lib_source_path, full_jar_source_path, jar_source_path
-        ].as_ref(), jassets_path, options);
+        let _ = fs_extra::copy_items(vec![jar_source_path].as_ref(), jassets_path, options);
     }
 }
 

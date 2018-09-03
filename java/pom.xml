@@ -58,6 +58,7 @@
         <maven.gpg.plugin.version>1.6</maven.gpg.plugin.version>
         <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
         <maven.javadoc.plugin.version>2.10.4</maven.javadoc.plugin.version>
+        <maven.assembly.plugin.version>3.1.0</maven.assembly.plugin.version>
         <logback.version>1.2.2</logback.version>
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
         <jackson.version>2.9.0.pr3</jackson.version>
@@ -127,40 +128,31 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven.jar.plugin.version}</version>
                 <configuration>
                     <archive>
+                        <index>true</index>
                         <manifest>
-                            <addClasspath>true</addClasspath>
-                            <classpathLayoutType>custom</classpathLayoutType>
-                            <customClasspathLayout>
-                                lib/$${artifact.artifactId}-$${artifact.version}$${dashClassifier?}.$${artifact.extension}
-                            </customClasspathLayout>
+                            <addClasspath>false</addClasspath>
                         </manifest>
+                        <manifestEntries>
+                            <Built-By>astonbitecode</Built-By>
+                            <url>${project.url}</url>
+                        </manifestEntries>
                     </archive>
                 </configuration>
             </plugin>
             <plugin>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <configuration>
-                    <outputDirectory>${project.build.directory}/lib</outputDirectory>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>${maven.assembly.plugin.version}</version>
                 <configuration>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <archive>
+                        <manifestFile>src/main/resources/MANIFEST.MF</manifestFile>
+                    </archive>
                 </configuration>
                 <executions>
                     <execution>
