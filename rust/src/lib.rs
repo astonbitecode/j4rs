@@ -20,9 +20,12 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate lazy_static;
 
 mod api;
 mod utils;
+mod logger;
 
 pub mod errors;
 
@@ -36,6 +39,7 @@ pub use api::Callback as Callback;
 use jni_sys::{JNIEnv, jobject};
 use std::os::raw::{c_void, c_long};
 use std::mem;
+use logger::info;
 
 // TODO: Seems that this is not needed
 // Initialize the environment
@@ -47,22 +51,22 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
     let mut default_classpath_entry = std::env::current_exe()?;
     default_classpath_entry.pop();
     default_classpath_entry.push("jassets");
-    default_classpath_entry.push("j4rs-0.1.5-jar-with-dependencies.jar");
+    default_classpath_entry.push("j4rs-0.1.6-jar-with-dependencies.jar");
     // Create a default classpath entry for the tests
     let mut tests_classpath_entry = std::env::current_exe()?;
     tests_classpath_entry.pop();
     tests_classpath_entry.pop();
     tests_classpath_entry.push("jassets");
-    tests_classpath_entry.push("j4rs-0.1.5-jar-with-dependencies.jar");
+    tests_classpath_entry.push("j4rs-0.1.6-jar-with-dependencies.jar");
 
     let default_class_path = format!("-Djava.class.path={}{}{}",
                                      default_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.1.5-jar-with-dependencies.jar"),
+                                         .unwrap_or("./jassets/j4rs-0.1.6-jar-with-dependencies.jar"),
                                      utils::classpath_sep(),
                                      tests_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.1.5-jar-with-dependencies.jar"));
+                                         .unwrap_or("./jassets/j4rs-0.1.6-jar-with-dependencies.jar"));
 
     let classpath = classpath_entries
         .iter()
@@ -71,10 +75,10 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
             |all, elem| {
                 format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
             });
-    println!("Setting classpath to {}", classpath);
+    info(&format!("Setting classpath to {}", classpath));
 
     let default_library_path = utils::java_library_path()?;
-    println!("Setting library path to {}", default_library_path);
+    info(&format!("Setting library path to {}", default_library_path));
 
     // Populate the JVM Options
     let mut jvm_options = vec![classpath, default_library_path];
@@ -98,7 +102,6 @@ mod lib_unit_tests {
     use std::{thread, time};
 
     #[test]
-    #[ignore]
     fn create_instance_and_invoke() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
 
@@ -150,7 +153,6 @@ mod lib_unit_tests {
     }
 
     #[test]
-    #[ignore]
     fn cast() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], vec![]).unwrap();
 
@@ -160,7 +162,6 @@ mod lib_unit_tests {
     }
 
     #[test]
-    #[ignore]
     fn invoke_vec() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], vec![]).unwrap();
 

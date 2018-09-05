@@ -38,6 +38,7 @@ use jni_sys::{
     jsize,
     JNI_GetCreatedJavaVMs,
 };
+use super::logger::{debug, info};
 use libc::c_char;
 use ::errors;
 use std::ptr;
@@ -111,21 +112,19 @@ pub struct Jvm {
 impl Jvm {
     /// Creates a new Jvm. If a Jvm is already created by the current process, it returns the created Jvm.
     pub fn new(jvm_options: &[String]) -> errors::Result<Jvm> {
-        debug!("Attempting to create a new JVM");
+        info("Attempting to create a new JVM");
         let mut jvm: *mut JavaVM = ptr::null_mut();
         let mut jni_environment: *mut JNIEnv = ptr::null_mut();
 
         let created_vm = Jvm::get_created_vm();
 
         let result = if created_vm.is_some() {
-            debug!("A JVM is already created. Retrieving it...");
-            let (_j, e) = created_vm.unwrap();
-//            jvm = j;
-            jni_environment = e;
+            info("A JVM is already created. Retrieving it...");
+            jni_environment = created_vm.unwrap();
 
             JNI_OK
         } else {
-            debug!("No JVMs exist. Creating a new one...");
+            info("No JVMs exist. Creating a new one...");
             let mut jvm_options_vec: Vec<JavaVMOption> = jvm_options
                 .iter()
                 .map(|opt| {
@@ -268,9 +267,7 @@ impl Jvm {
                         Err(errors::J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_owned()))
                     } else {
                         let jvm = Jvm {
-//                            _jvm: jvm,
                             jni_env: jni_environment,
-//                            _jni_find_class: fc,
                             jni_get_method_id: gmid,
                             jni_get_static_method_id: gsmid,
                             jni_new_object: no,
@@ -302,7 +299,7 @@ impl Jvm {
 
     /// Creates an `Instance` of the class `class_name`, passing an array of `InvocationArg`s to construct the instance.
     pub fn create_instance(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
-        debug!("Instantiating class {} using {} arguments", class_name, inv_args.len());
+        debug(&format!("Instantiating class {} using {} arguments", class_name, inv_args.len()));
         unsafe {
             // The factory instance
             let factory_instance = (self.jni_new_object)(
@@ -352,7 +349,7 @@ impl Jvm {
 
     /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
     pub fn invoke(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
-        debug!("Invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len());
+        debug(&format!("Invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
         unsafe {
             let invoke_method_signature = format!(
                 "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
@@ -409,7 +406,7 @@ impl Jvm {
     /// Invokes asynchronously the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
     /// It returns void and the `Instance` of the result of the async invocation will come in the defined callback.
     pub fn invoke_async(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg], callback: super::Callback) -> errors::Result<()> {
-        debug!("Asynchronously invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len());
+        debug(&format!("Asynchronously invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
         unsafe {
             let invoke_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
             // Get the method ID for the `NativeInvocation.invokeAsync`
@@ -466,7 +463,7 @@ impl Jvm {
 
     /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
     pub fn invoke_static(&self, class_name: &str, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
-        debug!("Invoking static method {} of class {} using {} arguments", method_name, class_name, inv_args.len());
+        debug(&format!("Invoking static method {} of class {} using {} arguments", method_name, class_name, inv_args.len()));
         unsafe {
             // The factory instance
             let factory_instance = (self.jni_new_object)(
@@ -541,7 +538,7 @@ impl Jvm {
 
     /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
     pub fn cast(&self, from_instance: &Instance, to_class: &str) -> errors::Result<Instance> {
-        debug!("Casting to class {}", to_class);
+        debug(&format!("Casting to class {}", to_class));
         unsafe {
             // First argument is the jobject that is inside the from_instance
             // Second argument: create a jstring to pass as argument for the to_class
@@ -617,14 +614,14 @@ impl Jvm {
             if (self.jni_exception_check)(self.jni_env) == JNI_TRUE {
                 (self.jni_exception_describe)(self.jni_env);
                 (self.jni_exception_clear)(self.jni_env);
-                Err(errors::J4RsError::JavaError("An Exception was thrown by Java... Please check the logs.".to_owned()))
+                Err(errors::J4RsError::JavaError("An Exception was thrown by Java... Please check the logs or the console.".to_owned()))
             } else {
                 Ok(to_return)
             }
         }
     }
 
-    fn get_created_vm() -> Option<(*mut JavaVM, *mut JNIEnv)> {
+    fn get_created_vm() -> Option<*mut JNIEnv> {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
@@ -633,25 +630,31 @@ impl Jvm {
             if created_vms_size == 0 {
                 None
             } else {
-                debug!("Retrieving the first of {} created JVMs", created_vms_size);
+                info(&format!("Retrieving the first of {} created JVMs", created_vms_size));
                 // Get the created VM
                 let mut buffer: Vec<*mut JavaVM> = Vec::new();
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
 
-                JNI_GetCreatedJavaVMs(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
-
-                match (**buffer[0]).GetEnv {
-                    Some(getenv) => {
-                        let mut jvm: *mut JavaVM = ptr::null_mut();
-                        let mut jni_environment: *mut JNIEnv = ptr::null_mut();
-                        (getenv)(
-                            jvm,
-                            (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
-                            JNI_VERSION_1_8,
-                        );
-                        Some((jvm, jni_environment))
+                let retjint = JNI_GetCreatedJavaVMs(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
+                if retjint == JNI_OK {
+                    match (**buffer[0]).AttachCurrentThread {
+                        Some(act) => {
+                            let mut jni_environment: *mut JNIEnv = ptr::null_mut();
+                            (act)(
+                                buffer[0],
+                                (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
+                                ptr::null_mut(),
+                            );
+                            Some(jni_environment)
+                        }
+                        None => {
+                            println!("Cannot attach the thread to the JVM");
+                            None
+                        },
                     }
-                    None => None,
+                } else {
+                    println!("Error while retrieving the created JVMs: {}", retjint);
+                    None
                 }
             }
         }
@@ -705,12 +708,12 @@ impl InvocationArg {
             let (class_name, json) = match self {
                 _s @ &InvocationArg::Java { .. } => panic!("Called jobject_from_rust for an InvocationArg that is created by Java. Please consider opening a bug to the developers."),
                 &InvocationArg::Rust { ref class_name, ref json, .. } => {
-                    debug!("Creating jobject from Rust for class {}", class_name);
+                    debug(&format!("Creating jobject from Rust for class {}", class_name));
                     (class_name.to_owned(), json.to_owned())
                 }
             };
 
-            debug!("Calling the InvocationArg constructor with '{}' and '{}'", class_name, json);
+            debug(&format!("Calling the InvocationArg constructor with '{}' and '{}'", class_name, json));
             let inv_arg_instance = (jvm.jni_new_object)(
                 jvm.jni_env,
                 jvm.invocation_arg_class,
@@ -744,12 +747,12 @@ impl InvocationArg {
             let (class_name, jinstance) = match self {
                 _s @ &InvocationArg::Rust { .. } => panic!("Called jobject_from_java for an InvocationArg that is created by Rust. Please consider opening a bug to the developers."),
                 &InvocationArg::Java { ref class_name, ref instance, .. } => {
-                    debug!("Creating jobject from Java for class {}", class_name);
+                    debug(&format!("Creating jobject from Java for class {}", class_name));
                     (class_name.to_owned(), instance.jinstance)
                 }
             };
 
-            debug!("Calling the InvocationArg constructor with '{}'", class_name);
+            debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
 
             let inv_arg_instance = (jvm.jni_new_object)(
                 jvm.jni_env,
