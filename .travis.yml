@@ -13,14 +13,14 @@ matrix:
       script:
        - export JAVA_HOME=$(/usr/libexec/java_home)
        - mvn -f java/pom.xml clean install
-       - cargo build --manifest-path=rust/Cargo.toml
-#       - cargo test --manifest-path=rust/Cargo.toml
+       - RUST_TEST_THREADS=1 cargo build --manifest-path=rust/Cargo.toml
+#       - RUST_TEST_THREADS=1 cargo test --manifest-path=rust/Cargo.toml
     - os: linux
       jdk: openjdk8
       script:
        - mvn -f java/pom.xml clean install
-       - cargo build --manifest-path=rust/Cargo.toml
-       - cargo test --manifest-path=rust/Cargo.toml
+       - RUST_TEST_THREADS=1 cargo build --manifest-path=rust/Cargo.toml
+       - RUST_TEST_THREADS=1 cargo test --manifest-path=rust/Cargo.toml
 
 before_install:
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
