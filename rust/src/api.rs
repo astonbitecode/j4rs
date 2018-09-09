@@ -48,6 +48,7 @@ use ::utils;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json;
+use std::sync::Mutex;
 
 #[link(name = "jvm")]
 extern {}
@@ -76,6 +77,12 @@ const INST_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/api/instantiation/
 const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocation";
 const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
 const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
+
+lazy_static! {
+    // Synchronize the creation of Jvm
+    static ref MUTEX: Mutex<bool> = Mutex::new(false);
+}
+
 
 /// Holds the assets for the JVM
 #[derive(Clone)]
@@ -116,6 +123,7 @@ impl Jvm {
         let mut jvm: *mut JavaVM = ptr::null_mut();
         let mut jni_environment: *mut JNIEnv = ptr::null_mut();
 
+        let _g = MUTEX.lock().unwrap();
         let created_vm = Jvm::get_created_vm();
 
         let result = if created_vm.is_some() {

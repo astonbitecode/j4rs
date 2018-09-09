@@ -12,34 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_use]
-extern crate log;
 extern crate jni_sys;
-extern crate libc;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
+extern crate libc;
+#[macro_use]
+extern crate log;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+
+pub use api::Callback as Callback;
+pub use api::ClasspathEntry as ClasspathEntry;
+pub use api::Instance as Instance;
+pub use api::InvocationArg as InvocationArg;
+pub use api::JavaOpt as JavaOpt;
+pub use api::Jvm as Jvm;
+use jni_sys::{JNIEnv, jobject};
+use logger::info;
+use std::mem;
+use std::os::raw::{c_long, c_void};
 
 mod api;
 mod utils;
 mod logger;
 
 pub mod errors;
-
-pub use api::Jvm as Jvm;
-pub use api::InvocationArg as InvocationArg;
-pub use api::Instance as Instance;
-pub use api::ClasspathEntry as ClasspathEntry;
-pub use api::JavaOpt as JavaOpt;
-pub use api::Callback as Callback;
-
-use jni_sys::{JNIEnv, jobject};
-use std::os::raw::{c_void, c_long};
-use std::mem;
-use logger::info;
 
 // TODO: Seems that this is not needed
 // Initialize the environment
@@ -98,8 +97,9 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_d
 
 #[cfg(test)]
 mod lib_unit_tests {
-    use super::{Jvm, InvocationArg, ClasspathEntry, Instance};
     use std::{thread, time};
+    use std::thread::JoinHandle;
+    use super::{ClasspathEntry, Instance, InvocationArg, Jvm};
 
     #[test]
     fn create_instance_and_invoke() {
@@ -143,8 +143,8 @@ mod lib_unit_tests {
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
                 let _ = jvm.invoke_async(&i, "performCallback", Vec::new().as_ref(), my_callback);
-                let ten_millis = time::Duration::from_millis(1000);
-                thread::sleep(ten_millis);
+                let thousand_millis = time::Duration::from_millis(1000);
+                thread::sleep(thousand_millis);
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
@@ -176,71 +176,30 @@ mod lib_unit_tests {
         }
     }
 
+    #[test]
+    #[ignore]
+    fn multithread() {
+        let v: Vec<JoinHandle<String>> = (0..10)
+            .map(|i: i8| {
+                let v = thread::spawn(move || {
+                    let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+                    let instantiation_args = vec![InvocationArg::from(format!("Thread{}", i))];
+                    let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
+                    let string: String = jvm.to_rust(instance).unwrap();
+                    string
+                });
+                v
+            })
+            .collect();
+
+        for jh in v {
+            let str = jh.join();
+            println!("{}", str.unwrap());
+        }
+    }
+
     fn my_callback(jvm: Jvm, inst: Instance) {
         let string_from_java: String = jvm.to_rust(inst).unwrap();
         println!("Asynchronously got from Java: {}", string_from_java);
     }
-
-    /*
-        #[test]
-        fn dummy2() {
-            let bfn = Box::new("this is a noxed string".to_string());
-            println!("Original address: {:p}", &*bfn);
-            let p = &*bfn;
-            let address_string = format!("{:p}", p);
-            println!("Original address: {}", address_string);
-            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
-            println!("Dec address: {}", address);
-
-            unsafe {
-                let b = &*(address as *mut String);
-    //            let b = Box::from_raw(address as *mut String);
-
-                println!("{:?}", b);
-            }
-        }
-
-        #[test]
-        fn dummy3() {
-            fn foo() -> i32 {
-                println!("I'M IN");
-                0
-            }
-
-            println!("Original address: {:p}", foo as *const ());
-            let address_string = format!("{:p}", foo as *const ());
-            println!("Original address string: {}", address_string);
-            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
-
-            let pointer_from_address = address as *const ();
-            println!("Address: {:p}", pointer_from_address);
-            let function = unsafe {
-                mem::transmute::<*const (), fn() -> i32>(pointer_from_address)
-            };
-            assert_eq!(function(), 0);
-        }
-
-        #[test]
-        #[ignore]
-        fn dummy4() {
-            let foo = move |i: i32| {
-                println!("I'M IN");
-                i * 2
-            };
-
-            let boxed_foo = Box::new(foo);
-            let boxed_boxed_foo = Box::new(boxed_foo);
-
-            println!("Original address: {:p}", &boxed_boxed_foo);
-            let address_string = format!("{:p}", &boxed_boxed_foo);
-            println!("Original address string: {}", address_string);
-            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
-
-            let pointer_from_address = address as *const ();
-            println!("Address: {:p}", pointer_from_address);
-            let function = unsafe {
-                mem::transmute::<*const (), &FnOnce(i32) -> i32>(pointer_from_address)
-            };
-            (function)(3);
-        }*/
 }
