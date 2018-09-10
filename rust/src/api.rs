@@ -12,43 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use ::errors;
+use ::utils;
 use jni_sys::{
     self,
     JavaVM,
     JavaVMInitArgs,
     JavaVMOption,
+    jboolean,
+    jclass,
+    jmethodID,
     JNI_CreateJavaVM,
-    JNI_ERR,
     JNI_EDETACHED,
-    JNI_EVERSION,
-    JNI_ENOMEM,
     JNI_EEXIST,
     JNI_EINVAL,
+    JNI_ENOMEM,
+    JNI_ERR,
+    JNI_EVERSION,
     JNI_FALSE,
-    JNI_TRUE,
+    JNI_GetCreatedJavaVMs,
     JNI_OK,
+    JNI_TRUE,
     JNI_VERSION_1_8,
     JNIEnv,
     jobject,
     jobjectArray,
-    jstring,
-    jboolean,
-    jclass,
-    jmethodID,
     jsize,
-    JNI_GetCreatedJavaVMs,
+    jstring,
 };
-use super::logger::{debug, info};
 use libc::c_char;
-use ::errors;
-use std::ptr;
-use std::fs;
-use std::os::raw::c_void;
-use ::utils;
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use serde_json;
+use std::fs;
+use std::ops::Drop;
+use std::os::raw::c_void;
+use std::ptr;
 use std::sync::Mutex;
+use super::logger::{debug, error, info, warn};
 
 #[link(name = "jvm")]
 extern {}
@@ -656,16 +657,51 @@ impl Jvm {
                             Some(jni_environment)
                         }
                         None => {
-                            println!("Cannot attach the thread to the JVM");
+                            error("Cannot attach the thread to the JVM");
                             None
-                        },
+                        }
                     }
                 } else {
-                    println!("Error while retrieving the created JVMs: {}", retjint);
+                    error(&format!("Error while retrieving the created JVMs: {}", retjint));
                     None
                 }
             }
         }
+    }
+
+    fn detach_current_thread(&self) {
+        debug("Detaching thread from the VM");
+        unsafe {
+            // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
+            let mut created_vms_size: jsize = 0;
+            JNI_GetCreatedJavaVMs(ptr::null_mut(), 0, &mut created_vms_size);
+
+            if created_vms_size > 0 {
+                // Get the created VM
+                let mut buffer: Vec<*mut JavaVM> = Vec::new();
+                for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
+
+                let retjint = JNI_GetCreatedJavaVMs(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
+                if retjint == JNI_OK {
+                    match (**buffer[0]).DetachCurrentThread {
+                        Some(dct) => {
+                            (dct)(buffer[0]);
+                        }
+                        None => {
+                            warn("Cannot detach the thread from the JVM");
+                        }
+                    }
+                } else {
+                    warn(&format!("Error while retrieving the created JVMs: {}", retjint));
+                }
+            }
+        }
+    }
+}
+
+impl Drop for Jvm {
+    fn drop(&mut self) {
+        self.detach_current_thread();
     }
 }
 
@@ -1106,8 +1142,8 @@ impl<'a> ToString for JavaOpt<'a> {
 
 #[cfg(test)]
 mod api_unit_tests {
-    use super::InvocationArg;
     use serde_json;
+    use super::InvocationArg;
 
     #[test]
     fn new_invocation_arg() {

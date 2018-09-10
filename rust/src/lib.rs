@@ -177,7 +177,6 @@ mod lib_unit_tests {
     }
 
     #[test]
-    #[ignore]
     fn multithread() {
         let v: Vec<JoinHandle<String>> = (0..10)
             .map(|i: i8| {
@@ -196,6 +195,50 @@ mod lib_unit_tests {
             let str = jh.join();
             println!("{}", str.unwrap());
         }
+    }
+
+    #[test]
+    fn drop_and_attach_main_thread() {
+        let tid = format!("{:?}", thread::current().id());
+        {
+            let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+            let instantiation_args = vec![InvocationArg::from(tid.clone())];
+            let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
+            let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
+            assert!(&tid == tid_from_java);
+        }
+        {
+            let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+            let instantiation_args = vec![InvocationArg::from(tid.clone())];
+            let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
+            let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
+            assert!(&tid == tid_from_java);
+        }
+    }
+
+    #[test]
+    fn drop_and_attach_other_thread() {
+        let _: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let jh = thread::spawn(move || {
+            let tid = format!("{:?}", thread::current().id());
+            {
+                let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+                let instantiation_args = vec![InvocationArg::from(tid.clone())];
+                let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
+                let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
+                assert!(&tid == tid_from_java);
+            }
+            {
+                let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+                let instantiation_args = vec![InvocationArg::from(tid.clone())];
+                let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
+                let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
+                assert!(&tid == tid_from_java);
+            }
+            true
+        });
+
+        assert!(jh.join().unwrap());
     }
 
     fn my_callback(jvm: Jvm, inst: Instance) {
