@@ -9,7 +9,7 @@ matrix:
     - os: osx
   include:
     - os: osx
-      osx_image: xcode9.4
+      osx_image: xcode10
       script:
        - export JAVA_HOME=$(/usr/libexec/java_home)
        - mvn -f java/pom.xml clean install
