@@ -1,5 +1,6 @@
 extern crate fs_extra;
 extern crate glob;
+extern crate dirs;
 
 use glob::glob;
 use std::{env, fs};
@@ -120,7 +121,7 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
 // TODO: Handle Windows case
 #[cfg(target_os = "linux")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
-    let home_buf = env::home_dir().unwrap();
+    let home_buf = dirs::home_dir().unwrap();
     let home = home_buf.to_str().unwrap_or("");
     let existing = env::var("LD_LIBRARY_PATH")?;
     if !existing.contains(ld_library_path) {

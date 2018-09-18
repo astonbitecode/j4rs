@@ -30,3 +30,4 @@ lazy_static = "1.1"
 [build-dependencies]
 fs_extra = "1.1.0"
 glob = "0.2"
+dirs = "1.0"
