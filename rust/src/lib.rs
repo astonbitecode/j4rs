@@ -152,7 +152,6 @@ mod lib_unit_tests {
     }
 
     #[test]
-    #[ignore]
     fn callback() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
 
