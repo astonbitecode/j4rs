@@ -44,11 +44,13 @@ use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
-use std::fs;
+use std::{fs, mem};
 use std::ops::Drop;
 use std::os::raw::c_void;
 use std::ptr;
+use std::sync::mpsc::Sender;
 use std::sync::Mutex;
+use std::cell::RefCell;
 use super::logger::{debug, error, info, warn};
 
 #[link(name = "jvm")]
@@ -70,6 +72,9 @@ type JniSetObjectArrayElement = unsafe extern "system" fn(*mut *const jni_sys::J
 type JniExceptionCheck = unsafe extern "system" fn(_: *mut JNIEnv) -> jboolean;
 type JniExceptionDescribe = unsafe extern "system" fn(_: *mut JNIEnv);
 type JniExceptionClear = unsafe extern "system" fn(_: *mut JNIEnv);
+type JniDeleteLocalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
+type JniDeleteGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
+type JniNewGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> jobject;
 pub type Callback = fn(Jvm, Instance) -> ();
 
 const RUST: &'static str = "rust";
@@ -84,6 +89,51 @@ lazy_static! {
     static ref MUTEX: Mutex<bool> = Mutex::new(false);
 }
 
+thread_local! {
+    static JNI_ENV: RefCell<Option<*mut JNIEnv>> = RefCell::new(None);
+    static ACTIVE_JVMS: RefCell<i32> = RefCell::new(0);
+}
+
+fn add_active_jvm() {
+    ACTIVE_JVMS.with(|active_jvms| {
+        let active_number = {
+            *active_jvms.borrow() + 1
+        };
+        *active_jvms.borrow_mut() = active_number;
+    });
+}
+
+fn remove_active_jvm() -> i32 {
+    ACTIVE_JVMS.with(|active_jvms| {
+        let active_number = {
+            *active_jvms.borrow() - 1
+        };
+        *active_jvms.borrow_mut() = active_number;
+        active_number
+    })
+}
+
+fn set_thread_local_env(jni_env_opt: Option<*mut JNIEnv>) {
+    JNI_ENV.with(|existing_jni_env_opt| {
+        *existing_jni_env_opt.borrow_mut() = jni_env_opt;
+    });
+}
+
+fn get_thread_local_env_opt() -> Option<*mut JNIEnv> {
+    JNI_ENV.with(|existing_jni_env_opt| {
+        match *existing_jni_env_opt.borrow() {
+            Some(env) => Some(env.clone()),
+            None => None,
+        }
+    })
+}
+
+fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
+    match get_thread_local_env_opt() {
+        Some(env) => Ok(env.clone()),
+        None => Err(errors::J4RsError::JavaError(format!("Could not find the JNIEnv in the thread local"))),
+    }
+}
 
 /// Holds the assets for the JVM
 #[derive(Clone)]
@@ -103,6 +153,9 @@ pub struct Jvm {
     jni_exception_check: JniExceptionCheck,
     jni_exception_describe: JniExceptionDescribe,
     jni_exception_clear: JniExceptionClear,
+    jni_delete_local_ref: JniDeleteLocalRef,
+    jni_delete_global_ref: JniDeleteGlobalRef,
+    jni_new_global_ref: JniNewGlobalRef,
     /// This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`.
     factory_class: jclass,
     /// The constructor method of the `NativeInstantiationImpl`.
@@ -118,46 +171,68 @@ pub struct Jvm {
 }
 
 impl Jvm {
-    /// Creates a new Jvm. If a Jvm is already created by the current process, it returns the created Jvm.
+    /// Creates a new Jvm.
     pub fn new(jvm_options: &[String]) -> errors::Result<Jvm> {
-        info("Attempting to create a new JVM");
+        Self::create_jvm(jvm_options)
+    }
+
+    /// Attaches the current thread to an active JavaVM
+    pub fn attach_thread() -> errors::Result<Jvm> {
+        Self::create_jvm(&Vec::new())
+    }
+
+    /// Creates a new Jvm.
+    /// If a JavaVM is already created by the current process, it attempts to attach the current thread to it.
+    fn create_jvm(jvm_options: &[String]) -> errors::Result<Jvm> {
+        debug("Creating a Jvm");
         let mut jvm: *mut JavaVM = ptr::null_mut();
         let mut jni_environment: *mut JNIEnv = ptr::null_mut();
 
+        // Create the Jvm atomically
         let _g = MUTEX.lock().unwrap();
-        let created_vm = Jvm::get_created_vm();
 
-        let result = if created_vm.is_some() {
-            info("A JVM is already created. Retrieving it...");
-            jni_environment = created_vm.unwrap();
+        let result = if let Some(env) = get_thread_local_env_opt() {
+            info("A JVM is already created for this thread. Retrieving it...");
+            jni_environment = env;
 
             JNI_OK
         } else {
-            info("No JVMs exist. Creating a new one...");
-            let mut jvm_options_vec: Vec<JavaVMOption> = jvm_options
-                .iter()
-                .map(|opt| {
-                    JavaVMOption {
-                        optionString: utils::to_java_string(opt) as *mut i8,
-                        extraInfo: ptr::null_mut() as *mut c_void,
-                    }
-                })
-                .collect();
+            let created_vm = Self::get_created_vm();
 
-            let mut jvm_arguments = JavaVMInitArgs {
-                version: JNI_VERSION_1_8,
-                nOptions: jvm_options.len() as i32,
-                options: jvm_options_vec.as_mut_ptr(),
-                ignoreUnrecognized: JNI_FALSE,
+            let res_int = if created_vm.is_some() {
+                debug("A JVM is already created by another thread. Retrieving it...");
+                jni_environment = created_vm.unwrap();
+
+                JNI_OK
+            } else {
+                info("No JVMs exist. Creating a new one...");
+                let mut jvm_options_vec: Vec<JavaVMOption> = jvm_options
+                    .iter()
+                    .map(|opt| {
+                        JavaVMOption {
+                            optionString: utils::to_java_string(opt) as *mut i8,
+                            extraInfo: ptr::null_mut() as *mut c_void,
+                        }
+                    })
+                    .collect();
+
+                let mut jvm_arguments = JavaVMInitArgs {
+                    version: JNI_VERSION_1_8,
+                    nOptions: jvm_options.len() as i32,
+                    options: jvm_options_vec.as_mut_ptr(),
+                    ignoreUnrecognized: JNI_FALSE,
+                };
+
+                unsafe {
+                    JNI_CreateJavaVM(
+                        &mut jvm,
+                        (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
+                        (&mut jvm_arguments as *mut JavaVMInitArgs) as *mut c_void,
+                    )
+                }
             };
 
-            unsafe {
-                JNI_CreateJavaVM(
-                    &mut jvm,
-                    (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
-                    (&mut jvm_arguments as *mut JavaVMInitArgs) as *mut c_void,
-                )
-            }
+            res_int
         };
 
         if result != JNI_OK {
@@ -198,6 +273,7 @@ impl Jvm {
 
             if found_libs.len() > 0 {
                 let a_lib = found_libs[0].clone().replace("lib", "");
+
                 let dot_splitted: Vec<&str> = a_lib.split(".").collect();
                 jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport",
                                   "initialize",
@@ -211,7 +287,7 @@ impl Jvm {
         }
     }
 
-    pub fn try_from(jni_environment: *mut JNIEnv) -> errors::Result<Jvm> {
+    fn try_from(jni_environment: *mut JNIEnv) -> errors::Result<Jvm> {
         unsafe {
             match ((**jni_environment).FindClass,
                    (**jni_environment).GetMethodID,
@@ -225,8 +301,11 @@ impl Jvm {
                    (**jni_environment).SetObjectArrayElement,
                    (**jni_environment).ExceptionCheck,
                    (**jni_environment).ExceptionDescribe,
-                   (**jni_environment).ExceptionClear) {
-                (Some(fc), Some(gmid), Some(gsmid), Some(no), Some(nsu), Some(gsuc), Some(com), Some(csom), Some(noa), Some(soae), Some(ec), Some(ed), Some(exclear)) => {
+                   (**jni_environment).ExceptionClear,
+                   (**jni_environment).DeleteLocalRef,
+                   (**jni_environment).DeleteGlobalRef,
+                   (**jni_environment).NewGlobalRef) {
+                (Some(fc), Some(gmid), Some(gsmid), Some(no), Some(nsu), Some(gsuc), Some(com), Some(csom), Some(noa), Some(soae), Some(ec), Some(ed), Some(exclear), Some(dlr), Some(dgr), Some(ngr)) => {
                     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`
                     let factory_class: jclass = (fc)(
                         jni_environment,
@@ -251,14 +330,14 @@ impl Jvm {
                         "(Ljava/lang/String;)L{};",
                         INVO_IFACE_NAME);
                     // The method id of the `instantiate` method of the `NativeInvocation`
-                    let factory_instantiate_method = (gmid)(
+                    let factory_instantiate_method = (gsmid)(
                         jni_environment,
                         factory_class,
                         utils::to_java_string("instantiate"),
                         utils::to_java_string(&instantiate_method_signature),
                     );
                     // The method id of the `createForStatic` method of the `NativeInvocation`
-                    let factory_create_for_static_method = (gmid)(
+                    let factory_create_for_static_method = (gsmid)(
                         jni_environment,
                         factory_class,
                         utils::to_java_string("createForStatic"),
@@ -273,7 +352,7 @@ impl Jvm {
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);
                         (exclear)(jni_environment);
-                        Err(errors::J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_owned()))
+                        Err(errors::J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_string()))
                     } else {
                         let jvm = Jvm {
                             jni_env: jni_environment,
@@ -289,6 +368,9 @@ impl Jvm {
                             jni_exception_check: ec,
                             jni_exception_describe: ed,
                             jni_exception_clear: exclear,
+                            jni_delete_local_ref: dlr,
+                            jni_delete_global_ref: dgr,
+                            jni_new_global_ref: ngr,
                             factory_class: factory_class,
                             factory_constructor_method: factory_constructor_method,
                             factory_instantiate_method: factory_instantiate_method,
@@ -296,10 +378,16 @@ impl Jvm {
                             native_invocation_class: native_invocation_class,
                             invocation_arg_class: invocation_arg_class,
                         };
+
+                        if get_thread_local_env_opt().is_none() {
+                            set_thread_local_env(Some(jni_environment));
+                        }
+                        add_active_jvm();
+
                         Ok(jvm)
                     }
                 }
-                (_, _, _, _, _, _, _, _, _, _, _, _, _) => {
+                (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) => {
                     Err(errors::J4RsError::JniError(format!("Could not initialize the JVM: Error while trying to retrieve JNI functions.")))
                 }
             }
@@ -310,12 +398,6 @@ impl Jvm {
     pub fn create_instance(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         debug(&format!("Instantiating class {} using {} arguments", class_name, inv_args.len()));
         unsafe {
-            // The factory instance
-            let factory_instance = (self.jni_new_object)(
-                self.jni_env,
-                self.factory_class,
-                self.factory_constructor_method,
-            );
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring = (self.jni_new_string_utf)(
                 self.jni_env,
@@ -343,16 +425,21 @@ impl Jvm {
             }
             // Call the method of the factory that instantiates a new class of `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (self.jni_call_object_method)(
+            let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                factory_instance,
+                self.factory_class,
                 self.factory_instantiate_method,
                 class_name_jstring,
                 array_ptr,
             );
 
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+
             // Create and return the Instance
-            self.do_return(Instance { jinstance: native_invocation_instance, class_name: class_name.to_owned() })
+            self.do_return(Instance {
+                jinstance: native_invocation_global_instance,
+                class_name: class_name.to_string(),
+            })
         }
     }
 
@@ -406,8 +493,13 @@ impl Jvm {
                 array_ptr,
             );
 
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+
             // Create and return the Instance
-            self.do_return(Instance { jinstance: native_invocation_instance, class_name: UNKNOWN_FOR_RUST.to_owned() })
+            self.do_return(Instance {
+                jinstance: native_invocation_global_instance,
+                class_name: UNKNOWN_FOR_RUST.to_string(),
+            })
         }
     }
 
@@ -470,16 +562,72 @@ impl Jvm {
         }
     }
 
+    /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
+    /// It returns void and the `Instance` of the result of the invocation will come through the defined Tx.
+    pub fn invoke_to_channel(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg], tx: Box<Sender<Instance>>) -> errors::Result<()> {
+        debug(&format!("Invoking method {} of class {} using {} arguments. The result of the invocation will come via the defined channel sender", method_name, instance.class_name, inv_args.len()));
+        unsafe {
+            let invoke_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
+            // Get the method ID for the `NativeInvocation.invokeToChannel`
+            let invoke_method = (self.jni_get_method_id)(
+                self.jni_env,
+                self.native_invocation_class,
+                utils::to_java_string("invokeToChannel"),
+                utils::to_java_string(invoke_method_signature),
+            );
+
+            // First argument: the address of the channel sender
+            let raw_ptr = &tx as *const _ as *const (*mut (), *mut ());
+            // Do not drop the tx
+            mem::forget(tx);
+            let address_string = format!("{:p}", raw_ptr);
+            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
+
+            // Second argument: create a jstring to pass as argument for the method_name
+            let method_name_jstring: jstring = (self.jni_new_string_utf)(
+                self.jni_env,
+                utils::to_java_string(method_name),
+            );
+            // Rest of the arguments: Create a new objectarray of class InvocationArg
+            let size = inv_args.len() as i32;
+            let array_ptr = (self.jni_new_onject_array)(
+                self.jni_env,
+                size,
+                self.invocation_arg_class,
+                ptr::null_mut(),
+            );
+            // Rest of the arguments: populate the array
+            for i in 0..size {
+                // Create an InvocationArg Java Object
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                // Set it in the array
+                (self.jni_set_object_array_element)(
+                    self.jni_env,
+                    array_ptr,
+                    i,
+                    inv_arg_java,
+                );
+            }
+
+            // Call the method of the instance
+            let _ = (self.jni_call_object_method)(
+                self.jni_env,
+                instance.jinstance,
+                invoke_method,
+                address,
+                method_name_jstring,
+                array_ptr,
+            );
+
+            // Create and return the Instance
+            self.do_return(())
+        }
+    }
+
     /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
     pub fn invoke_static(&self, class_name: &str, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         debug(&format!("Invoking static method {} of class {} using {} arguments", method_name, class_name, inv_args.len()));
         unsafe {
-            // The factory instance
-            let factory_instance = (self.jni_new_object)(
-                self.jni_env,
-                self.factory_class,
-                self.factory_constructor_method,
-            );
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring = (self.jni_new_string_utf)(
                 self.jni_env,
@@ -487,9 +635,9 @@ impl Jvm {
             );
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (self.jni_call_object_method)(
+            let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                factory_instance,
+                self.factory_class,
                 self.factory_create_for_static_method,
                 class_name_jstring,
             );
@@ -540,8 +688,10 @@ impl Jvm {
                 array_ptr,
             );
 
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+
             // Create and return the Instance
-            self.do_return(Instance::from(native_invocation_instance))
+            self.do_return(Instance::from(native_invocation_global_instance)?)
         }
     }
 
@@ -580,17 +730,18 @@ impl Jvm {
             );
 
             // Create and return the Instance
-            self.do_return(Instance::from(native_invocation_instance))
+            self.do_return(Instance::from(native_invocation_instance)?)
         }
     }
 
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned {
         unsafe {
+            debug("to_rust called");
             // The getJson method signature
             let get_json_method_signature = "()Ljava/lang/String;";
 
-            // Get the method ID for the `NativeInvocation.cast`
+            // Get the method ID for the `NativeInvocation.getJson`
             let get_json_method = (self.jni_get_method_id)(
                 self.jni_env,
                 self.native_invocation_class,
@@ -598,6 +749,7 @@ impl Jvm {
                 utils::to_java_string(get_json_method_signature.as_ref()),
             );
 
+            debug("Invoking the getJson method");
             // Call the getJson method
             let json_instance = (self.jni_call_object_method)(
                 self.jni_env,
@@ -605,14 +757,16 @@ impl Jvm {
                 get_json_method,
             );
             let _ = self.do_return("")?;
+            debug("Transforming jstring to rust String");
             let json = {
                 let s = (self.jni_get_string_utf_chars)(
                     self.jni_env,
                     json_instance as jstring,
                     ptr::null_mut(),
                 );
+                let rust_string = utils::to_rust_string(s);
                 let _ = self.do_return("")?;
-                utils::to_rust_string(s)
+                rust_string
             };
             self.do_return(serde_json::from_str(&json)?)
         }
@@ -623,13 +777,14 @@ impl Jvm {
             if (self.jni_exception_check)(self.jni_env) == JNI_TRUE {
                 (self.jni_exception_describe)(self.jni_env);
                 (self.jni_exception_clear)(self.jni_env);
-                Err(errors::J4RsError::JavaError("An Exception was thrown by Java... Please check the logs or the console.".to_owned()))
+                Err(errors::J4RsError::JavaError("An Exception was thrown by Java... Please check the logs or the console.".to_string()))
             } else {
                 Ok(to_return)
             }
         }
     }
 
+    // Retrieves a JNIEnv in the case that a JVM is already created even from another thread.
     fn get_created_vm() -> Option<*mut JNIEnv> {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
@@ -639,7 +794,7 @@ impl Jvm {
             if created_vms_size == 0 {
                 None
             } else {
-                info(&format!("Retrieving the first of {} created JVMs", created_vms_size));
+                debug(&format!("Retrieving the first of {} created JVMs", created_vms_size));
                 // Get the created VM
                 let mut buffer: Vec<*mut JavaVM> = Vec::new();
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
@@ -670,7 +825,6 @@ impl Jvm {
     }
 
     fn detach_current_thread(&self) {
-        debug("Detaching thread from the VM");
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
@@ -701,7 +855,11 @@ impl Jvm {
 
 impl Drop for Jvm {
     fn drop(&mut self) {
-        self.detach_current_thread();
+        if remove_active_jvm() <= 0 {
+            debug("Detaching thread from the JVM");
+            self.detach_current_thread();
+            set_thread_local_env(None);
+        }
     }
 }
 
@@ -816,12 +974,18 @@ impl InvocationArg {
     }
 }
 
+//impl Drop for InvocationArg {
+//    fn drop(&mut self) {
+////        delete_java_ref(self.jni_env, self.jinstance);
+//    }
+//}
+
 impl<'a> From<(&'a str, &'a str)> for InvocationArg {
     fn from(tup: (&'a str, &'a str)) -> InvocationArg {
         InvocationArg::Rust {
-            json: tup.0.to_owned(),
-            class_name: tup.1.to_owned(),
-            arg_from: RUST.to_owned(),
+            json: tup.0.to_string(),
+            class_name: tup.1.to_string(),
+            arg_from: RUST.to_string(),
         }
     }
 }
@@ -833,7 +997,7 @@ impl From<Instance> for InvocationArg {
         InvocationArg::Java {
             instance: instance,
             class_name: class_name,
-            arg_from: JAVA.to_owned(),
+            arg_from: JAVA.to_string(),
         }
     }
 }
@@ -851,7 +1015,7 @@ impl<'a, 'b> From<(&'a [String], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -868,7 +1032,7 @@ impl<'a, 'b> From<(&'a [&'a str], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -885,7 +1049,7 @@ impl<'a, 'b> From<(&'a [bool], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -902,7 +1066,7 @@ impl<'a, 'b> From<(&'a [i8], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -919,7 +1083,7 @@ impl<'a, 'b> From<(&'a [char], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -936,7 +1100,7 @@ impl<'a, 'b> From<(&'a [i16], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -953,7 +1117,7 @@ impl<'a, 'b> From<(&'a [i32], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -970,7 +1134,7 @@ impl<'a, 'b> From<(&'a [i64], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -987,7 +1151,7 @@ impl<'a, 'b> From<(&'a [f32], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -1004,7 +1168,7 @@ impl<'a, 'b> From<(&'a [f64], &'b Jvm)> for InvocationArg {
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -1015,7 +1179,7 @@ impl<'a, 'b, T> From<(&'a [T], &'a str, &'b Jvm)> for InvocationArg where T: Ser
         let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::new(elem, elements_class_name)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(Instance::from(res.unwrap()))
+        InvocationArg::from(res.unwrap())
     }
 }
 
@@ -1079,6 +1243,17 @@ impl<'a> From<&'a f64> for InvocationArg {
     }
 }
 
+pub struct ChannelCapsule {
+    pub jvm: Jvm,
+    pub instance: Instance,
+}
+
+impl ChannelCapsule {
+    pub fn new(jvm: Jvm, instance: Instance) -> ChannelCapsule {
+        ChannelCapsule { jvm, instance }
+    }
+}
+
 /// A Java instance
 #[derive(Serialize, Clone)]
 pub struct Instance {
@@ -1096,15 +1271,93 @@ impl Instance {
     pub fn class_name(&self) -> &str {
         self.class_name.as_ref()
     }
+
     /// Consumes the Instance and returns its jobject
     pub fn java_object(self) -> jobject {
         self.jinstance
     }
+
+    pub fn from(obj: jobject) -> errors::Result<Instance> {
+        let _jvm = get_thread_local_env().map_err(|_| {
+            Jvm::attach_thread()
+        });
+
+        let global = create_global_ref_from_local_ref(obj, get_thread_local_env()?)?;
+        Ok(Instance {
+            jinstance: global,
+            class_name: UNKNOWN_FOR_RUST.to_string(),
+        })
+    }
 }
 
-impl From<jobject> for Instance {
-    fn from(obj: jobject) -> Instance {
-        Instance { jinstance: obj, class_name: UNKNOWN_FOR_RUST.to_owned() }
+
+impl Drop for Instance {
+    fn drop(&mut self) {
+        debug(&format!("Dropping an instance of {}", self.class_name));
+        if let Some(j_env) = get_thread_local_env_opt() {
+            delete_java_ref(j_env, self.jinstance);
+        }
+    }
+}
+
+unsafe impl Send for Instance {}
+
+fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        match ((**jni_env).NewGlobalRef,
+               (**jni_env).DeleteLocalRef,
+               (**jni_env).ExceptionCheck,
+               (**jni_env).ExceptionDescribe,
+               (**jni_env).ExceptionClear) {
+            (Some(ngr), Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
+                // Create the global ref
+                let global = ngr(
+                    jni_env,
+                    local_ref,
+                );
+                // Delete the local ref
+                dlr(
+                    jni_env,
+                    local_ref,
+                );
+                // Exception check
+                if (exc)(jni_env) == JNI_TRUE {
+                    (exd)(jni_env);
+                    (exclear)(jni_env);
+                    Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating global ref... Please check the logs or the console.".to_string()))
+                } else {
+                    Ok(global)
+                }
+            }
+            (_, _, _, _, _) => {
+                Err(errors::J4RsError::JavaError("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks".to_string()))
+            }
+        }
+    }
+}
+
+/// Deletes the java ref from the memory
+fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
+    unsafe {
+        match ((**jni_env).DeleteGlobalRef,
+               (**jni_env).ExceptionCheck,
+               (**jni_env).ExceptionDescribe,
+               (**jni_env).ExceptionClear) {
+            (Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
+                dlr(
+                    jni_env,
+                    jinstance,
+                );
+                if (exc)(jni_env) == JNI_TRUE {
+                    (exd)(jni_env);
+                    (exclear)(jni_env);
+                    error("An Exception was thrown by Java... Please check the logs or the console.");
+                }
+            }
+            (_, _, _, _) => {
+                error("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks");
+            }
+        }
     }
 }
 

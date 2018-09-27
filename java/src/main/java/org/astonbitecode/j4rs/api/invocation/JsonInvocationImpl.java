@@ -21,7 +21,7 @@ import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
 import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
-import org.astonbitecode.j4rs.rust.FunctionPointer;
+import org.astonbitecode.j4rs.rust.RustPointer;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -74,7 +74,20 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
             throw new InvocationException("Cannot invoke asynchronously the class " + this.clazz.getName() + ". The class does not extend the class " + NativeCallbackSupport.class.getName());
         } else {
             // Initialize the pointer
-            ((NativeCallbackSupport) object).initPointer(new FunctionPointer(functionPointerAddress));
+            ((NativeCallbackSupport) object).initPointer(new RustPointer(functionPointerAddress));
+            // Invoke (any possible returned objects will be dropped)
+            invoke(methodName, args);
+        }
+    }
+
+    @Override
+    public void invokeToChannel(long channelAddress, String methodName, InvocationArg... args) {
+        // Check that the class of the invocation extends the NativeCallbackToRustChannelSupport
+        if (!NativeCallbackToRustChannelSupport.class.isAssignableFrom(this.clazz)) {
+            throw new InvocationException("Cannot invoke the class " + this.clazz.getName() + ". The class does not extend the class " + NativeCallbackToRustChannelSupport.class.getName());
+        } else {
+            // Initialize the pointer
+            ((NativeCallbackToRustChannelSupport) object).initPointer(new RustPointer(channelAddress));
             // Invoke (any possible returned objects will be dropped)
             invoke(methodName, args);
         }

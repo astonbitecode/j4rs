@@ -15,18 +15,17 @@
 package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.errors.InvocationException;
-import org.astonbitecode.j4rs.rust.FunctionPointer;
 import org.astonbitecode.j4rs.rust.RustPointer;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import static org.mockito.Mockito.mock;
 
-public class NativeCallbackSupportTest {
+public class NativeCallbackToRustChannelSupportTest {
 
     @Test(expected = InvocationException.class)
     public void invokeBeforeInitialized() {
-        class Dummy extends NativeCallbackSupport {
+        class Dummy extends NativeCallbackToRustChannelSupport {
             public Dummy() {
                 super.doCallback("");
             }
@@ -38,7 +37,7 @@ public class NativeCallbackSupportTest {
     @Test(expected = UnsatisfiedLinkError.class)
     public void invokeSuccess() {
         RustPointer fp = mock(RustPointer.class);
-        class Dummy extends NativeCallbackSupport {
+        class Dummy extends NativeCallbackToRustChannelSupport {
         }
 
         Dummy d = new Dummy();

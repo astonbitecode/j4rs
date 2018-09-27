@@ -21,18 +21,17 @@ import org.astonbitecode.j4rs.utils.Dummy;
 import org.junit.Test;
 
 public class NativeInstantiationImplTest {
-    private NativeInstantiationImpl toTest = new NativeInstantiationImpl();
 
     @Test
     public void constructorMatches() throws Exception {
         String className = Dummy.class.getName();
 
         GeneratedArg[] generatedArgs = {new GeneratedArg(Integer.class, new Integer(11))};
-        NativeInstantiationImpl.CreatedInstance createdInstance = toTest.createInstance(className, generatedArgs);
+        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createInstance(className, generatedArgs);
         assert (createdInstance.getObject() instanceof Dummy);
 
         GeneratedArg[] noGeneratedArgs = {};
-        NativeInstantiationImpl.CreatedInstance createdInstanceNoArgs = toTest.createInstance(className, noGeneratedArgs);
+        NativeInstantiationImpl.CreatedInstance createdInstanceNoArgs = NativeInstantiationImpl.createInstance(className, noGeneratedArgs);
         assert (createdInstanceNoArgs.getObject() instanceof Dummy);
     }
 
@@ -41,7 +40,7 @@ public class NativeInstantiationImplTest {
         String className = Dummy.class.getName();
 
         GeneratedArg[] generatedArgs = {new GeneratedArg(Long.class, new Long(11))};
-        toTest.createInstance(className, generatedArgs);
+        NativeInstantiationImpl.createInstance(className, generatedArgs);
     }
 
     @Test
@@ -49,7 +48,7 @@ public class NativeInstantiationImplTest {
         InvocationArg arg = new InvocationArg(Dummy.class.getName(), new JsonInvocationImpl(new Dummy(), Dummy.class));
         InvocationArg[] args = {arg};
 
-        GeneratedArg[] generated = toTest.generateArgObjects(args);
+        GeneratedArg[] generated = NativeInstantiationImpl.generateArgObjects(args);
         assert (generated.length == 1);
         assert (generated[0].getClazz().equals(Dummy.class));
     }
@@ -60,7 +59,7 @@ public class NativeInstantiationImplTest {
         InvocationArg arg = new InvocationArg(Dummy.class.getName(), json);
         InvocationArg[] args = {arg};
 
-        GeneratedArg[] generated = toTest.generateArgObjects(args);
+        GeneratedArg[] generated = NativeInstantiationImpl.generateArgObjects(args);
         assert (generated.length == 1);
         assert (generated[0].getClazz().equals(Dummy.class));
     }

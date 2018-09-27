@@ -14,6 +14,7 @@
  */
 package org.astonbitecode.j4rs.rust;
 
+@Deprecated
 public class FunctionPointer {
     private long address;
 

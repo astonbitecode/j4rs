@@ -25,11 +25,10 @@ import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 
-public class NativeInstantiationImpl implements NativeInstantiation {
-    private InvocationArgGenerator gen = new InvocationArgGenerator();
+public class NativeInstantiationImpl {
+    static InvocationArgGenerator gen = new InvocationArgGenerator();
 
-    @Override
-    public NativeInvocation instantiate(String className, InvocationArg... args) {
+    public static NativeInvocation instantiate(String className, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = createInstance(className, generateArgObjects(args));
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
@@ -38,8 +37,7 @@ public class NativeInstantiationImpl implements NativeInstantiation {
         }
     }
 
-    @Override
-    public NativeInvocation createForStatic(String className) {
+    public static NativeInvocation createForStatic(String className) {
         try {
             Class<?> clazz = Class.forName(className);
             return new JsonInvocationImpl(clazz);
@@ -48,11 +46,11 @@ public class NativeInstantiationImpl implements NativeInstantiation {
         }
     }
 
-    GeneratedArg[] generateArgObjects(InvocationArg[] args) throws Exception {
+    static GeneratedArg[] generateArgObjects(InvocationArg[] args) throws Exception {
         return gen.generateArgObjects(args);
     }
 
-    CreatedInstance createInstance(String className, GeneratedArg[] params) throws Exception {
+    static CreatedInstance createInstance(String className, GeneratedArg[] params) throws Exception {
         Class<?> clazz = Class.forName(className);
         Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
@@ -63,7 +61,7 @@ public class NativeInstantiationImpl implements NativeInstantiation {
         return new CreatedInstance(clazz, instance);
     }
 
-    class CreatedInstance {
+    static class CreatedInstance {
         private Class clazz;
         private Object object;
 

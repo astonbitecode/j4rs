@@ -16,7 +16,7 @@ package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.errors.InvocationException;
-import org.astonbitecode.j4rs.rust.FunctionPointer;
+import org.astonbitecode.j4rs.rust.RustPointer;
 
 import java.util.Optional;
 
@@ -26,7 +26,7 @@ import java.util.Optional;
 public class NativeCallbackSupport {
     private static native int docallback(long functionPointerAddress, NativeInvocation inv);
 
-    private Optional<FunctionPointer> functionPointerOpt = Optional.empty();
+    private Optional<RustPointer> functionPointerOpt = Optional.empty();
 
     static void initialize(String libname) throws UnsatisfiedLinkError {
         String libpath = System.getProperty("java.library.path");
@@ -47,7 +47,7 @@ public class NativeCallbackSupport {
         }
     }
 
-    final void initPointer(FunctionPointer fp) {
-        this.functionPointerOpt = Optional.of(fp);
+    final void initPointer(RustPointer p) {
+        this.functionPointerOpt = Optional.of(p);
     }
 }

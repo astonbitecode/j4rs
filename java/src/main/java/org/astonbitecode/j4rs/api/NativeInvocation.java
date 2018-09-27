@@ -49,6 +49,17 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     void invokeAsync(long functionPointerAddress, String methodName, InvocationArg... args);
 
     /**
+     * Invokes a method of the instance of the class that is set for this {@link NativeInvocation}.
+     * The result of the invocation should be provided later using the performCallbackToChannel method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
+     * Any possible returned objects from the actual synchronous invocation of the defined method will be dropped.
+     *
+     * @param channelAddress
+     * @param methodName
+     * @param args
+     */
+    void invokeToChannel(long channelAddress, String methodName, InvocationArg... args);
+
+    /**
      * Casts a the object that is contained in a NativeInvocation to an object of class clazz.
      *
      * @param <T>     Generically defined return type

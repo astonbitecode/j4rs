@@ -29,10 +29,13 @@ pub use api::Instance as Instance;
 pub use api::InvocationArg as InvocationArg;
 pub use api::JavaOpt as JavaOpt;
 pub use api::Jvm as Jvm;
+pub use api::ChannelCapsule as ChannelCapsule;
 use jni_sys::{JNIEnv, jobject};
 use logger::info;
-use std::mem;
+use std::{mem, ptr};
 use std::os::raw::{c_long, c_void};
+use std::sync::mpsc::Sender;
+//use std::{thread, time};
 
 mod api;
 mod utils;
@@ -87,17 +90,30 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
 }
 
 #[no_mangle]
-pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_docallback(jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
+pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_docallback(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
     let pointer_from_address = ptr_address as *const ();
     let function = unsafe {
         mem::transmute::<*const (), Callback>(pointer_from_address)
     };
-    function(Jvm::try_from(jni_env).unwrap(), Instance::from(native_invocation));
+    let jvm = Jvm::attach_thread().unwrap();
+    function(jvm, Instance::from(native_invocation).unwrap());
+}
+
+#[no_mangle]
+pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
+    // This is needed to possibly create the thread local env
+    let instance = Instance::from(native_invocation).unwrap();
+    let p = ptr_address as *const (*mut (), *mut ()) as *const Box<Sender<Instance>>;
+    let tx: Box<Sender<Instance>> = unsafe { ptr::read(p) };
+
+    let result = tx.send(instance);
+    result.unwrap();
 }
 
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
+    use std::sync::mpsc::channel;
     use std::thread::JoinHandle;
     use super::{ClasspathEntry, Instance, InvocationArg, Jvm};
 
@@ -138,18 +154,59 @@ mod lib_unit_tests {
     #[test]
     fn callback() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
-        //        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], vec![]).unwrap();
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let _ = jvm.invoke_async(&i, "performCallback", Vec::new().as_ref(), my_callback);
+                let res = jvm.invoke_async(&i, "performCallback", Vec::new().as_ref(), my_callback);
                 let thousand_millis = time::Duration::from_millis(1000);
                 thread::sleep(thousand_millis);
+                assert!(res.is_ok());
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
             }
         }
+    }
+
+    #[test]
+    fn callback_to_channel() {
+        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
+        let (tx, rx) = channel();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+            Ok(i) => {
+                let inv_res = jvm.invoke_to_channel(&i, "performCallback", Vec::new().as_ref(), Box::new(tx));
+                assert!(inv_res.is_ok());
+                let res_chan = rx.recv();
+                let i = res_chan.unwrap();
+                let res_to_rust = jvm.to_rust(i);
+                assert!(res_to_rust.is_ok());
+                let _: String = res_to_rust.unwrap();
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+    }
+
+    //#[test]
+    //#[ignore]
+    fn _memory_leaks() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+
+        for i in 0..100000000 {
+            match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+                Ok(_) => {
+                    if i % 100000 == 0 {
+                        println!("{}", i);
+                    }
+                }
+                Err(error) => {
+                    panic!("ERROR when creating Instance: {:?}", error);
+                }
+            }
+        }
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
     }
 
     #[test]
@@ -195,6 +252,23 @@ mod lib_unit_tests {
             let str = jh.join();
             println!("{}", str.unwrap());
         }
+    }
+
+    #[test]
+    fn use_a_java_instance_in_different_thread() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let instantiation_args = vec![InvocationArg::from("3")];
+        let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
+
+        let jh = thread::spawn(move || {
+            let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+            let res = jvm.invoke(&instance, "isEmpty", &Vec::new());
+            res
+        });
+
+        let join_res = jh.join();
+        assert!(join_res.is_ok());
+        assert!(join_res.unwrap().is_ok());
     }
 
     #[test]
