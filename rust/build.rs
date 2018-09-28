@@ -16,9 +16,10 @@ fn main() {
     let ld_library_path = get_ld_library_path();
 
     // Set the build environment
-    println!("cargo:rustc-env=LD_LIBRARY_PATH={}", ld_library_path);
+    if !cfg!(windows) {
+        println!("cargo:rustc-env=LD_LIBRARY_PATH={}", ld_library_path);
+    }
     println!("cargo:rustc-link-search=native={}", ld_library_path);
-
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java();
@@ -36,7 +37,12 @@ fn get_ld_library_path() -> String {
         Please make sure that Java is installed (version 1.8 at least) and the JAVA_HOME environment is set.");
     }
 
-    let query = format!("{}/**/libjvm.*", java_home);
+    let lib_file_name = if cfg!(windows) {
+        "jvm.lib"
+    } else {
+        "libjvm.*"
+    };
+    let query = format!("{}/**/{}", java_home, lib_file_name);
 
     let paths_vec: Vec<String> = glob(&query).unwrap()
         .filter_map(Result::ok)
@@ -48,7 +54,12 @@ fn get_ld_library_path() -> String {
         .collect();
 
     if paths_vec.is_empty() {
-        panic!("Could not find the libjvm.so in any subdirectory of {}", java_home);
+        let name = if cfg!(windows) {
+            "jvm.lib"
+        } else {
+            "libjvm"
+        };
+        panic!("Could not find the {} in any subdirectory of {}", name, java_home);
     }
 
     paths_vec[0].clone()
@@ -61,8 +72,8 @@ fn generate_src(out_dir: &str, exec_dir: PathBuf) {
     let mut exec_dir_mut = exec_dir.clone();
     exec_dir_mut.push("deps");
 
-    let exec_dir_str = exec_dir.to_str().unwrap();
-    let deps_dir_str = exec_dir_mut.to_str().unwrap();
+    let exec_dir_str = exec_dir.to_str().unwrap().replace("\\", "\\\\");
+    let deps_dir_str = exec_dir_mut.to_str().unwrap().replace("\\", "\\\\");
 
     let contents = format!(
         "fn _exec_dir() -> &'static str {{
@@ -145,12 +156,17 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "osx")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let existing = env::var("LD_LIBRARY_PATH").unwrap_or("".to_owned());
     if !existing.contains(ld_library_path) {
         println!("cargo:warning=Please add the libjni location in the LD_LIBRARY_PATH env variable.");
     }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn initialize_env(_: &str) -> Result<(), J4rsBuildError> {
     Ok(())
 }
 
