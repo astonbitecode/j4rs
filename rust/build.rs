@@ -1,6 +1,6 @@
+extern crate dirs;
 extern crate fs_extra;
 extern crate glob;
-extern crate dirs;
 
 use glob::glob;
 use std::{env, fs};
@@ -13,13 +13,22 @@ use std::path::{Path, PathBuf};
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
-    let ld_library_path = get_ld_library_path();
+    let jvm_dyn_lib_file_name = if cfg!(windows) {
+        "jvm.dll"
+    } else {
+        "libjvm.*"
+    };
+    let ld_library_path = get_ld_library_path(jvm_dyn_lib_file_name);
 
     // Set the build environment
-    if !cfg!(windows) {
+    if cfg!(windows) {
+        println!("cargo:rustc-env=PATH={};%PATH%", ld_library_path);
+        let jvm_lib = get_ld_library_path("jvm.lib");
+        println!("cargo:rustc-link-search=native={}", jvm_lib);
+    } else {
         println!("cargo:rustc-env=LD_LIBRARY_PATH={}", ld_library_path);
+        println!("cargo:rustc-link-search=native={}", ld_library_path);
     }
-    println!("cargo:rustc-link-search=native={}", ld_library_path);
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java();
@@ -29,7 +38,7 @@ fn main() {
 }
 
 // Finds and returns the directory that contains the libjvm library
-fn get_ld_library_path() -> String {
+fn get_ld_library_path(lib_file_name: &str) -> String {
     // Find the JAVA_HOME
     let java_home = env::var("JAVA_HOME").unwrap_or("".to_owned());
     if java_home.is_empty() {
@@ -37,11 +46,6 @@ fn get_ld_library_path() -> String {
         Please make sure that Java is installed (version 1.8 at least) and the JAVA_HOME environment is set.");
     }
 
-    let lib_file_name = if cfg!(windows) {
-        "jvm.lib"
-    } else {
-        "libjvm.*"
-    };
     let query = format!("{}/**/{}", java_home, lib_file_name);
 
     let paths_vec: Vec<String> = glob(&query).unwrap()

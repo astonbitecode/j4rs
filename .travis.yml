@@ -14,13 +14,13 @@ matrix:
        - export JAVA_HOME=$(/usr/libexec/java_home)
        - mvn -f java/pom.xml clean install
        - cargo build --manifest-path=rust/Cargo.toml
-       - J4RS_CONSOLE_LOG_LEVEL=debug RUST_TEST_THREADS=1 cargo test --manifest-path=rust/Cargo.toml -- --nocapture
+       - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
     - os: linux
       jdk: openjdk8
       script:
        - mvn -f java/pom.xml clean install
        - cargo build --manifest-path=rust/Cargo.toml
-       - RUST_TEST_THREADS=1 cargo test --manifest-path=rust/Cargo.toml
+       - cargo test --manifest-path=rust/Cargo.toml
 
 before_install:
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
