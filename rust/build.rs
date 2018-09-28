@@ -160,7 +160,7 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     Ok(())
 }
 
-#[cfg(target_os = "osx")]
+#[cfg(target_os = "macos")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let existing = env::var("LD_LIBRARY_PATH").unwrap_or("".to_owned());
     if !existing.contains(ld_library_path) {
