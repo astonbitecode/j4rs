@@ -28,7 +28,7 @@ install:
   - rustc -Vv
   - cargo -V
 
-build:
+build_script:
   - mvn -f java/pom.xml clean install
   - cargo build --manifest-path=rust/Cargo.toml
 
