@@ -3,6 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
 [![Maven Central](https://img.shields.io/badge/Maven%20Central-0.1.5-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
 ![Build Status](https://travis-ci.org/astonbitecode/j4rs.svg?branch=master)
+[![Build status](https://ci.appveyor.com/api/projects/status/9k83nufbt958w6p2?svg=true)](https://ci.appveyor.com/project/astonbitecode/j4rs)
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code, from Rust.
 
