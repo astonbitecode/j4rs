@@ -506,6 +506,7 @@ impl Jvm {
 
     /// Invokes asynchronously the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
     /// It returns void and the `Instance` of the result of the async invocation will come in the defined callback.
+    #[deprecated(since="0.6.0", note="please use `invoke_to_channel` instead")]
     pub fn invoke_async(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg], callback: super::Callback) -> errors::Result<()> {
         debug(&format!("Asynchronously invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
         unsafe {
