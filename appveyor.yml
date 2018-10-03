@@ -1,5 +1,7 @@
 # Based on the "trust" template v0.1.2
 # https://github.com/japaric/trust/tree/v0.1.2
+
+image: Visual Studio 2017
 environment:
   global:
     RUST_VERSION: stable
