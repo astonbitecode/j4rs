@@ -29,13 +29,11 @@ pub use api::Instance as Instance;
 pub use api::InvocationArg as InvocationArg;
 pub use api::JavaOpt as JavaOpt;
 pub use api::Jvm as Jvm;
-pub use api::ChannelCapsule as ChannelCapsule;
 use jni_sys::{JNIEnv, jobject};
 use logger::info;
-use std::{mem, ptr};
+use std::mem;
 use std::os::raw::{c_long, c_void};
 use std::sync::mpsc::Sender;
-//use std::{thread, time};
 
 mod api;
 mod utils;
@@ -101,19 +99,19 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_d
 
 #[no_mangle]
 pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
-    // This is needed to possibly create the thread local env
     let instance = Instance::from(native_invocation).unwrap();
-    let p = ptr_address as *const (*mut (), *mut ()) as *const Box<Sender<Instance>>;
-    let tx: Box<Sender<Instance>> = unsafe { ptr::read(p) };
+
+    let p = ptr_address as *mut Sender<Instance>;
+    let tx = unsafe { Box::from_raw(p) };
 
     let result = tx.send(instance);
     result.unwrap();
+    mem::forget(tx);
 }
 
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
-    use std::sync::mpsc::channel;
     use std::thread::JoinHandle;
     use super::{ClasspathEntry, Instance, InvocationArg, Jvm};
 
@@ -171,16 +169,62 @@ mod lib_unit_tests {
     #[test]
     fn callback_to_channel() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
-        let (tx, rx) = channel();
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let inv_res = jvm.invoke_to_channel(&i, "performCallback", Vec::new().as_ref(), Box::new(tx));
-                assert!(inv_res.is_ok());
-                let res_chan = rx.recv();
+                let instance_receiver_res = jvm.invoke_to_channel(&i, "performCallback", Vec::new().as_ref());
+                assert!(instance_receiver_res.is_ok());
+                let instance_receiver = instance_receiver_res.unwrap();
+                let res_chan = instance_receiver.rx().recv();
                 let i = res_chan.unwrap();
                 let res_to_rust = jvm.to_rust(i);
                 assert!(res_to_rust.is_ok());
                 let _: String = res_to_rust.unwrap();
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+    }
+
+    #[test]
+    fn multiple_callbacks_to_channel() {
+        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+            Ok(i) => {
+                let instance_receiver_res = jvm.invoke_to_channel(&i, "performTenCallbacks", Vec::new().as_ref());
+                assert!(instance_receiver_res.is_ok());
+                let instance_receiver = instance_receiver_res.unwrap();
+                for _i in 0..10 {
+                    let thousand_millis = time::Duration::from_millis(1000);
+                    let res_chan = instance_receiver.rx().recv_timeout(thousand_millis);
+                    let i = res_chan.unwrap();
+                    let res_to_rust = jvm.to_rust(i);
+                    assert!(res_to_rust.is_ok());
+                    let _: String = res_to_rust.unwrap();
+                }
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+    }
+
+    #[test]
+    fn multiple_callbacks_to_channel_from_multiple_threads() {
+        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+            Ok(i) => {
+                let instance_receiver_res = jvm.invoke_to_channel(&i, "performCallbackFromTenThreads", Vec::new().as_ref());
+                assert!(instance_receiver_res.is_ok());
+                let instance_receiver = instance_receiver_res.unwrap();
+                for _i in 0..10 {
+                    let thousand_millis = time::Duration::from_millis(1000);
+                    let res_chan = instance_receiver.rx().recv_timeout(thousand_millis);
+                    let i = res_chan.unwrap();
+                    let res_to_rust = jvm.to_rust(i);
+                    assert!(res_to_rust.is_ok());
+                    let _: String = res_to_rust.unwrap();
+                }
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);

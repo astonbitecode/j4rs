@@ -48,7 +48,7 @@ use std::{fs, mem};
 use std::ops::Drop;
 use std::os::raw::c_void;
 use std::ptr;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Sender, Receiver, channel};
 use std::sync::Mutex;
 use std::cell::RefCell;
 use super::logger::{debug, error, info, warn};
@@ -563,9 +563,9 @@ impl Jvm {
     }
 
     /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
-    /// It returns void and the `Instance` of the result of the invocation will come through the defined Tx.
-    pub fn invoke_to_channel(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg], tx: Box<Sender<Instance>>) -> errors::Result<()> {
-        debug(&format!("Invoking method {} of class {} using {} arguments. The result of the invocation will come via the defined channel sender", method_name, instance.class_name, inv_args.len()));
+    /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`. The result of the invocation will come via this Receiver.
+    pub fn invoke_to_channel(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<InstanceReceiver> {
+        debug(&format!("Invoking method {} of class {} using {} arguments. The result of the invocation will come via an InstanceReceiver", method_name, instance.class_name, inv_args.len()));
         unsafe {
             let invoke_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
             // Get the method ID for the `NativeInvocation.invokeToChannel`
@@ -576,10 +576,12 @@ impl Jvm {
                 utils::to_java_string(invoke_method_signature),
             );
 
-            // First argument: the address of the channel sender
-            let raw_ptr = &tx as *const _ as *const (*mut (), *mut ());
-            // Do not drop the tx
-            mem::forget(tx);
+            // Create the channel
+            let (sender, rx) = channel();
+            let tx = Box::new(sender);
+            // First argument: the address of the channel Sender
+            let raw_ptr = Box::into_raw(tx);
+            // Find the address of tx
             let address_string = format!("{:p}", raw_ptr);
             let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
 
@@ -620,7 +622,7 @@ impl Jvm {
             );
 
             // Create and return the Instance
-            self.do_return(())
+            self.do_return(InstanceReceiver::new(rx, address))
         }
     }
 
@@ -1243,14 +1245,39 @@ impl<'a> From<&'a f64> for InvocationArg {
     }
 }
 
-pub struct ChannelCapsule {
-    pub jvm: Jvm,
-    pub instance: Instance,
+/// A receiver for Java Instances.
+///
+/// It keeps a channel Receiver to get callback Instances from the Java world
+/// and the address of a Box<Sender<Instance>> Box in the heap. This Box is used by Java to communicate
+/// asynchronously Instances to Rust.
+///
+/// On Drop, the InstanceReceiver removes the Box from the heap.
+pub struct InstanceReceiver {
+    rx: Box<Receiver<Instance>>,
+    tx_address: i64,
 }
 
-impl ChannelCapsule {
-    pub fn new(jvm: Jvm, instance: Instance) -> ChannelCapsule {
-        ChannelCapsule { jvm, instance }
+impl InstanceReceiver {
+    fn new(rx: Receiver<Instance>, tx_address: i64) -> InstanceReceiver {
+        InstanceReceiver {
+            rx: Box::new(rx),
+            tx_address,
+        }
+    }
+
+    pub fn rx(&self) -> &Receiver<Instance> {
+        &self.rx
+    }
+}
+
+impl Drop for InstanceReceiver {
+    fn drop(&mut self) {
+        debug("Dropping an InstanceReceiver");
+        let p = self.tx_address as *mut Sender<Instance>;
+        unsafe {
+            let tx = Box::from_raw(p);
+            mem::drop(tx);
+        }
     }
 }
 
