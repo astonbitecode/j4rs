@@ -29,7 +29,7 @@ install:
 
 build_script:
   - mvn -f java/pom.xml clean install
-  - cargo build --manifest-path=rust/Cargo.toml
+  - cargo build --manifest-path=rust/Cargo.toml --target %TARGET%
 
 test_script:
   # we don't run the "test phase" when doing deploys
