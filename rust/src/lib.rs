@@ -104,9 +104,11 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
     let p = ptr_address as *mut Sender<Instance>;
     let tx = unsafe { Box::from_raw(p) };
 
-    let result = (*tx).clone().send(instance);
-    result.unwrap();
+    let cloned_tx = (*tx).clone();
     mem::forget(tx);
+
+    let result = cloned_tx.send(instance);
+    result.unwrap();
 }
 
 #[cfg(test)]
