@@ -180,6 +180,8 @@ mod lib_unit_tests {
                 let res_to_rust = jvm.to_rust(i);
                 assert!(res_to_rust.is_ok());
                 let _: String = res_to_rust.unwrap();
+                let millis = time::Duration::from_millis(500);
+                thread::sleep(millis);
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
@@ -203,6 +205,8 @@ mod lib_unit_tests {
                     assert!(res_to_rust.is_ok());
                     let _: String = res_to_rust.unwrap();
                 }
+                let millis = time::Duration::from_millis(500);
+                thread::sleep(millis);
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
@@ -226,6 +230,8 @@ mod lib_unit_tests {
                     assert!(res_to_rust.is_ok());
                     let _: String = res_to_rust.unwrap();
                 }
+                let millis = time::Duration::from_millis(500);
+                thread::sleep(millis);
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
