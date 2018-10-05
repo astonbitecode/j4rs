@@ -12,7 +12,7 @@ environment:
     # MinGW
     - TARGET: x86_64-pc-windows-gnu
     # MSVC
-    - TARGET: x86_64-pc-windows-msvc
+#    - TARGET: x86_64-pc-windows-msvc
 
 install:
   - ps: >-
