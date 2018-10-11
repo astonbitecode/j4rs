@@ -26,6 +26,7 @@ extern crate serde_json;
 pub use api::Callback as Callback;
 pub use api::ClasspathEntry as ClasspathEntry;
 pub use api::Instance as Instance;
+pub use api::InstanceReceiver as InstanceReceiver;
 pub use api::InvocationArg as InvocationArg;
 pub use api::JavaOpt as JavaOpt;
 pub use api::Jvm as Jvm;
@@ -266,18 +267,29 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
 
         for i in 0..100000000 {
-            match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+            match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
                 Ok(instance) => {
-                    let _i0 = instance.clone();
-                    let _i1 = instance.clone();
-                    let _i2 = instance.clone();
-                    let _i3 = instance.clone();
-                    let _i4 = instance.clone();
-                    let _i5 = instance.clone();
-                    let _i6 = instance.clone();
-                    let _i7 = instance.clone();
-                    let _i8 = instance.clone();
-                    let _i9 = instance.clone();
+                    let i0 = instance.clone();
+                    let i1 = instance.clone();
+                    let i2 = instance.clone();
+                    let i3 = instance.clone();
+                    let i4 = instance.clone();
+                    let i5 = instance.clone();
+                    let i6 = instance.clone();
+                    let i7 = instance.clone();
+                    let i8 = instance.clone();
+                    let i9 = instance.clone();
+
+                    assert!(jvm.invoke(&i0, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i1, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i2, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i3, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i4, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i5, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i6, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i7, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i8, "aMethod", &[]).is_ok());
+                    assert!(jvm.invoke(&i9, "aMethod", &[]).is_ok());
                     if i % 100000 == 0 {
                         println!("{}", i);
                     }
