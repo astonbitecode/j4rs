@@ -260,6 +260,37 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
+    //#[test]
+    //#[ignore]
+    fn _memory_leaks_when_cloning_instances() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+
+        for i in 0..100000000 {
+            match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+                Ok(instance) => {
+                    let _i0 = instance.clone();
+                    let _i1 = instance.clone();
+                    let _i2 = instance.clone();
+                    let _i3 = instance.clone();
+                    let _i4 = instance.clone();
+                    let _i5 = instance.clone();
+                    let _i6 = instance.clone();
+                    let _i7 = instance.clone();
+                    let _i8 = instance.clone();
+                    let _i9 = instance.clone();
+                    if i % 100000 == 0 {
+                        println!("{}", i);
+                    }
+                }
+                Err(error) => {
+                    panic!("ERROR when creating Instance: {:?}", error);
+                }
+            }
+        }
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
     #[test]
     fn cast() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], vec![]).unwrap();

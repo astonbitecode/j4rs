@@ -506,7 +506,7 @@ impl Jvm {
 
     /// Invokes asynchronously the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
     /// It returns void and the `Instance` of the result of the async invocation will come in the defined callback.
-    #[deprecated(since="0.1.6", note="please use `invoke_to_channel` instead")]
+    #[deprecated(since = "0.1.6", note = "please use `invoke_to_channel` instead")]
     pub fn invoke_async(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg], callback: super::Callback) -> errors::Result<()> {
         debug(&format!("Asynchronously invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
         unsafe {
@@ -1283,7 +1283,7 @@ impl Drop for InstanceReceiver {
 }
 
 /// A Java instance
-#[derive(Serialize, Clone)]
+#[derive(Serialize)]
 pub struct Instance {
     /// The name of the class of this instance
     class_name: String,
@@ -1318,6 +1318,14 @@ impl Instance {
     }
 }
 
+impl Clone for Instance {
+    fn clone(&self) -> Instance {
+        Instance {
+            class_name: self.class_name.clone(),
+            jinstance: create_weak_global_ref_from_global_ref(self.jinstance, get_thread_local_env().unwrap()).unwrap(),
+        }
+    }
+}
 
 impl Drop for Instance {
     fn drop(&mut self) {
@@ -1358,7 +1366,35 @@ fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) ->
                 }
             }
             (_, _, _, _, _) => {
-                Err(errors::J4RsError::JavaError("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks".to_string()))
+                Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a global ref. This may lead to memory leaks".to_string()))
+            }
+        }
+    }
+}
+
+fn create_weak_global_ref_from_global_ref(global_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        match ((**jni_env).NewWeakGlobalRef,
+               (**jni_env).ExceptionCheck,
+               (**jni_env).ExceptionDescribe,
+               (**jni_env).ExceptionClear) {
+            (Some(nwgr), Some(exc), Some(exd), Some(exclear)) => {
+                // Create the weak global ref
+                let global = nwgr(
+                    jni_env,
+                    global_ref,
+                );
+                // Exception check
+                if (exc)(jni_env) == JNI_TRUE {
+                    (exd)(jni_env);
+                    (exclear)(jni_env);
+                    Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating a weak global ref... Please check the logs or the console.".to_string()))
+                } else {
+                    Ok(global)
+                }
+            }
+            (_, _, _, _) => {
+                Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a weak global ref.".to_string()))
             }
         }
     }
