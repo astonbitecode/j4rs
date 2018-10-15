@@ -49,7 +49,7 @@ let _static_invocation_result = jvm.invoke_static(
 
 ### Callback support
 
-`j4rs` provides the means for _Java to Rust callbacks_. 
+`j4rs` provides the means for _Java to Rust callbacks_ via [Rust channels](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html). 
 
 In the Java world, a Class that can do __Native Callbacks__ must extend the class 
 `org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport`
@@ -108,6 +108,8 @@ let _ = jvm.invoke_async(
 let ten_millis = time::Duration::from_millis(1000);
 thread::sleep(ten_millis);
 ```
+
+#### Deprecation Note
 
 ### Passing arguments from Rust to Java
 
