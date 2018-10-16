@@ -1,7 +1,7 @@
 # j4rs
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.1.5-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.2.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
 ![Build Status](https://travis-ci.org/astonbitecode/j4rs.svg?branch=master)
 [![Build status](https://ci.appveyor.com/api/projects/status/9k83nufbt958w6p2?svg=true)](https://ci.appveyor.com/project/astonbitecode/j4rs)
 
@@ -49,21 +49,48 @@ let _static_invocation_result = jvm.invoke_static(
 
 ### Callback support
 
-`j4rs` provides the means for _Java to Rust callbacks_ via [Rust channels](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html). 
+`j4rs` provides support for _Java to Rust callbacks_.
 
-In the Java world, a Class that can do __Native Callbacks__ must extend the class 
-`org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport`
+These callbacks come to the Rust world via Rust [Channels](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html). 
+
+In order to initialize a channel that will provide Java callback values, the `Jvm::invoke_to_channel` should be called. It returns a result of `InstanceReceiver` struct, which contains a Channel [Receiver](https://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html):
+
+```rust
+// Invoke of a method of a Java instance and get the returned value in a Rust Channel.
+
+// Create an Instance of a class that supports Native Callbacks
+// (the class just needs to extend the 
+// `org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport`)
+let i = jvm.create_instance(
+    "org.astonbitecode.j4rs.tests.MyTest",
+    &Vec::new())
+    .unwrap();
+
+// Invoke the method
+let instance_receiver_res = jvm.invoke_to_channel(
+    &i,                         // The instance to invoke asynchronously
+    "performCallback",          // The method to invoke asynchronoysly
+    &Vec::new()                 // The `InvocationArg`s to use for the invocation - empty for this example
+);
+
+// Wait for the response to come
+let instance_receiver = instance_receiver_res.unwrap();
+let _ = instance_receiver.rx().recv();
+```
+
+In the Java world, a Class that can do __Native Callbacks__ must extend the 
+`org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport`
 
 For example, consider the following Java class. 
 
-The `performCallback` method spawns a new Thread and invokes the `doCallback` method in this Thread. The `doCallback` method is inherited by the `NativeCallbackSupport` class.
+The `performCallback` method spawns a new Thread and invokes the `doCallback` method in this Thread. The `doCallback` method is inherited by the `NativeCallbackToRustChannelSupport` class.
 
 ```java
 package org.astonbitecode.j4rs.tests;
 
-import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
+import org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport;
 
-public class MyTest extends NativeCallbackSupport {
+public class MyTest extends NativeCallbackToRustChannelSupport {
 
     public void performCallback() {
         new Thread(() -> {
@@ -73,43 +100,6 @@ public class MyTest extends NativeCallbackSupport {
 
 }
 ```
-
-In the Rust world, the _asynchronous_ invocation result will come from Java via a function that should be defined. This function should be of type `fn(Jvm, Instance) -> ()`
-
-```rust
-fn my_callback(jvm: Jvm, inst: Instance) {
-    let string_from_java: String = jvm.to_rust(inst).unwrap();
-    println!("Asynchronously got from Java: {}", string_from_java);
-}
-```
-
-We can asynchronously invoke the `performCallback` method by calling the `invoke_async` of the `Jvm`.
-
-```rust
-// Asynchronous invocation of a method of a Java instance. The invocation result will come from Java via a callback
-// Create an Instance of a class that supports Native Callbacks
-// (the class just needs to extend the `org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport`)
-let i = jvm.create_instance(
-    "org.astonbitecode.j4rs.tests.MyTest",
-    &Vec::new())
-    .unwrap();
-
-// Invoke asynchronously the method
-let _ = jvm.invoke_async(
-    &i,                         // The instance to invoke asynchronously
-    "performCallback",          // The method to invoke asynchronoysly
-    &Vec::new(),                // The `InvocationArg`s to use for the invocation - empty for this example
-    my_callback,                // A function of type `fn(Jvm, Instance) -> ()`
-);
-
-// Wait a little bit in order to see the callback
-// We should see the following in the console:
-// Asynchronously got from Java: THIS IS FROM CALLBACK!
-let ten_millis = time::Duration::from_millis(1000);
-thread::sleep(ten_millis);
-```
-
-#### Deprecation Note
 
 ### Passing arguments from Rust to Java
 
@@ -179,7 +169,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.1.5</version>
+    <version>0.2.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -201,8 +191,6 @@ let i12 = jnew!(&jvm -> new java.lang.String("a-new-string"));
 // Invocation
 let i13 = j!(&i12.split("-"));
 ```
-
-* Fix sharing and using the created `Jvm`s in different Rust threads.
 
 ## Licence
 
