@@ -150,14 +150,14 @@ mod lib_unit_tests {
         assert!(static_invocation_result.is_ok());
     }
 
-    #[test]
-    #[ignore]
-    fn callback() {
+    //#[test]
+    //#[ignore]
+    fn _callback() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let res = jvm.invoke_async(&i, "performCallback", Vec::new().as_ref(), my_callback);
+                let res = jvm.invoke_async(&i, "performCallback", Vec::new().as_ref(), _my_callback);
                 let thousand_millis = time::Duration::from_millis(1000);
                 thread::sleep(thousand_millis);
                 assert!(res.is_ok());
@@ -235,9 +235,46 @@ mod lib_unit_tests {
                 thread::sleep(millis);
             }
             Err(error) => {
-                panic!("ERROR when creating Instance: {:?}", error);
+                panic!("ERROR when creating Instance:  {:?}", error);
             }
         }
+    }
+
+    #[test]
+    fn clone_instance() {
+        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
+        // Create a MyTest instance
+        let i_result = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref());
+        assert!(i_result.is_ok());
+        let i_arg = i_result.unwrap();
+
+        // Create two clones of the instance
+        let i1 = jvm.clone_instance(&i_arg).unwrap();
+        let i2 = jvm.clone_instance(&i_arg).unwrap();
+        // Use the clones as arguments
+        let invocation_res = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from(i1)]);
+        assert!(invocation_res.is_ok());
+        let invocation_res = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from(i2)]);
+        assert!(invocation_res.is_ok());
+    }
+
+    #[test]
+    fn weak_reference() {
+        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
+        // Create a MyTest instance
+        let i_result = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref());
+        assert!(i_result.is_ok());
+        let i_arg = i_result.unwrap();
+
+        // Create two weak refs of the instance
+        let i1 = i_arg.weak_ref().unwrap();
+        let i2 = i_arg.weak_ref().unwrap();
+
+        // Use the clones as arguments
+        let invocation_res = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from(i1)]);
+        assert!(invocation_res.is_ok());
+        let invocation_res = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from(i2)]);
+        assert!(invocation_res.is_ok());
     }
 
     //#[test]
@@ -263,22 +300,22 @@ mod lib_unit_tests {
 
     //#[test]
     //#[ignore]
-    fn _memory_leaks_when_cloning_instances() {
+    fn _memory_leaks_when_using_weak_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
 
         for i in 0..100000000 {
             match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
                 Ok(instance) => {
-                    let i0 = instance.clone();
-                    let i1 = instance.clone();
-                    let i2 = instance.clone();
-                    let i3 = instance.clone();
-                    let i4 = instance.clone();
-                    let i5 = instance.clone();
-                    let i6 = instance.clone();
-                    let i7 = instance.clone();
-                    let i8 = instance.clone();
-                    let i9 = instance.clone();
+                    let i0 = instance.weak_ref().unwrap();
+                    let i1 = instance.weak_ref().unwrap();
+                    let i2 = instance.weak_ref().unwrap();
+                    let i3 = instance.weak_ref().unwrap();
+                    let i4 = instance.weak_ref().unwrap();
+                    let i5 = instance.weak_ref().unwrap();
+                    let i6 = instance.weak_ref().unwrap();
+                    let i7 = instance.weak_ref().unwrap();
+                    let i8 = instance.weak_ref().unwrap();
+                    let i9 = instance.weak_ref().unwrap();
 
                     assert!(jvm.invoke(&i0, "aMethod", &[]).is_ok());
                     assert!(jvm.invoke(&i1, "aMethod", &[]).is_ok());
@@ -409,7 +446,7 @@ mod lib_unit_tests {
         assert!(jh.join().unwrap());
     }
 
-    fn my_callback(jvm: Jvm, inst: Instance) {
+    fn _my_callback(jvm: Jvm, inst: Instance) {
         let string_from_java: String = jvm.to_rust(inst).unwrap();
         println!("Asynchronously got from Java: {}", string_from_java);
     }

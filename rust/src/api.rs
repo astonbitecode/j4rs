@@ -698,6 +698,38 @@ impl Jvm {
         }
     }
 
+    /// Creates a clone of the provided Instance
+    pub fn clone_instance(&self, instance: &Instance) -> errors::Result<Instance> {
+        unsafe {
+            // First argument is the jobject that is inside the instance
+
+            // The clone method signature
+            let clone_method_signature = format!(
+                "(L{};)L{};",
+                INVO_IFACE_NAME,
+                INVO_IFACE_NAME);
+
+            // Get the method ID for the `NativeInvocation.cast`
+            let cast_static_method = (self.jni_get_static_method_id)(
+                self.jni_env,
+                self.native_invocation_class,
+                utils::to_java_string("cloneInstance"),
+                utils::to_java_string(clone_method_signature.as_ref()),
+            );
+
+            // Call the clone method
+            let native_invocation_instance = (self.jni_call_static_object_method)(
+                self.jni_env,
+                self.native_invocation_class,
+                cast_static_method,
+                instance.jinstance,
+            );
+
+            // Create and return the Instance
+            self.do_return(Instance::from(native_invocation_instance)?)
+        }
+    }
+
     /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
     pub fn cast(&self, from_instance: &Instance, to_class: &str) -> errors::Result<Instance> {
         debug(&format!("Casting to class {}", to_class));
@@ -1316,14 +1348,13 @@ impl Instance {
             class_name: UNKNOWN_FOR_RUST.to_string(),
         })
     }
-}
 
-impl Clone for Instance {
-    fn clone(&self) -> Instance {
-        Instance {
+    /// Creates a weak reference of this Instance.
+    pub fn weak_ref(&self) -> errors::Result<Instance> {
+        Ok(Instance {
             class_name: self.class_name.clone(),
-            jinstance: create_weak_global_ref_from_global_ref(self.jinstance, get_thread_local_env().unwrap()).unwrap(),
-        }
+            jinstance: create_weak_global_ref_from_global_ref(self.jinstance, get_thread_local_env()?)?,
+        })
     }
 }
 

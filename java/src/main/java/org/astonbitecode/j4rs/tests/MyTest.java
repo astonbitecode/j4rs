@@ -27,6 +27,10 @@ public class MyTest extends NativeCallbackSupport {
         this.string = "THE DEFAULT CONSTRUCTOR WAS CALLED";
     }
 
+    public MyTest(MyTest myTest) {
+        this.string = myTest.string;
+    }
+
     public MyTest(String str) {
         this.string = str;
     }

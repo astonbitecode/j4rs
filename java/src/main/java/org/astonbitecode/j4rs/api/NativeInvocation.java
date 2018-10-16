@@ -75,4 +75,15 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
             throw new InvocationException("Cannot cast instance of " + from.getObject().getClass().getName() + " to " + toClass, error);
         }
     }
+
+    /**
+     * Clones a NativeInvocation
+     *
+     * @param from The object to clone.
+     * @param <T>  Generically defined return type
+     * @return a {@link NativeInvocation} instance.
+     */
+    static <T> NativeInvocation cloneInstance(NativeInvocation from) {
+        return new JsonInvocationImpl(from.getObject(), from.getObjectClass());
+    }
 }

@@ -5,6 +5,11 @@ import org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport;
 import java.util.stream.IntStream;
 
 public class MySecondTest extends NativeCallbackToRustChannelSupport {
+
+    public static MyTest myTestFactory() {
+        return new MyTest();
+    }
+
     public void performCallback() {
         new Thread(() -> {
             doCallback("THIS IS FROM CALLBACK TO A CHANNEL...");
