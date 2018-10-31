@@ -15,7 +15,7 @@ travis-ci = { repository = "astonbitecode/j4rs", branch = "master" }
 
 [lib]
 name = "j4rs"
-crate-type = ["rlib", "dylib", "cdylib"]
+crate-type = ["rlib", "dylib"]
 path = "src/lib.rs"
 
 [dependencies]
