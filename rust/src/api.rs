@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use ::errors;
-use ::utils;
+use crate::errors;
+use crate::utils;
 use jni_sys::{
     self,
     JavaVM,

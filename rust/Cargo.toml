@@ -9,6 +9,7 @@ repository = "https://github.com/astonbitecode/j4rs"
 readme = "README.md" 
 categories = ["api-bindings"]
 build = "build.rs"
+edition = "2015"
 
 [badges]
 travis-ci = { repository = "astonbitecode/j4rs", branch = "master" }

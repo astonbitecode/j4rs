@@ -15,7 +15,7 @@
 use libc::c_char;
 use std::ffi::{CStr, CString, OsStr};
 use std::{mem, str, self};
-use ::errors;
+use crate::errors;
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
