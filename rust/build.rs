@@ -11,6 +11,8 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+const VERSION: &'static str = "0.2.0";
+
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let jvm_dyn_lib_file_name = if cfg!(windows) {
@@ -87,7 +89,11 @@ fn generate_src(out_dir: &str, exec_dir: PathBuf) {
 fn _deps_dir() -> &'static str {{
     \"{}\"
 }}
-", exec_dir_str, deps_dir_str);
+
+fn j4rs_version() -> &'static str {{
+    \"{}\"
+}}
+", exec_dir_str, deps_dir_str, VERSION);
 
     f.write_all(contents.as_bytes()).unwrap();
 }
@@ -95,7 +101,8 @@ fn _deps_dir() -> &'static str {{
 // Copies the jars from the `java` directory to the source directory of rust.
 fn copy_jars_from_java() {
     // If the java directory exists, copy the generated jars in the `jassets` directory
-    if File::open("../java/target/j4rs-0.2.0-jar-with-dependencies.jar").is_ok() {
+    let jar_source_path = format!("../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
+    if File::open(&jar_source_path).is_ok() {
         let home = env::var("CARGO_MANIFEST_DIR").unwrap();
         let jassets_path_buf = Path::new(&home).join("jassets");
         let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
@@ -105,7 +112,6 @@ fn copy_jars_from_java() {
         let _ = fs::create_dir_all(jassets_path_buf.clone())
             .map_err(|error| panic!("Cannot create dir '{:?}': {:?}", jassets_path_buf, error));
 
-        let jar_source_path = "../java/target/j4rs-0.2.0-jar-with-dependencies.jar";
         let ref options = fs_extra::dir::CopyOptions::new();
         let _ = fs_extra::copy_items(vec![jar_source_path].as_ref(), jassets_path, options);
     }
@@ -133,16 +139,24 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
 
 // Appends the jni lib directory in the case that it is not contained in the LD_LIBRARY_PATH.
 // Appends the entry in the .profile.
-// TODO: Handle Windows case
 #[cfg(target_os = "linux")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let home_buf = dirs::home_dir().unwrap();
     let home = home_buf.to_str().unwrap_or("");
     let existing = env::var("LD_LIBRARY_PATH")?;
-    if !existing.contains(ld_library_path) {
+
+    let profile_path = format!("{}/.profile", home);
+    let export_arg = format!("export LD_LIBRARY_PATH=\"{}:$LD_LIBRARY_PATH\"", ld_library_path);
+
+    let exists_in_profile = {
+        let mut f = File::open(&profile_path)?;
+        let mut buffer = String::new();
+        f.read_to_string(&mut buffer)?;
+        buffer.contains(&export_arg)
+    };
+
+    if !existing.contains(ld_library_path) && !exists_in_profile {
         // Add the LD_LIBRARY_PATH in the .profile
-        let profile_path = format!("{}/.profile", home);
-        let export_arg = format!("export LD_LIBRARY_PATH=\"{}:$LD_LIBRARY_PATH\"", ld_library_path);
         match OpenOptions::new()
             .append(true)
             .open(profile_path) {

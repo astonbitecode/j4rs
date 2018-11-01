@@ -49,25 +49,27 @@ include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
     // The default classpath contains the j4rs
+    let jar_file_name = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
     let mut default_classpath_entry = std::env::current_exe()?;
     default_classpath_entry.pop();
     default_classpath_entry.push("jassets");
-    default_classpath_entry.push("j4rs-0.2.0-jar-with-dependencies.jar");
+    default_classpath_entry.push(jar_file_name.clone());
     // Create a default classpath entry for the tests
     let mut tests_classpath_entry = std::env::current_exe()?;
     tests_classpath_entry.pop();
     tests_classpath_entry.pop();
     tests_classpath_entry.push("jassets");
-    tests_classpath_entry.push("j4rs-0.2.0-jar-with-dependencies.jar");
+    tests_classpath_entry.push(jar_file_name);
 
+    let last_resort_classpath = format!("./jassets/j4rs-{}-jar-with-dependencies.jar", j4rs_version());
     let default_class_path = format!("-Djava.class.path={}{}{}",
                                      default_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.2.0-jar-with-dependencies.jar"),
+                                         .unwrap_or(&last_resort_classpath),
                                      utils::classpath_sep(),
                                      tests_classpath_entry
                                          .to_str()
-                                         .unwrap_or("./jassets/j4rs-0.2.0-jar-with-dependencies.jar"));
+                                         .unwrap_or(&last_resort_classpath));
 
     let classpath = classpath_entries
         .iter()

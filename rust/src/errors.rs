@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde_json;
+use std::{fmt, result};
 use std::error::Error;
-use std::{result, fmt};
 use std::ffi::NulError;
 use std::io;
-use serde_json;
 
 pub type Result<T> = result::Result<T, J4RsError>;
 
