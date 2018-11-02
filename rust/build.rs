@@ -23,11 +23,14 @@ fn main() {
     let ld_library_path = get_ld_library_path(jvm_dyn_lib_file_name);
 
     // Set the build environment
-    // DYLD_LIBRARY_PATH macos
     if cfg!(windows) {
         println!("cargo:rustc-env=PATH={};%PATH%", ld_library_path);
         let jvm_lib = get_ld_library_path("jvm.lib");
         println!("cargo:rustc-link-search={}", jvm_lib);
+    } else if cfg!(macos) {
+        let ld = env::var("DYLD_LIBRARY_PATH").unwrap();
+        println!("cargo:rustc-env=DYLD_LIBRARY_PATH={}:{}", ld_library_path, ld);
+        println!("cargo:rustc-link-search={}", ld_library_path);
     } else {
         let ld = env::var("LD_LIBRARY_PATH").unwrap();
         println!("cargo:rustc-env=LD_LIBRARY_PATH={}:{}", ld_library_path, ld);
