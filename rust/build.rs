@@ -23,13 +23,15 @@ fn main() {
     let ld_library_path = get_ld_library_path(jvm_dyn_lib_file_name);
 
     // Set the build environment
+    // DYLD_LIBRARY_PATH macos
     if cfg!(windows) {
         println!("cargo:rustc-env=PATH={};%PATH%", ld_library_path);
         let jvm_lib = get_ld_library_path("jvm.lib");
-        println!("cargo:rustc-link-search=native={}", jvm_lib);
+        println!("cargo:rustc-link-search={}", jvm_lib);
     } else {
-        println!("cargo:rustc-env=LD_LIBRARY_PATH={}", ld_library_path);
-        println!("cargo:rustc-link-search=native={}", ld_library_path);
+        let ld = env::var("LD_LIBRARY_PATH").unwrap();
+        println!("cargo:rustc-env=LD_LIBRARY_PATH={}:{}", ld_library_path, ld);
+        println!("cargo:rustc-link-search={}", ld_library_path);
     }
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
@@ -138,38 +140,37 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
 }
 
 // Appends the jni lib directory in the case that it is not contained in the LD_LIBRARY_PATH.
-// Appends the entry in the .profile.
+// Appends the entry in the $CARGO_HOME/env.
 #[cfg(target_os = "linux")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
-    let home_buf = dirs::home_dir().unwrap();
-    let home = home_buf.to_str().unwrap_or("");
     let existing = env::var("LD_LIBRARY_PATH")?;
+    let chome = env!("CARGO_HOME");
 
-    let profile_path = format!("{}/.profile", home);
+    let env_file_path = format!("{}/env", chome);
     let export_arg = format!("export LD_LIBRARY_PATH=\"{}:$LD_LIBRARY_PATH\"", ld_library_path);
 
     let exists_in_profile = {
-        let mut f = File::open(&profile_path)?;
+        let mut f = File::open(&env_file_path)?;
         let mut buffer = String::new();
         f.read_to_string(&mut buffer)?;
         buffer.contains(&export_arg)
     };
 
     if !existing.contains(ld_library_path) && !exists_in_profile {
-        // Add the LD_LIBRARY_PATH in the .profile
+        // Add the LD_LIBRARY_PATH in the env
         match OpenOptions::new()
             .append(true)
-            .open(profile_path) {
-            Ok(mut profile_file) => {
+            .open(env_file_path) {
+            Ok(mut env_file) => {
                 let to_append = format!("\n{}\n", export_arg);
-                let _ = profile_file.write_all(to_append.as_bytes());
+                let _ = env_file.write_all(to_append.as_bytes());
             }
             Err(error) => {
                 panic!("Could not set the environment: {:?}", error);
             }
         };
-        println!("cargo:warning=The contents of $HOME/.profile changed, by adding the libjni location in the LD_LIBRARY_PATH env variable.\
-         This is done because the jni shared library is needed by j4rs. In order to use j4rs in this session, please source the $HOME/.profile, or log out and log in.");
+        println!("cargo:warning=The contents of {}/env changed, by adding the libjvm location in the LD_LIBRARY_PATH env variable.\
+         This is done because the jvm shared library is needed to run Java natively. In order to use j4rs in this session, please source the {}/env changed, or log out and log in.", chome, chome);
     }
     Ok(())
 }
