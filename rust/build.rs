@@ -147,33 +147,37 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
 #[cfg(target_os = "linux")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let existing = env::var("LD_LIBRARY_PATH")?;
-    let chome = env!("CARGO_HOME");
+    let chome = env::var("CARGO_HOME").unwrap_or("".to_owned());
 
-    let env_file_path = format!("{}/env", chome);
-    let export_arg = format!("export LD_LIBRARY_PATH=\"{}:$LD_LIBRARY_PATH\"", ld_library_path);
+    if chome.is_empty() {
+        println!("cargo:warning=Please add to the LD_LIBRARY_PATH env the following: {}", ld_library_path);
+    } else {
+        let env_file_path = format!("{}/env", chome);
+        let export_arg = format!("export LD_LIBRARY_PATH=\"{}:$LD_LIBRARY_PATH\"", ld_library_path);
 
-    let exists_in_profile = {
-        let mut f = File::open(&env_file_path)?;
-        let mut buffer = String::new();
-        f.read_to_string(&mut buffer)?;
-        buffer.contains(&export_arg)
-    };
-
-    if !existing.contains(ld_library_path) && !exists_in_profile {
-        // Add the LD_LIBRARY_PATH in the env
-        match OpenOptions::new()
-            .append(true)
-            .open(env_file_path) {
-            Ok(mut env_file) => {
-                let to_append = format!("\n{}\n", export_arg);
-                let _ = env_file.write_all(to_append.as_bytes());
-            }
-            Err(error) => {
-                panic!("Could not set the environment: {:?}", error);
-            }
+        let exists_in_profile = {
+            let mut f = File::open(&env_file_path)?;
+            let mut buffer = String::new();
+            f.read_to_string(&mut buffer)?;
+            buffer.contains(&export_arg)
         };
-        println!("cargo:warning=The contents of {}/env changed, by adding the libjvm location in the LD_LIBRARY_PATH env variable.\
+
+        if !existing.contains(ld_library_path) && !exists_in_profile {
+            // Add the LD_LIBRARY_PATH in the env
+            match OpenOptions::new()
+                .append(true)
+                .open(env_file_path) {
+                Ok(mut env_file) => {
+                    let to_append = format!("\n{}\n", export_arg);
+                    let _ = env_file.write_all(to_append.as_bytes());
+                }
+                Err(error) => {
+                    panic!("Could not set the environment: {:?}", error);
+                }
+            };
+            println!("cargo:warning=The contents of {}/env changed, by adding the libjvm location in the LD_LIBRARY_PATH env variable.\
          This is done because the jvm shared library is needed to run Java natively. In order to use j4rs in this session, please source the {}/env changed, or log out and log in.", chome, chome);
+        }
     }
     Ok(())
 }
@@ -182,7 +186,7 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let existing = env::var("DYLD_LIBRARY_PATH").unwrap_or("".to_owned());
     if !existing.contains(ld_library_path) {
-        println!("cargo:warning=Please add in the DYLD_LIBRARY_PATH env the following: {}", ld_library_path);
+        println!("cargo:warning=Please add to the DYLD_LIBRARY_PATH env the following: {}", ld_library_path);
     }
     Ok(())
 }
