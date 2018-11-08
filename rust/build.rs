@@ -11,7 +11,7 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-const VERSION: &'static str = "0.2.0";
+const VERSION: &'static str = "0.3.0-SNAPSHOT";
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -180,9 +180,9 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
 
 #[cfg(target_os = "macos")]
 fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
-    let existing = env::var("LD_LIBRARY_PATH").unwrap_or("".to_owned());
+    let existing = env::var("DYLD_LIBRARY_PATH").unwrap_or("".to_owned());
     if !existing.contains(ld_library_path) {
-        println!("cargo:warning=Please add the libjni location in the LD_LIBRARY_PATH env variable.");
+        println!("cargo:warning=Please add in the DYLD_LIBRARY_PATH env the following: {}", ld_library_path);
     }
     Ok(())
 }

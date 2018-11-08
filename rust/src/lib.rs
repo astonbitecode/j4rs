@@ -109,7 +109,9 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 
     let result = tx.send(instance);
     mem::forget(tx);
-    result.unwrap();
+    if let Err(error) = result {
+        panic!("Could not send to the defined callback channel: {:?}", error);
+    }
 }
 
 #[cfg(test)]

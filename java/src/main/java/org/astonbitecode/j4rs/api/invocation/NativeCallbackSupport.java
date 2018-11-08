@@ -29,8 +29,6 @@ public class NativeCallbackSupport {
     private Optional<RustPointer> functionPointerOpt = Optional.empty();
 
     static void initialize(String libname) throws UnsatisfiedLinkError {
-        String libpath = System.getProperty("java.library.path");
-        System.out.println("Loading native library " + libname + " from path " + libpath);
         System.loadLibrary(libname);
     }
 
