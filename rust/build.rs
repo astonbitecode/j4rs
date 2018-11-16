@@ -2,7 +2,6 @@ extern crate dirs;
 extern crate fs_extra;
 extern crate glob;
 
-use glob::glob;
 use std::{env, fs};
 use std::error::Error;
 use std::fmt;
@@ -11,9 +10,19 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+use glob::glob;
+
 const VERSION: &'static str = "0.3.0-SNAPSHOT";
 
 fn main() {
+    // Skipp setting the environment if needed
+    if let Ok(skip) = env::var("J4RS_SKIP_SETTING_ENV") {
+        if skip == "true" {
+            println!("cargo:warning=Skipping setting up the j4rs environment");
+        }
+        return;
+    }
+
     let out_dir = env::var("OUT_DIR").unwrap();
     let jvm_dyn_lib_file_name = if cfg!(windows) {
         "jvm.dll"

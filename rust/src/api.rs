@@ -57,8 +57,8 @@ use super::logger::{debug, error, info, warn};
 extern {}
 
 //type JniFindClass = unsafe extern "system" fn(env: *mut JNIEnv, name: *const c_char) -> jclass;
-type JniGetMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const i8, *const i8) -> *mut jni_sys::_jmethodID;
-type JniGetStaticMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const i8, *const i8) -> *mut jni_sys::_jmethodID;
+type JniGetMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
+type JniGetStaticMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
 #[allow(non_snake_case)]
 type JniNewObject = unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject;
 type JniNewStringUTF = unsafe extern "system" fn(env: *mut JNIEnv, utf: *const c_char) -> jstring;
@@ -210,7 +210,7 @@ impl Jvm {
                     .iter()
                     .map(|opt| {
                         JavaVMOption {
-                            optionString: utils::to_java_string(opt) as *mut i8,
+                            optionString: utils::to_java_string(opt),
                             extraInfo: ptr::null_mut() as *mut c_void,
                         }
                     })

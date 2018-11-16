@@ -14,7 +14,7 @@
 
 use libc::c_char;
 use std::ffi::{CStr, CString, OsStr};
-use std::{mem, str, self};
+use std::{str, self};
 use crate::errors;
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
@@ -22,13 +22,9 @@ pub fn to_rust_string(pointer: *const c_char) -> String {
     str::from_utf8(slice).unwrap().to_string()
 }
 
-pub fn to_java_string(string: &str) -> *const c_char {
+pub fn to_java_string(string: &str) -> *mut c_char {
     let cs = CString::new(string.as_bytes()).unwrap();
-    let ptr = cs.as_ptr();
-    // Tell Rust not to clean up the string while we still have a pointer to it.
-    // Otherwise, we'll get a segfault.
-    mem::forget(cs);
-    ptr
+    cs.into_raw()
 }
 
 #[cfg(not(target_os = "windows"))]

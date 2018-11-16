@@ -23,6 +23,12 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
+use std::mem;
+use std::os::raw::{c_long, c_void};
+use std::sync::mpsc::Sender;
+
+use jni_sys::{JNIEnv, jobject};
+
 pub use self::api::Callback as Callback;
 pub use self::api::ClasspathEntry as ClasspathEntry;
 pub use self::api::Instance as Instance;
@@ -30,11 +36,7 @@ pub use self::api::InstanceReceiver as InstanceReceiver;
 pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
-use jni_sys::{JNIEnv, jobject};
 use self::logger::info;
-use std::mem;
-use std::os::raw::{c_long, c_void};
-use std::sync::mpsc::Sender;
 
 mod api;
 mod utils;
@@ -90,6 +92,28 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
     Jvm::new(&jvm_options)
 }
 
+/// Creates a new JVM, using the provided classpath entries and JVM arguments.
+///
+/// This function does not include the `j4rs.jar` in the classpath.
+/// This is useful for using j4rs in environments like Android, or in libraries that are being called via `jni`.
+/// In such cases the JVM is already created and the j4rs jar should be already in the classpath.
+pub fn new_jvm_no_default_classpath(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
+    let classpath = classpath_entries
+        .iter()
+        .fold(
+            ".".to_string(),
+            |all, elem| {
+                format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
+            });
+    info(&format!("Setting classpath to {}", classpath));
+
+    // Populate the JVM Options
+    let mut jvm_options = vec![classpath];
+    java_opts.into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
+
+    Jvm::new(&jvm_options)
+}
+
 #[no_mangle]
 pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_docallback(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
     let pointer_from_address = ptr_address as *const ();
@@ -118,6 +142,7 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 mod lib_unit_tests {
     use std::{thread, time};
     use std::thread::JoinHandle;
+
     use super::{ClasspathEntry, Instance, InvocationArg, Jvm};
 
     #[test]
