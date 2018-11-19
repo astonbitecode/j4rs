@@ -39,6 +39,7 @@ pub use self::api::Jvm as Jvm;
 use self::logger::info;
 
 mod api;
+pub (crate) mod api_tweaks;
 mod utils;
 mod logger;
 

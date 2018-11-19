@@ -15,15 +15,17 @@ use glob::glob;
 const VERSION: &'static str = "0.3.0-SNAPSHOT";
 
 fn main() {
-    // Skipp setting the environment if needed
+    let out_dir = env::var("OUT_DIR").unwrap();
+
+    // Skip setting the environment if needed
     if let Ok(skip) = env::var("J4RS_SKIP_SETTING_ENV") {
         if skip == "true" {
-            println!("cargo:warning=Skipping setting up the j4rs environment");
+            generate_src(&out_dir);
+            println!("cargo:warning=Skip setting up the j4rs environment {}", (skip == "true"));
         }
         return;
     }
 
-    let out_dir = env::var("OUT_DIR").unwrap();
     let jvm_dyn_lib_file_name = if cfg!(windows) {
         "jvm.dll"
     } else {
@@ -48,9 +50,9 @@ fn main() {
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java();
-    let exec_dir = copy_jars_to_exec_directory(&out_dir);
+    let _ = copy_jars_to_exec_directory(&out_dir);
     initialize_env(&ld_library_path).expect("Initialize Environment");
-    generate_src(&out_dir, exec_dir);
+    generate_src(&out_dir);
 }
 
 // Finds and returns the directory that contains the libjvm library
@@ -85,29 +87,16 @@ fn get_ld_library_path(lib_file_name: &str) -> String {
     paths_vec[0].clone()
 }
 
-fn generate_src(out_dir: &str, exec_dir: PathBuf) {
+fn generate_src(out_dir: &str) {
     let dest_path = Path::new(&out_dir).join("j4rs_init.rs");
     let mut f = File::create(&dest_path).unwrap();
 
-    let mut exec_dir_mut = exec_dir.clone();
-    exec_dir_mut.push("deps");
-
-    let exec_dir_str = exec_dir.to_str().unwrap().replace("\\", "\\\\");
-    let deps_dir_str = exec_dir_mut.to_str().unwrap().replace("\\", "\\\\");
-
     let contents = format!(
-        "fn _exec_dir() -> &'static str {{
-    \"{}\"
-}}
-
-fn _deps_dir() -> &'static str {{
-    \"{}\"
-}}
-
+        "
 fn j4rs_version() -> &'static str {{
     \"{}\"
 }}
-", exec_dir_str, deps_dir_str, VERSION);
+", VERSION);
 
     f.write_all(contents.as_bytes()).unwrap();
 }
@@ -151,6 +140,15 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
     exec_dir_path_buf
 }
 
+#[cfg(target_os = "macos")]
+fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
+    let existing = env::var("DYLD_LIBRARY_PATH").unwrap_or("".to_owned());
+    if !existing.contains(ld_library_path) {
+        println!("cargo:warning=Please add to the DYLD_LIBRARY_PATH env the following: {}", ld_library_path);
+    }
+    Ok(())
+}
+
 // Appends the jni lib directory in the case that it is not contained in the LD_LIBRARY_PATH.
 // Appends the entry in the $CARGO_HOME/env.
 #[cfg(target_os = "linux")]
@@ -187,15 +185,6 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
             println!("cargo:warning=The contents of {}/env changed, by adding the libjvm location in the LD_LIBRARY_PATH env variable.\
          This is done because the jvm shared library is needed to run Java natively. In order to use j4rs in this session, please source the {}/env changed, or log out and log in.", chome, chome);
         }
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
-    let existing = env::var("DYLD_LIBRARY_PATH").unwrap_or("".to_owned());
-    if !existing.contains(ld_library_path) {
-        println!("cargo:warning=Please add to the DYLD_LIBRARY_PATH env the following: {}", ld_library_path);
     }
     Ok(())
 }

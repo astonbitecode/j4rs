@@ -30,7 +30,6 @@ use jni_sys::{
     JNI_ERR,
     JNI_EVERSION,
     JNI_FALSE,
-    JNI_GetCreatedJavaVMs,
     JNI_OK,
     JNI_TRUE,
     JNI_VERSION_1_8,
@@ -52,11 +51,16 @@ use std::sync::mpsc::{Sender, Receiver, channel};
 use std::sync::Mutex;
 use std::cell::RefCell;
 use super::logger::{debug, error, info, warn};
+use crate::api_tweaks as tweaks;
+//
+//#[cfg(target_os = "android")]
+//#[link(name = "android")]
+//extern {}
 
+#[cfg(not(target_os = "android"))]
 #[link(name = "jvm")]
 extern {}
 
-//type JniFindClass = unsafe extern "system" fn(env: *mut JNIEnv, name: *const c_char) -> jclass;
 type JniGetMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
 type JniGetStaticMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
 #[allow(non_snake_case)]
@@ -287,7 +291,7 @@ impl Jvm {
         }
     }
 
-    fn try_from(jni_environment: *mut JNIEnv) -> errors::Result<Jvm> {
+    pub fn try_from(jni_environment: *mut JNIEnv) -> errors::Result<Jvm> {
         unsafe {
             match ((**jni_environment).FindClass,
                    (**jni_environment).GetMethodID,
@@ -824,7 +828,7 @@ impl Jvm {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
-            JNI_GetCreatedJavaVMs(ptr::null_mut(), 0, &mut created_vms_size);
+            tweaks::get_created_java_vms(ptr::null_mut(), 0, &mut created_vms_size);
 
             if created_vms_size == 0 {
                 None
@@ -834,7 +838,7 @@ impl Jvm {
                 let mut buffer: Vec<*mut JavaVM> = Vec::new();
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
 
-                let retjint = JNI_GetCreatedJavaVMs(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
+                let retjint = tweaks::get_created_java_vms(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
                 if retjint == JNI_OK {
                     match (**buffer[0]).AttachCurrentThread {
                         Some(act) => {
@@ -863,14 +867,14 @@ impl Jvm {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
-            JNI_GetCreatedJavaVMs(ptr::null_mut(), 0, &mut created_vms_size);
+            tweaks::get_created_java_vms(ptr::null_mut(), 0, &mut created_vms_size);
 
             if created_vms_size > 0 {
                 // Get the created VM
                 let mut buffer: Vec<*mut JavaVM> = Vec::new();
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
 
-                let retjint = JNI_GetCreatedJavaVMs(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
+                let retjint = tweaks::get_created_java_vms(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
                 if retjint == JNI_OK {
                     match (**buffer[0]).DetachCurrentThread {
                         Some(dct) => {
