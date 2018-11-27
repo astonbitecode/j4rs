@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::errors;
-use crate::utils;
+use std::cell::RefCell;
+use std::mem;
+use std::ops::Drop;
+use std::os::raw::c_void;
+use std::ptr;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Mutex;
+
 use jni_sys::{
     self,
     JavaVM,
@@ -21,8 +27,8 @@ use jni_sys::{
     JavaVMOption,
     jboolean,
     jclass,
+    jint,
     jmethodID,
-    JNI_CreateJavaVM,
     JNI_EDETACHED,
     JNI_EEXIST,
     JNI_EINVAL,
@@ -36,6 +42,7 @@ use jni_sys::{
     JNIEnv,
     jobject,
     jobjectArray,
+    jobjectRefType,
     jsize,
     jstring,
 };
@@ -43,19 +50,11 @@ use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
-use std::{fs, mem};
-use std::ops::Drop;
-use std::os::raw::c_void;
-use std::ptr;
-use std::sync::mpsc::{Sender, Receiver, channel};
-use std::sync::Mutex;
-use std::cell::RefCell;
-use super::logger::{debug, error, info, warn};
+
 use crate::api_tweaks as tweaks;
-//
-//#[cfg(target_os = "android")]
-//#[link(name = "android")]
-//extern {}
+use crate::errors;
+use crate::utils;
+use super::logger::{debug, error, info, warn};
 
 #[cfg(not(target_os = "android"))]
 #[link(name = "jvm")]
@@ -70,6 +69,8 @@ type JniNewStringUTF = unsafe extern "system" fn(env: *mut JNIEnv, utf: *const c
 type JniGetStringUTFChars = unsafe extern "system" fn(env: *mut JNIEnv, str: jstring, isCopy: *mut jboolean) -> *const c_char;
 #[allow(non_snake_case)]
 type JniCallObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
+#[allow(non_snake_case)]
+type JniCallVoidMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...);
 type JniCallStaticObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
 type JniNewObjectArray = unsafe extern "system" fn(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray;
 type JniSetObjectArrayElement = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, i32, *mut jni_sys::_jobject);
@@ -142,15 +143,14 @@ fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
 /// Holds the assets for the JVM
 #[derive(Clone)]
 pub struct Jvm {
-    //    _jvm: *mut JavaVM,
     jni_env: *mut JNIEnv,
-    //    _jni_find_class: JniFindClass,
     jni_get_method_id: JniGetMethodId,
     jni_get_static_method_id: JniGetStaticMethodId,
     jni_new_object: JniNewObject,
     jni_new_string_utf: JniNewStringUTF,
     jni_get_string_utf_chars: JniGetStringUTFChars,
     jni_call_object_method: JniCallObjectMethod,
+    jni_call_void_method: JniCallVoidMethod,
     jni_call_static_object_method: JniCallStaticObjectMethod,
     jni_new_onject_array: JniNewObjectArray,
     jni_set_object_array_element: JniSetObjectArrayElement,
@@ -172,22 +172,32 @@ pub struct Jvm {
     native_invocation_class: jclass,
     /// The Java class for the `InvocationArg`.
     invocation_arg_class: jclass,
+    detach_thread_on_drop: bool,
 }
 
 impl Jvm {
     /// Creates a new Jvm.
-    pub fn new(jvm_options: &[String]) -> errors::Result<Jvm> {
-        Self::create_jvm(jvm_options)
+    pub fn new(jvm_options: &[String], lib_name_to_load: Option<String>) -> errors::Result<Jvm> {
+        Self::create_jvm(jvm_options, lib_name_to_load)
     }
 
     /// Attaches the current thread to an active JavaVM
     pub fn attach_thread() -> errors::Result<Jvm> {
-        Self::create_jvm(&Vec::new())
+        Self::create_jvm(&Vec::new(), None)
+    }
+
+    /// If true, the thread will not be detached when the Jvm is eing dropped.
+    /// This is useful when creating a Jvm while on a Thread that is created in the Java world.
+    /// When this Jvm is dropped, we don't want to detach the thread from the Java VM.
+    ///
+    /// It prevents errors like: `attempting to detach while still running code`
+    pub fn detach_thread_on_drop(&mut self, detach: bool) {
+        self.detach_thread_on_drop = detach;
     }
 
     /// Creates a new Jvm.
     /// If a JavaVM is already created by the current process, it attempts to attach the current thread to it.
-    fn create_jvm(jvm_options: &[String]) -> errors::Result<Jvm> {
+    fn create_jvm(jvm_options: &[String], lib_name_to_load: Option<String>) -> errors::Result<Jvm> {
         debug("Creating a Jvm");
         let mut jvm: *mut JavaVM = ptr::null_mut();
         let mut jni_environment: *mut JNIEnv = ptr::null_mut();
@@ -227,13 +237,11 @@ impl Jvm {
                     ignoreUnrecognized: JNI_FALSE,
                 };
 
-                unsafe {
-                    JNI_CreateJavaVM(
-                        &mut jvm,
-                        (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
-                        (&mut jvm_arguments as *mut JavaVMInitArgs) as *mut c_void,
-                    )
-                }
+                tweaks::create_java_vm(
+                    &mut jvm,
+                    (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
+                    (&mut jvm_arguments as *mut JavaVMInitArgs) as *mut c_void,
+                )
             };
 
             res_int
@@ -253,53 +261,27 @@ impl Jvm {
             Err(errors::J4RsError::JavaError(format!("Could not create the JVM: {}", error_message).to_string()))
         } else {
             let jvm = Self::try_from(jni_environment)?;
-            // Pass to the Java world the name of the j4rs library.
-            let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
-                .filter(|entry| {
-                    entry.is_ok()
-                })
-                .filter(|entry| {
-                    let entry = entry.as_ref().unwrap();
-                    let file_name = entry.file_name();
-                    let file_name = file_name.to_str().unwrap();
-                    file_name.contains("j4rs") && (
-                        file_name.contains(".so") ||
-                            file_name.contains(".dll") ||
-                            file_name.contains(".dylib"))
-                })
-                .map(|entry| entry.
-                    unwrap().
-                    file_name().
-                    to_str().
-                    unwrap().
-                    to_owned())
-                .collect();
-
-            if found_libs.len() > 0 {
-                let a_lib = found_libs[0].clone().replace("lib", "");
-
-                let dot_splitted: Vec<&str> = a_lib.split(".").collect();
-                jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport",
+            if let Some(libname) = lib_name_to_load {
+                // Pass to the Java world the name of the j4rs library.
+                debug(&format!("Initializing NativeCallbackSupport with libname {}", libname));
+                jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport",
                                   "initialize",
-                                  &vec![InvocationArg::from(dot_splitted[0])])?;
-
-                Ok(jvm)
-            } else {
-                Err(errors::J4RsError::GeneralError(
-                    format!("Could not find the j4rs lib in {}", utils::deps_dir()?)))
+                                  &vec![InvocationArg::from(libname)])?;
             }
+
+            Ok(jvm)
         }
     }
 
     pub fn try_from(jni_environment: *mut JNIEnv) -> errors::Result<Jvm> {
         unsafe {
-            match ((**jni_environment).FindClass,
-                   (**jni_environment).GetMethodID,
+            match ((**jni_environment).GetMethodID,
                    (**jni_environment).GetStaticMethodID,
                    (**jni_environment).NewObject,
                    (**jni_environment).NewStringUTF,
                    (**jni_environment).GetStringUTFChars,
                    (**jni_environment).CallObjectMethod,
+                   (**jni_environment).CallVoidMethod,
                    (**jni_environment).CallStaticObjectMethod,
                    (**jni_environment).NewObjectArray,
                    (**jni_environment).SetObjectArrayElement,
@@ -309,12 +291,9 @@ impl Jvm {
                    (**jni_environment).DeleteLocalRef,
                    (**jni_environment).DeleteGlobalRef,
                    (**jni_environment).NewGlobalRef) {
-                (Some(fc), Some(gmid), Some(gsmid), Some(no), Some(nsu), Some(gsuc), Some(com), Some(csom), Some(noa), Some(soae), Some(ec), Some(ed), Some(exclear), Some(dlr), Some(dgr), Some(ngr)) => {
+                (Some(gmid), Some(gsmid), Some(no), Some(nsu), Some(gsuc), Some(com), Some(cvm), Some(csom), Some(noa), Some(soae), Some(ec), Some(ed), Some(exclear), Some(dlr), Some(dgr), Some(ngr)) => {
                     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`
-                    let factory_class: jclass = (fc)(
-                        jni_environment,
-                        utils::to_java_string(INST_CLASS_NAME),
-                    );
+                    let factory_class = tweaks::find_class(jni_environment, INST_CLASS_NAME);
                     // The constructor of `NativeInstantiationImpl`
                     let factory_constructor_method = (gmid)(
                         jni_environment,
@@ -322,9 +301,9 @@ impl Jvm {
                         utils::to_java_string("<init>"),
                         utils::to_java_string("()V"));
                     // The class of the `InvocationArg`
-                    let invocation_arg_class = (fc)(
+                    let invocation_arg_class = tweaks::find_class(
                         jni_environment,
-                        utils::to_java_string("org/astonbitecode/j4rs/api/dtos/InvocationArg"),
+                        "org/astonbitecode/j4rs/api/dtos/InvocationArg",
                     );
                     // `NativeInvocation` assets
                     let instantiate_method_signature = format!(
@@ -348,9 +327,9 @@ impl Jvm {
                         utils::to_java_string(&create_for_static_method_signature),
                     );
                     // The `NativeInvocation class`
-                    let native_invocation_class: jclass = (fc)(
+                    let native_invocation_class: jclass = tweaks::find_class(
                         jni_environment,
-                        utils::to_java_string(INVO_IFACE_NAME),
+                        INVO_IFACE_NAME,
                     );
 
                     if (ec)(jni_environment) == JNI_TRUE {
@@ -366,6 +345,7 @@ impl Jvm {
                             jni_new_string_utf: nsu,
                             jni_get_string_utf_chars: gsuc,
                             jni_call_object_method: com,
+                            jni_call_void_method: cvm,
                             jni_call_static_object_method: csom,
                             jni_new_onject_array: noa,
                             jni_set_object_array_element: soae,
@@ -381,6 +361,7 @@ impl Jvm {
                             factory_create_for_static_method: factory_create_for_static_method,
                             native_invocation_class: native_invocation_class,
                             invocation_arg_class: invocation_arg_class,
+                            detach_thread_on_drop: true,
                         };
 
                         if get_thread_local_env_opt().is_none() {
@@ -617,7 +598,7 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let _ = (self.jni_call_object_method)(
+            let _ = (self.jni_call_void_method)(
                 self.jni_env,
                 instance.jinstance,
                 invoke_method,
@@ -797,16 +778,7 @@ impl Jvm {
             );
             let _ = self.do_return("")?;
             debug("Transforming jstring to rust String");
-            let json = {
-                let s = (self.jni_get_string_utf_chars)(
-                    self.jni_env,
-                    json_instance as jstring,
-                    ptr::null_mut(),
-                );
-                let rust_string = utils::to_rust_string(s);
-                let _ = self.do_return("")?;
-                rust_string
-            };
+            let json = self.to_rust_string(json_instance as jstring)?;
             self.do_return(serde_json::from_str(&json)?)
         }
     }
@@ -828,7 +800,7 @@ impl Jvm {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
-            tweaks::get_created_java_vms(ptr::null_mut(), 0, &mut created_vms_size);
+            tweaks::get_created_java_vms(&mut Vec::new(), 0, &mut created_vms_size);
 
             if created_vms_size == 0 {
                 None
@@ -838,7 +810,7 @@ impl Jvm {
                 let mut buffer: Vec<*mut JavaVM> = Vec::new();
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
 
-                let retjint = tweaks::get_created_java_vms(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
+                let retjint = tweaks::get_created_java_vms(&mut buffer, created_vms_size, &mut created_vms_size);
                 if retjint == JNI_OK {
                     match (**buffer[0]).AttachCurrentThread {
                         Some(act) => {
@@ -867,14 +839,14 @@ impl Jvm {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
-            tweaks::get_created_java_vms(ptr::null_mut(), 0, &mut created_vms_size);
+            tweaks::get_created_java_vms(&mut Vec::new(), 0, &mut created_vms_size);
 
             if created_vms_size > 0 {
                 // Get the created VM
                 let mut buffer: Vec<*mut JavaVM> = Vec::new();
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
 
-                let retjint = tweaks::get_created_java_vms(buffer.as_mut_ptr(), created_vms_size, &mut created_vms_size);
+                let retjint = tweaks::get_created_java_vms(&mut buffer, created_vms_size, &mut created_vms_size);
                 if retjint == JNI_OK {
                     match (**buffer[0]).DetachCurrentThread {
                         Some(dct) => {
@@ -890,13 +862,27 @@ impl Jvm {
             }
         }
     }
+
+    pub fn to_rust_string(&self, java_string: jstring) -> errors::Result<String> {
+        unsafe {
+            let s = (self.jni_get_string_utf_chars)(
+                self.jni_env,
+                java_string,
+                ptr::null_mut(),
+            );
+            let rust_string = utils::to_rust_string(s);
+            self.do_return(rust_string)
+        }
+    }
 }
 
 impl Drop for Jvm {
     fn drop(&mut self) {
         if remove_active_jvm() <= 0 {
-            debug("Detaching thread from the JVM");
-            self.detach_current_thread();
+            if self.detach_thread_on_drop {
+                debug("Detaching thread from the JVM");
+                self.detach_current_thread();
+            }
             set_thread_local_env(None);
         }
     }
@@ -1373,24 +1359,27 @@ impl Drop for Instance {
 
 unsafe impl Send for Instance {}
 
-fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub (crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
                (**jni_env).DeleteLocalRef,
                (**jni_env).ExceptionCheck,
                (**jni_env).ExceptionDescribe,
-               (**jni_env).ExceptionClear) {
-            (Some(ngr), Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
+               (**jni_env).ExceptionClear,
+               (**jni_env).GetObjectRefType) {
+            (Some(ngr), Some(dlr), Some(exc), Some(exd), Some(exclear), Some(gort)) => {
                 // Create the global ref
                 let global = ngr(
                     jni_env,
                     local_ref,
                 );
-                // Delete the local ref
-                dlr(
-                    jni_env,
-                    local_ref,
-                );
+                // If local ref, delete it
+                if gort(jni_env, local_ref) as jint == jobjectRefType::JNILocalRefType as jint {
+                    dlr(
+                        jni_env,
+                        local_ref,
+                    );
+                }
                 // Exception check
                 if (exc)(jni_env) == JNI_TRUE {
                     (exd)(jni_env);
@@ -1400,7 +1389,7 @@ fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) ->
                     Ok(global)
                 }
             }
-            (_, _, _, _, _) => {
+            (_, _, _, _, _, _) => {
                 Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a global ref. This may lead to memory leaks".to_string()))
             }
         }
@@ -1495,6 +1484,7 @@ impl<'a> ToString for JavaOpt<'a> {
 #[cfg(test)]
 mod api_unit_tests {
     use serde_json;
+
     use super::InvocationArg;
 
     #[test]

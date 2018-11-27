@@ -23,11 +23,11 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-use std::mem;
+use std::{fs, mem};
 use std::os::raw::{c_long, c_void};
 use std::sync::mpsc::Sender;
 
-use jni_sys::{JNIEnv, jobject};
+use jni_sys::{jlong, JNIEnv, jobject};
 
 pub use self::api::Callback as Callback;
 pub use self::api::ClasspathEntry as ClasspathEntry;
@@ -36,16 +36,16 @@ pub use self::api::InstanceReceiver as InstanceReceiver;
 pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
+pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 use self::logger::info;
 
 mod api;
-pub (crate) mod api_tweaks;
+pub(crate) mod api_tweaks;
 mod utils;
 mod logger;
 
 pub mod errors;
 
-// TODO: Seems that this is not needed
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
@@ -90,7 +90,38 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
     let mut jvm_options = vec![classpath, default_library_path];
     java_opts.into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
 
-    Jvm::new(&jvm_options)
+    // Pass to the Java world the name of the j4rs library.
+    let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
+        .filter(|entry| {
+            entry.is_ok()
+        })
+        .filter(|entry| {
+            let entry = entry.as_ref().unwrap();
+            let file_name = entry.file_name();
+            let file_name = file_name.to_str().unwrap();
+            file_name.contains("j4rs") && (
+                file_name.contains(".so") ||
+                    file_name.contains(".dll") ||
+                    file_name.contains(".dylib"))
+        })
+        .map(|entry| entry.
+            unwrap().
+            file_name().
+            to_str().
+            unwrap().
+            to_owned())
+        .collect();
+
+    let lib_name_opt = if found_libs.len() > 0 {
+        let a_lib = found_libs[0].clone().replace("lib", "");
+
+        let dot_splitted: Vec<&str> = a_lib.split(".").collect();
+        Some(dot_splitted[0].to_string())
+    } else {
+        None
+    };
+
+    Jvm::new(&jvm_options, lib_name_opt)
 }
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments.
@@ -98,21 +129,8 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
 /// This function does not include the `j4rs.jar` in the classpath.
 /// This is useful for using j4rs in environments like Android, or in libraries that are being called via `jni`.
 /// In such cases the JVM is already created and the j4rs jar should be already in the classpath.
-pub fn new_jvm_no_default_classpath(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
-    let classpath = classpath_entries
-        .iter()
-        .fold(
-            ".".to_string(),
-            |all, elem| {
-                format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
-            });
-    info(&format!("Setting classpath to {}", classpath));
-
-    // Populate the JVM Options
-    let mut jvm_options = vec![classpath];
-    java_opts.into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
-
-    Jvm::new(&jvm_options)
+pub fn from_existing(lib_to_load: Option<String>) -> errors::Result<Jvm> {
+    Jvm::new(&Vec::new(), lib_to_load)
 }
 
 #[no_mangle]
@@ -121,14 +139,16 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_d
     let function = unsafe {
         mem::transmute::<*const (), Callback>(pointer_from_address)
     };
-    let jvm = Jvm::attach_thread().unwrap();
+    let mut jvm = Jvm::new(&Vec::new(), None).expect("Could not create a j4rs Jvm while invoking deprecated callback.");
+    jvm.detach_thread_on_drop(false);
     function(jvm, Instance::from(native_invocation).unwrap());
 }
 
 #[no_mangle]
-pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
+pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
+    let mut jvm = Jvm::try_from(jni_env).expect("Could not create a j4rs Jvm while invoking callback to channel.");
+    jvm.detach_thread_on_drop(false);
     let instance = Instance::from(native_invocation).unwrap();
-
     let p = ptr_address as *mut Sender<Instance>;
     let tx = unsafe { Box::from_raw(p) };
 

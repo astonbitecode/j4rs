@@ -24,7 +24,7 @@ import java.util.Optional;
  * Performs native callbacks to Rust
  */
 public class NativeCallbackSupport {
-    private static native int docallback(long functionPointerAddress, NativeInvocation inv);
+    private static native void docallback(long functionPointerAddress, NativeInvocation inv);
 
     private Optional<RustPointer> functionPointerOpt = Optional.empty();
 
