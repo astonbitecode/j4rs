@@ -66,8 +66,8 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_d
 }
 
 #[no_mangle]
-pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
-    let mut jvm = Jvm::try_from(jni_env).expect("Could not create a j4rs Jvm while invoking callback to channel.");
+pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
+    let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel.");
     jvm.detach_thread_on_drop(false);
     let instance = Instance::from(native_invocation).unwrap();
     let p = ptr_address as *mut Sender<Instance>;
