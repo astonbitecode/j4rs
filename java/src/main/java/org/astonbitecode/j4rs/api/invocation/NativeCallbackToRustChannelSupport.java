@@ -10,7 +10,7 @@ import java.util.Optional;
  * Performs native callbacks to Rust channels
  */
 public class NativeCallbackToRustChannelSupport {
-    private native int docallbacktochannel(long channelPointerAddress, NativeInvocation inv);
+    private static native int docallbacktochannel(long channelPointerAddress, NativeInvocation inv);
 
     private Optional<RustPointer> channelPointerOpt = Optional.empty();
 

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{fs, mem};
 use std::cell::RefCell;
-use std::mem;
 use std::ops::Drop;
 use std::os::raw::c_void;
 use std::ptr;
@@ -54,11 +54,15 @@ use serde_json;
 use crate::api_tweaks as tweaks;
 use crate::errors;
 use crate::utils;
+
 use super::logger::{debug, error, info, warn};
 
 #[cfg(not(target_os = "android"))]
 #[link(name = "jvm")]
 extern {}
+
+// Initialize the environment
+include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
 type JniGetMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
 type JniGetStaticMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
@@ -888,6 +892,203 @@ impl Drop for Jvm {
     }
 }
 
+/// A builder for Jvm
+pub struct JvmBuilder<'a> {
+    classpath_entries: Vec<ClasspathEntry<'a>>,
+    java_opts: Vec<JavaOpt<'a>>,
+    no_implicit_classpath: bool,
+    detach_thread_on_drop: bool,
+    lib_name_opt: Option<String>,
+    skip_setting_native_lib: bool,
+}
+
+impl<'a> JvmBuilder<'a> {
+    /// Creates a new JvmBuilder.
+    pub fn new<'b>() -> JvmBuilder<'b> {
+        JvmBuilder {
+            classpath_entries: Vec::new(),
+            java_opts: Vec::new(),
+            no_implicit_classpath: false,
+            detach_thread_on_drop: true,
+            lib_name_opt: None,
+            skip_setting_native_lib: false,
+        }
+    }
+
+    /// Adds a classpath entry.
+    pub fn classpath_entry(&'a mut self, cp_entry: ClasspathEntry<'a>) -> &'a mut JvmBuilder {
+        self.classpath_entries.push(cp_entry);
+        self
+    }
+
+    /// Adds classpath entries.
+    pub fn classpath_entries(&'a mut self, cp_entries: Vec<ClasspathEntry<'a>>) -> &'a mut JvmBuilder {
+        for cp_entry in cp_entries {
+            self.classpath_entries.push(cp_entry);
+        }
+        self
+    }
+
+    /// Adds a Java option.
+    pub fn java_opt(&'a mut self, opt: JavaOpt<'a>) -> &'a mut JvmBuilder {
+        self.java_opts.push(opt);
+        self
+    }
+
+    /// Adds Java options.
+    pub fn java_opts(&'a mut self, opts: Vec<JavaOpt<'a>>) -> &'a mut JvmBuilder {
+        for opt in opts {
+            self.java_opts.push(opt);
+        }
+        self
+    }
+
+    /// By default, the created `Jvm`s include an implicit classpath entry that includes the j4rs jar.
+    /// When `with_no_implicit_classpath()` is called, this classpath will not be added to the Jvm.
+    pub fn with_no_implicit_classpath(&'a mut self) -> &'a mut JvmBuilder {
+        self.no_implicit_classpath = true;
+        self
+    }
+
+    /// When a Jvm goes out of scope and is being dropped, its current thread is being detached from the Java VM.
+    /// A Jvm that is created with `detach_thread_on_drop(false)` will not detach the thread when being dropped.
+    ///
+    /// This is useful when in the Java world a native method is called and in the native code someone needs to create a j4rs Jvm.
+    /// Id that Jvm detaches its current thread when being dropped, there will be problems for the Java world code to continue executing.
+    pub fn detach_thread_on_drop(&'a mut self, detach_thread_on_drop: bool) -> &'a mut JvmBuilder {
+        self.detach_thread_on_drop = detach_thread_on_drop;
+        self
+    }
+
+    /// In the case that the j4rs is statically linked to some other library, the Java world (j4rs.jar) needs to load that
+    /// library instead of the default one.
+    ///
+    /// This function defines the native library name to load.
+    pub fn with_native_lib_name(&'a mut self, lib_name: &str) -> &'a mut JvmBuilder {
+        self.lib_name_opt = Some(lib_name.to_string());
+        self
+    }
+
+    /// Instructs the builder not to instruct the Java world j4rs code not to load the native library.
+    /// (most probably because it is already loaded)
+    pub fn skip_setting_native_lib(&'a mut self) -> &'a mut JvmBuilder {
+        self.skip_setting_native_lib = true;
+        self
+    }
+
+    /// Creates a Jvm
+    pub fn build(&self) -> errors::Result<Jvm> {
+        let classpath = if self.no_implicit_classpath {
+            self.classpath_entries
+                .iter()
+                .fold(
+                    ".".to_string(),
+                    |all, elem| {
+                        format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
+                    })
+        } else {
+            // The default classpath contains the j4rs
+            let jar_file_name = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
+            let mut default_classpath_entry = std::env::current_exe()?;
+            default_classpath_entry.pop();
+            default_classpath_entry.push("jassets");
+            default_classpath_entry.push(jar_file_name.clone());
+            // Create a default classpath entry for the tests
+            let mut tests_classpath_entry = std::env::current_exe()?;
+            tests_classpath_entry.pop();
+            tests_classpath_entry.pop();
+            tests_classpath_entry.push("jassets");
+            tests_classpath_entry.push(jar_file_name);
+
+            let last_resort_classpath = format!("./jassets/j4rs-{}-jar-with-dependencies.jar", j4rs_version());
+            let default_class_path = format!("-Djava.class.path={}{}{}",
+                                             default_classpath_entry
+                                                 .to_str()
+                                                 .unwrap_or(&last_resort_classpath),
+                                             utils::classpath_sep(),
+                                             tests_classpath_entry
+                                                 .to_str()
+                                                 .unwrap_or(&last_resort_classpath));
+
+            self.classpath_entries
+                .iter()
+                .fold(
+                    default_class_path,
+                    |all, elem| {
+                        format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
+                    })
+        };
+        info(&format!("Setting classpath to {}", classpath));
+
+        // Populate the JVM Options
+        let mut jvm_options = if self.no_implicit_classpath {
+            vec![classpath]
+        } else {
+            let default_library_path = utils::java_library_path()?;
+            info(&format!("Setting library path to {}", default_library_path));
+            vec![classpath, default_library_path]
+        };
+        self.java_opts.clone().into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
+
+        // Pass to the Java world the name of the j4rs library.
+        let lib_name_opt = if self.lib_name_opt.is_none() && !self.skip_setting_native_lib {
+            let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
+                .filter(|entry| {
+                    entry.is_ok()
+                })
+                .filter(|entry| {
+                    let entry = entry.as_ref().unwrap();
+                    let file_name = entry.file_name();
+                    let file_name = file_name.to_str().unwrap();
+                    file_name.contains("j4rs") && (
+                        file_name.contains(".so") ||
+                            file_name.contains(".dll") ||
+                            file_name.contains(".dylib"))
+                })
+                .map(|entry| entry.
+                    unwrap().
+                    file_name().
+                    to_str().
+                    unwrap().
+                    to_owned())
+                .collect();
+
+            let lib_name_opt = if found_libs.len() > 0 {
+                let a_lib = found_libs[0].clone().replace("lib", "");
+
+                let dot_splitted: Vec<&str> = a_lib.split(".").collect();
+                let name = dot_splitted[0].to_string();
+                info(&format!("Passing to the Java world the name of the library to load: {}", name));
+                Some(name)
+            } else {
+                None
+            };
+            lib_name_opt
+        } else if self.lib_name_opt.is_some() && !self.skip_setting_native_lib {
+            let name = self.lib_name_opt.clone();
+            info(&format!("Passing to the Java world the name of the library to load: {}", name.as_ref().unwrap()));
+            name
+        } else {
+            None
+        };
+
+        Jvm::new(&jvm_options, lib_name_opt)
+            .and_then(|mut jvm| {
+                if !self.detach_thread_on_drop {
+                    jvm.detach_thread_on_drop(false);
+                }
+                Ok(jvm)
+            })
+    }
+
+    /// Creates a Jvm, similar with an already created j4rs Jvm.
+    ///
+    /// _Note: The already created Jvm is a j4rs Jvm, not a Java VM._
+    pub fn already_initialized() -> errors::Result<Jvm> {
+        Jvm::new(&Vec::new(), None)
+    }
+}
+
 /// Struct that carries an argument that is used for method invocations in Java.
 #[derive(Serialize)]
 pub enum InvocationArg {
@@ -1359,7 +1560,7 @@ impl Drop for Instance {
 
 unsafe impl Send for Instance {}
 
-pub (crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
                (**jni_env).DeleteLocalRef,
@@ -1450,7 +1651,7 @@ fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
 }
 
 /// A classpath entry.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ClasspathEntry<'a> (&'a str);
 
 impl<'a> ClasspathEntry<'a> {
@@ -1466,7 +1667,7 @@ impl<'a> ToString for ClasspathEntry<'a> {
 }
 
 /// A Java Option.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct JavaOpt<'a> (&'a str);
 
 impl<'a> JavaOpt<'a> {

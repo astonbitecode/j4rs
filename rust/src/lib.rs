@@ -23,7 +23,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-use std::{fs, mem};
+use std::mem;
 use std::os::raw::{c_long, c_void};
 use std::sync::mpsc::Sender;
 
@@ -36,8 +36,8 @@ pub use self::api::InstanceReceiver as InstanceReceiver;
 pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
+pub use self::api::JvmBuilder as JvmBuilder;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
-use self::logger::info;
 
 mod api;
 pub(crate) mod api_tweaks;
@@ -46,91 +46,12 @@ mod logger;
 
 pub mod errors;
 
-// Initialize the environment
-include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
-
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
-    // The default classpath contains the j4rs
-    let jar_file_name = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-    let mut default_classpath_entry = std::env::current_exe()?;
-    default_classpath_entry.pop();
-    default_classpath_entry.push("jassets");
-    default_classpath_entry.push(jar_file_name.clone());
-    // Create a default classpath entry for the tests
-    let mut tests_classpath_entry = std::env::current_exe()?;
-    tests_classpath_entry.pop();
-    tests_classpath_entry.pop();
-    tests_classpath_entry.push("jassets");
-    tests_classpath_entry.push(jar_file_name);
-
-    let last_resort_classpath = format!("./jassets/j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-    let default_class_path = format!("-Djava.class.path={}{}{}",
-                                     default_classpath_entry
-                                         .to_str()
-                                         .unwrap_or(&last_resort_classpath),
-                                     utils::classpath_sep(),
-                                     tests_classpath_entry
-                                         .to_str()
-                                         .unwrap_or(&last_resort_classpath));
-
-    let classpath = classpath_entries
-        .iter()
-        .fold(
-            default_class_path,
-            |all, elem| {
-                format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
-            });
-    info(&format!("Setting classpath to {}", classpath));
-
-    let default_library_path = utils::java_library_path()?;
-    info(&format!("Setting library path to {}", default_library_path));
-
-    // Populate the JVM Options
-    let mut jvm_options = vec![classpath, default_library_path];
-    java_opts.into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
-
-    // Pass to the Java world the name of the j4rs library.
-    let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
-        .filter(|entry| {
-            entry.is_ok()
-        })
-        .filter(|entry| {
-            let entry = entry.as_ref().unwrap();
-            let file_name = entry.file_name();
-            let file_name = file_name.to_str().unwrap();
-            file_name.contains("j4rs") && (
-                file_name.contains(".so") ||
-                    file_name.contains(".dll") ||
-                    file_name.contains(".dylib"))
-        })
-        .map(|entry| entry.
-            unwrap().
-            file_name().
-            to_str().
-            unwrap().
-            to_owned())
-        .collect();
-
-    let lib_name_opt = if found_libs.len() > 0 {
-        let a_lib = found_libs[0].clone().replace("lib", "");
-
-        let dot_splitted: Vec<&str> = a_lib.split(".").collect();
-        Some(dot_splitted[0].to_string())
-    } else {
-        None
-    };
-
-    Jvm::new(&jvm_options, lib_name_opt)
-}
-
-/// Creates a new JVM, using the provided classpath entries and JVM arguments.
-///
-/// This function does not include the `j4rs.jar` in the classpath.
-/// This is useful for using j4rs in environments like Android, or in libraries that are being called via `jni`.
-/// In such cases the JVM is already created and the j4rs jar should be already in the classpath.
-pub fn from_existing(lib_to_load: Option<String>) -> errors::Result<Jvm> {
-    Jvm::new(&Vec::new(), lib_to_load)
+    JvmBuilder::new()
+        .classpath_entries(classpath_entries)
+        .java_opts(java_opts)
+        .build()
 }
 
 #[no_mangle]
