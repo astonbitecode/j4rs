@@ -238,7 +238,6 @@
                         <artifactId>retrolambda-maven-plugin</artifactId>
                         <version>${retrolambda.version}</version>
                         <configuration>
-                            <defaultMethods>false</defaultMethods>
                             <mainOutputDir>${project.build.outputDirectory}-backport</mainOutputDir>
                         </configuration>
                         <executions>
