@@ -183,7 +183,7 @@ Use like this in order to avoid possible classloading errors.
 
 ## j4rs Java library in Android
 
-If you encounter any issues when using j4rs in Android, this may be caused by Java 8 compatibility problems. This is shy a `Java 7` version is provided as well:
+If you encounter any issues when using j4rs in Android, this may be caused by Java 8 compatibility problems. This is why a `Java 7` version is provided as well:
 
 ```xml
 <dependency>
