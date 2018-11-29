@@ -1141,7 +1141,7 @@ impl InvocationArg {
                 }
             };
 
-            debug(&format!("Calling the InvocationArg constructor with '{}' and '{}'", class_name, json));
+            debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
             let inv_arg_instance = (jvm.jni_new_object)(
                 jvm.jni_env,
                 jvm.invocation_arg_class,
@@ -1180,7 +1180,7 @@ impl InvocationArg {
                 }
             };
 
-            debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
+            debug(&format!("Calling the InvocationArg constructor for class '{}'", class_name));
 
             let inv_arg_instance = (jvm.jni_new_object)(
                 jvm.jni_env,
