@@ -85,11 +85,14 @@ mod lib_unit_tests {
     use std::{thread, time};
     use std::thread::JoinHandle;
 
-    use super::{ClasspathEntry, Instance, InvocationArg, Jvm};
+    use super::{ClasspathEntry, Instance, InvocationArg, Jvm, JvmBuilder};
 
     #[test]
     fn create_instance_and_invoke() {
-        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
+        let jvm: Jvm = JvmBuilder::new()
+            .classpath_entry(ClasspathEntry::new("onemore.jar"))
+            .build()
+            .unwrap();
 
         let instantiation_args = vec![InvocationArg::from("arg from Rust")];
         let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref());

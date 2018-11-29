@@ -1,7 +1,7 @@
 # j4rs
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.2.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.3.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
 ![Build Status](https://travis-ci.org/astonbitecode/j4rs.svg?branch=master)
 [![Build status](https://ci.appveyor.com/api/projects/status/9k83nufbt958w6p2?svg=true)](https://ci.appveyor.com/project/astonbitecode/j4rs)
 
@@ -12,10 +12,10 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code, fr
 ### Basics
 
 ```rust
-use j4rs::{Instance, InvocationArg, Jvm};
+use j4rs::{Instance, InvocationArg, Jvm, JvmBuilder};
 
 // Create a JVM
-let jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+let jvm = JvmBuilder::new().build().unwrap();
 
 // Create a java.lang.String instance
 let string_instance = jvm.create_instance(
@@ -157,8 +157,11 @@ jvm.cast(&instance, "java.lang.Object").unwrap();
 If we have one jar that needs to be accessed using `j4rs`, we need to add it in the classpath during the JVM creation:
 
 ```rust
-let classpath_entry = ClasspathEntry::new("/home/myuser/dev/myjar-1.0.0.jar");
-let jvm = j4rs::new_jvm(vec![classpath_entry], Vec::new()).unwrap();
+let entry = ClasspathEntry::new("/home/myuser/dev/myjar-1.0.0.jar");
+let jvm: Jvm = JvmBuilder::new()
+    .classpath_entry(entry)
+    .build()
+    .unwrap();
 ```
 
 ## j4rs Java library
@@ -169,7 +172,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -177,6 +180,19 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 Note that the `scope` is `provided`. This is because the `j4rs` Java resources are always available with the `j4rs` crate. 
 
 Use like this in order to avoid possible classloading errors.
+
+## j4rs Java library in Android
+
+If you encounter any issues when using j4rs in Android, this may be caused by Java 8 compatibility problems. This is shy a `Java 7` version is provided as well:
+
+```xml
+<dependency>
+    <groupId>io.github.astonbitecode</groupId>
+    <artifactId>j4rs</artifactId>
+    <version>0.3.0</version>
+    <classifier>java7</classifier>
+</dependency>
+```
 
 ## Next?
 
@@ -191,6 +207,8 @@ let i12 = jnew!(&jvm -> new java.lang.String("a-new-string"));
 // Invocation
 let i13 = j!(&i12.split("-"));
 ```
+
+* Improve documentation
 
 ## Licence
 

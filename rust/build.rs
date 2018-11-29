@@ -12,18 +12,18 @@ use std::path::{Path, PathBuf};
 
 use glob::glob;
 
-const VERSION: &'static str = "0.3.0-SNAPSHOT";
+const VERSION: &'static str = "0.3.0";
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
 
-    // Skip setting the environment if needed
-    if let Ok(skip) = env::var("J4RS_SKIP_SETTING_ENV") {
-        if skip == "true" {
+    let target_os = env::var("CARGO_CFG_TARGET_OS");
+    match target_os.as_ref().map(|x| &**x) {
+        Ok("android") => {
             generate_src(&out_dir);
-            println!("cargo:warning=Skip setting up the j4rs environment {}", (skip == "true"));
+            return;
         }
-        return;
+        _ => { /*ignore*/ }
     }
 
     let jvm_dyn_lib_file_name = if cfg!(windows) {

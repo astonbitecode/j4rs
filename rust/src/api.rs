@@ -1686,7 +1686,15 @@ impl<'a> ToString for JavaOpt<'a> {
 mod api_unit_tests {
     use serde_json;
 
-    use super::InvocationArg;
+    use super::{InvocationArg, JvmBuilder};
+
+    #[test]
+    fn jvm_builder() {
+        let res = JvmBuilder::new().build();
+        assert!(res.is_ok());
+        let one_more_res = JvmBuilder::already_initialized();
+        assert!(one_more_res.is_ok());
+    }
 
     #[test]
     fn new_invocation_arg() {
