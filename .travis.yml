@@ -16,7 +16,7 @@ matrix:
        - cargo build --manifest-path=rust/Cargo.toml
        - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
     - os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script:
        - mvn -f java/pom.xml clean install
        - cargo build --manifest-path=rust/Cargo.toml
