@@ -232,25 +232,6 @@ mod lib_unit_tests {
         assert!(invocation_res.is_ok());
     }
 
-    #[test]
-    fn weak_reference() {
-        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
-        // Create a MyTest instance
-        let i_result = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref());
-        assert!(i_result.is_ok());
-        let i_arg = i_result.unwrap();
-
-        // Create two weak refs of the instance
-        let i1 = i_arg.weak_ref().unwrap();
-        let i2 = i_arg.weak_ref().unwrap();
-
-        // Use the clones as arguments
-        let invocation_res = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from(i1)]);
-        assert!(invocation_res.is_ok());
-        let invocation_res = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from(i2)]);
-        assert!(invocation_res.is_ok());
-    }
-
     //#[test]
     //#[ignore]
     fn _memory_leaks() {
@@ -259,48 +240,6 @@ mod lib_unit_tests {
         for i in 0..100000000 {
             match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
                 Ok(_) => {
-                    if i % 100000 == 0 {
-                        println!("{}", i);
-                    }
-                }
-                Err(error) => {
-                    panic!("ERROR when creating Instance: {:?}", error);
-                }
-            }
-        }
-        let thousand_millis = time::Duration::from_millis(1000);
-        thread::sleep(thousand_millis);
-    }
-
-    //#[test]
-    //#[ignore]
-    fn _memory_leaks_when_using_weak_instances() {
-        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-
-        for i in 0..100000000 {
-            match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
-                Ok(instance) => {
-                    let i0 = instance.weak_ref().unwrap();
-                    let i1 = instance.weak_ref().unwrap();
-                    let i2 = instance.weak_ref().unwrap();
-                    let i3 = instance.weak_ref().unwrap();
-                    let i4 = instance.weak_ref().unwrap();
-                    let i5 = instance.weak_ref().unwrap();
-                    let i6 = instance.weak_ref().unwrap();
-                    let i7 = instance.weak_ref().unwrap();
-                    let i8 = instance.weak_ref().unwrap();
-                    let i9 = instance.weak_ref().unwrap();
-
-                    assert!(jvm.invoke(&i0, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i1, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i2, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i3, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i4, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i5, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i6, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i7, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i8, "aMethod", &[]).is_ok());
-                    assert!(jvm.invoke(&i9, "aMethod", &[]).is_ok());
                     if i % 100000 == 0 {
                         println!("{}", i);
                     }

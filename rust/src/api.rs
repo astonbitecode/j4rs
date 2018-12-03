@@ -1541,10 +1541,10 @@ impl Instance {
     }
 
     /// Creates a weak reference of this Instance.
-    pub fn weak_ref(&self) -> errors::Result<Instance> {
+    fn _weak_ref(&self) -> errors::Result<Instance> {
         Ok(Instance {
             class_name: self.class_name.clone(),
-            jinstance: create_weak_global_ref_from_global_ref(self.jinstance, get_thread_local_env()?)?,
+            jinstance: _create_weak_global_ref_from_global_ref(self.jinstance.clone(), get_thread_local_env()?)?,
         })
     }
 }
@@ -1597,7 +1597,7 @@ pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut
     }
 }
 
-fn create_weak_global_ref_from_global_ref(global_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+fn _create_weak_global_ref_from_global_ref(global_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewWeakGlobalRef,
                (**jni_env).ExceptionCheck,
