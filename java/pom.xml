@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0-SNAPSHOT</version>
     <name>j4rs</name>
     <description>Java for Rust</description>
     <url>https://github.com/astonbitecode/j4rs</url>
@@ -52,18 +52,18 @@
 
     <properties>
         <maven.surefire.version>2.19.1</maven.surefire.version>
-        <junit.version>4.12</junit.version>
-        <maven.jar.plugin.version>2.6</maven.jar.plugin.version>
+        <junit.version>4.13-beta-1</junit.version>
+        <maven.jar.plugin.version>3.1.0</maven.jar.plugin.version>
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
         <maven.gpg.plugin.version>1.6</maven.gpg.plugin.version>
         <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
         <maven.javadoc.plugin.version>2.10.4</maven.javadoc.plugin.version>
         <maven.assembly.plugin.version>3.1.0</maven.assembly.plugin.version>
-        <logback.version>1.2.2</logback.version>
+        <logback.version>1.2.3</logback.version>
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
         <jackson.version>2.9.0.pr3</jackson.version>
-        <mockito.version>2.15.0</mockito.version>
-        <retrolambda.version>2.5.5</retrolambda.version>
+        <mockito.version>2.23.4</mockito.version>
+        <retrolambda.version>2.5.6</retrolambda.version>
     </properties>
     <dependencies>
         <dependency>
