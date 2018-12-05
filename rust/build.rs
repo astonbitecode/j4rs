@@ -17,16 +17,14 @@ const VERSION: &'static str = "0.4.0-SNAPSHOT";
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
 
-    let target_os = env::var("CARGO_CFG_TARGET_OS");
-    match target_os.as_ref().map(|x| &**x) {
-        Ok("android") => {
-            generate_src(&out_dir);
-            return;
-        }
-        _ => { /*ignore*/ }
+    let target_os_res = env::var("CARGO_CFG_TARGET_OS");
+    let target_os = target_os_res.as_ref().map(|x| &**x).unwrap_or("unknown");
+    if target_os == "android" {
+        generate_src(&out_dir);
+        return;
     }
 
-    let jvm_dyn_lib_file_name = if cfg!(windows) {
+    let jvm_dyn_lib_file_name = if target_os == "windows" {
         "jvm.dll"
     } else {
         "libjvm.*"
@@ -34,11 +32,11 @@ fn main() {
     let ld_library_path = get_ld_library_path(jvm_dyn_lib_file_name);
 
     // Set the build environment
-    if cfg!(windows) {
+    if target_os == "windows" {
         println!("cargo:rustc-env=PATH={};%PATH%", ld_library_path);
         let jvm_lib = get_ld_library_path("jvm.lib");
         println!("cargo:rustc-link-search={}", jvm_lib);
-    } else if cfg!(macos) {
+    } else if target_os == "macos" {
         let ld = env::var("DYLD_LIBRARY_PATH").unwrap_or("".to_string());
         println!("cargo:rustc-env=DYLD_LIBRARY_PATH={}:{}", ld_library_path, ld);
         println!("cargo:rustc-link-search={}", ld_library_path);
@@ -51,7 +49,7 @@ fn main() {
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java();
     let _ = copy_jars_to_exec_directory(&out_dir);
-    initialize_env(&ld_library_path).expect("Initialize Environment");
+    initialize_env(&ld_library_path, target_os).expect("Initialize Environment");
     generate_src(&out_dir);
 }
 
@@ -140,8 +138,19 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
     exec_dir_path_buf
 }
 
-#[cfg(target_os = "macos")]
-fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
+fn initialize_env(ld_library_path: &str, target_os: &str) -> Result<(), J4rsBuildError> {
+    match target_os {
+        "macos" => initialize_env_macos(ld_library_path),
+        "linux" => initialize_env_linux(ld_library_path),
+        "windows" => initialize_env_windows(ld_library_path),
+        other => {
+            println!("cargo:warning=Cannot initialize the environment for target os {}", other);
+            Ok(())
+        }
+    }
+}
+
+fn initialize_env_macos(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let existing = env::var("DYLD_LIBRARY_PATH").unwrap_or("".to_owned());
     if !existing.contains(ld_library_path) {
         println!("cargo:warning=Please add to the DYLD_LIBRARY_PATH env the following: {}", ld_library_path);
@@ -151,8 +160,7 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
 
 // Appends the jni lib directory in the case that it is not contained in the LD_LIBRARY_PATH.
 // Appends the entry in the $CARGO_HOME/env.
-#[cfg(target_os = "linux")]
-fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
+fn initialize_env_linux(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     let existing = env::var("LD_LIBRARY_PATH")?;
     let chome = env::var("CARGO_HOME").unwrap_or("".to_owned());
 
@@ -189,8 +197,7 @@ fn initialize_env(ld_library_path: &str) -> Result<(), J4rsBuildError> {
     Ok(())
 }
 
-#[cfg(target_os = "windows")]
-fn initialize_env(_: &str) -> Result<(), J4rsBuildError> {
+fn initialize_env_windows(_: &str) -> Result<(), J4rsBuildError> {
     Ok(())
 }
 
