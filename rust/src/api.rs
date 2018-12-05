@@ -57,6 +57,10 @@ use crate::utils;
 
 use super::logger::{debug, error, info, warn};
 
+#[cfg(not(target_os = "android"))]
+#[link(name = "jvm")]
+extern {}
+
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
