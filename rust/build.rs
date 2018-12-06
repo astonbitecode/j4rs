@@ -33,7 +33,7 @@ fn main() {
 
     // Set the build environment
     if target_os == "windows" {
-        println!("cargo:rustc-env=PATH={};%PATH%", ld_library_path);
+//        println!("cargo:rustc-env=PATH={};%PATH%", ld_library_path);
         let jvm_lib = get_ld_library_path("jvm.lib");
         println!("cargo:rustc-link-search={}", jvm_lib);
     } else if target_os == "macos" {
