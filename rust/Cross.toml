@@ -1,0 +1,2 @@
+[target.x86_64-pc-windows-gnu]
+image = "astonbitecode/x86_64-pc-windows-gnu-java:0.1.1"
