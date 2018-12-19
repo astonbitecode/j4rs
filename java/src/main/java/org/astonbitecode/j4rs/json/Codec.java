@@ -23,7 +23,7 @@ import org.astonbitecode.j4rs.errors.JsonCodecException;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
-import java.util.Arrays;
+import java8.util.J8Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,7 +51,7 @@ public class Codec {
     public Object[] decodeArrayContents(String json) throws IOException {
         Map<String, Object>[] array = mapper.readValue(json, typeRef);
 
-        return Arrays.stream(array)
+        return J8Arrays.stream(array)
                 .map(elem -> {
                     try {
                         return retrieveFromMap(elem);

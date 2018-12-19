@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use glob::glob;
 
-const VERSION: &'static str = "0.4.0-SNAPSHOT";
+const VERSION: &'static str = "0.3.0-java7";
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();

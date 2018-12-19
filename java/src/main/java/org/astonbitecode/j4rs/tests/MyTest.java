@@ -16,7 +16,7 @@ package org.astonbitecode.j4rs.tests;
 
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 
-import java.util.Arrays;
+import java8.util.J8Arrays;
 import java.util.List;
 
 public class MyTest extends NativeCallbackSupport {
@@ -44,7 +44,7 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public String getMyWithArgsList(String... args) {
-        String str = Arrays.stream(args)
+        String str = J8Arrays.stream(args)
                 .reduce(
                         "The arguments passed where",
                         (a, b) -> {

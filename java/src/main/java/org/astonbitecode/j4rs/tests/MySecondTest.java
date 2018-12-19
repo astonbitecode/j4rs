@@ -1,8 +1,7 @@
 package org.astonbitecode.j4rs.tests;
 
+import java8.util.stream.IntStreams;
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport;
-
-import java.util.stream.IntStream;
 
 public class MySecondTest extends NativeCallbackToRustChannelSupport {
 
@@ -18,12 +17,12 @@ public class MySecondTest extends NativeCallbackToRustChannelSupport {
 
     public void performTenCallbacks() {
         new Thread(() -> {
-            IntStream.range(0, 10).forEach(i -> doCallback("THIS IS FROM CALLBACK TO A CHANNEL..." + i));
+            IntStreams.range(0, 10).forEach(i -> doCallback("THIS IS FROM CALLBACK TO A CHANNEL..." + i));
         }).start();
     }
 
     public void performCallbackFromTenThreads() {
-        IntStream.range(0, 10).forEach(i -> performCallback());
+        IntStreams.range(0, 10).forEach(i -> performCallback());
     }
 
     public static void main(String[] args) {

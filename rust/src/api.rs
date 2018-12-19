@@ -90,6 +90,7 @@ const RUST: &'static str = "rust";
 const JAVA: &'static str = "java";
 const INST_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
 const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocation";
+const JSON_INVO_IMPL_NAME: &'static str = "org/astonbitecode/j4rs/api/invocation/JsonInvocationImpl";
 const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
 const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
 
@@ -174,6 +175,8 @@ pub struct Jvm {
     factory_create_for_static_method: jmethodID,
     /// The `NativeInvocation` class.
     native_invocation_class: jclass,
+    /// The `JsonInvocationImpl` class.
+    json_invocation_impl_class: jclass,
     /// The Java class for the `InvocationArg`.
     invocation_arg_class: jclass,
     detach_thread_on_drop: bool,
@@ -335,6 +338,11 @@ impl Jvm {
                         jni_environment,
                         INVO_IFACE_NAME,
                     );
+                    // The `JsonInvocationImpl class`
+                    let json_invocation_impl_class: jclass = tweaks::find_class(
+                        jni_environment,
+                        JSON_INVO_IMPL_NAME,
+                    );
 
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);
@@ -364,6 +372,7 @@ impl Jvm {
                             factory_instantiate_method: factory_instantiate_method,
                             factory_create_for_static_method: factory_create_for_static_method,
                             native_invocation_class: native_invocation_class,
+                            json_invocation_impl_class: json_invocation_impl_class,
                             invocation_arg_class: invocation_arg_class,
                             detach_thread_on_drop: true,
                         };
@@ -698,10 +707,10 @@ impl Jvm {
                 INVO_IFACE_NAME,
                 INVO_IFACE_NAME);
 
-            // Get the method ID for the `NativeInvocation.cast`
-            let cast_static_method = (self.jni_get_static_method_id)(
+            // Get the method ID for the `NativeInvocation.clone`
+            let clone_static_method = (self.jni_get_static_method_id)(
                 self.jni_env,
-                self.native_invocation_class,
+                self.json_invocation_impl_class,
                 utils::to_java_string("cloneInstance"),
                 utils::to_java_string(clone_method_signature.as_ref()),
             );
@@ -709,8 +718,8 @@ impl Jvm {
             // Call the clone method
             let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                self.native_invocation_class,
-                cast_static_method,
+                self.json_invocation_impl_class,
+                clone_static_method,
                 instance.jinstance,
             );
 
@@ -739,7 +748,7 @@ impl Jvm {
             // Get the method ID for the `NativeInvocation.cast`
             let cast_static_method = (self.jni_get_static_method_id)(
                 self.jni_env,
-                self.native_invocation_class,
+                self.json_invocation_impl_class,
                 utils::to_java_string("cast"),
                 utils::to_java_string(cast_method_signature.as_ref()),
             );
@@ -747,7 +756,7 @@ impl Jvm {
             // Call the cast method
             let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                self.native_invocation_class,
+                self.json_invocation_impl_class,
                 cast_static_method,
                 from_instance.jinstance,
                 to_class_jstring,

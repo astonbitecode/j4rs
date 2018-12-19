@@ -22,7 +22,7 @@ import org.astonbitecode.j4rs.utils.Dummy;
 import org.astonbitecode.j4rs.utils.OtherDummy;
 import org.junit.Test;
 
-import java.util.Arrays;
+import java8.util.J8Arrays;
 
 public class CodecTest {
     private Codec codec = new Codec();

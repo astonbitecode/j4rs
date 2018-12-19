@@ -14,8 +14,10 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
+import java8.util.J8Arrays;
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.NativeInvocationBase;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
@@ -24,9 +26,8 @@ import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
 
-public class JsonInvocationImpl<T> implements NativeInvocation<T> {
+public class JsonInvocationImpl<T> extends NativeInvocationBase implements NativeInvocation<T> {
 
     private T object;
     private Class<T> clazz;
@@ -110,7 +111,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
     }
 
     CreatedInstance invokeMethod(String methodName, GeneratedArg[] generatedArgs) throws Exception {
-        Class[] argTypes = Arrays.stream(generatedArgs)
+        Class[] argTypes = J8Arrays.stream(generatedArgs)
                 .map(invGeneratedArg -> {
                     try {
                         return invGeneratedArg.getClazz();
@@ -119,7 +120,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
                     }
                 })
                 .toArray(size -> new Class[size]);
-        Object[] argObjects = Arrays.stream(generatedArgs)
+        Object[] argObjects = J8Arrays.stream(generatedArgs)
                 .map(invGeneratedArg -> {
                     try {
                         return invGeneratedArg.getObject();
@@ -153,4 +154,5 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
             return object;
         }
     }
+
 }

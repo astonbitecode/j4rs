@@ -23,7 +23,7 @@ import org.astonbitecode.j4rs.errors.InstantiationException;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 
 import java.lang.reflect.Constructor;
-import java.util.Arrays;
+import java8.util.J8Arrays;
 
 public class NativeInstantiationImpl {
     static InvocationArgGenerator gen = new InvocationArgGenerator();
@@ -52,9 +52,9 @@ public class NativeInstantiationImpl {
 
     static CreatedInstance createInstance(String className, GeneratedArg[] params) throws Exception {
         Class<?> clazz = Class.forName(className);
-        Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())
+        Class<?>[] paramTypes = J8Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
-        Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject())
+        Object[] paramObjects = J8Arrays.stream(params).map(param -> param.getObject())
                 .toArray(size -> new Object[size]);
         Constructor<?> constructor = clazz.getConstructor(paramTypes);
         Object instance = constructor.newInstance(paramObjects);

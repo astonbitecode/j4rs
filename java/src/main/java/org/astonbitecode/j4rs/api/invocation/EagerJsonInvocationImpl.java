@@ -16,10 +16,11 @@ package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.NativeInvocationBase;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 
-public class EagerJsonInvocationImpl<T> implements NativeInvocation<T> {
+public class EagerJsonInvocationImpl<T> extends NativeInvocationBase implements NativeInvocation<T> {
 
     private T object;
     private Class<T> clazz;

@@ -20,11 +20,11 @@ import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
 import org.astonbitecode.j4rs.utils.Defs;
 
-import java.util.Arrays;
+import java8.util.J8Arrays;
 
 public class InvocationArgGenerator {
     public GeneratedArg[] generateArgObjects(InvocationArg[] args) throws Exception {
-        GeneratedArg[] generatedArgArr = Arrays.stream(args).map(invArg -> {
+        GeneratedArg[] generatedArgArr = J8Arrays.stream(args).map(invArg -> {
             GeneratedArg generatedArg;
             if (invArg.getArgFrom().equals(Defs.JAVA)) {
                 NativeInvocation inv = invArg.getNativeInvocation();
