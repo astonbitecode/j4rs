@@ -63,7 +63,6 @@
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
         <jackson.version>2.9.0.pr3</jackson.version>
         <mockito.version>2.23.4</mockito.version>
-        <retrolambda.version>2.5.6</retrolambda.version>
     </properties>
     <dependencies>
         <dependency>
@@ -155,39 +154,6 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>net.orfjackal.retrolambda</groupId>
-                <artifactId>retrolambda-maven-plugin</artifactId>
-                <version>${retrolambda.version}</version>
-                <configuration>
-                    <defaultMethods>false</defaultMethods>
-                    <mainOutputDir>${project.build.outputDirectory}-backport</mainOutputDir>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>process-main</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>${maven.jar.plugin.version}</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                        <configuration>
-                            <classesDirectory>${project.build.outputDirectory}-backport</classesDirectory>
-                            <classifier>java7</classifier>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>${maven.assembly.plugin.version}</version>
@@ -232,38 +198,6 @@
                                 </manifestEntries>
                             </archive>
                         </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>net.orfjackal.retrolambda</groupId>
-                        <artifactId>retrolambda-maven-plugin</artifactId>
-                        <version>${retrolambda.version}</version>
-                        <configuration>
-                            <mainOutputDir>${project.build.outputDirectory}-backport</mainOutputDir>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>process-main</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-jar-plugin</artifactId>
-                        <version>${maven.jar.plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                                <configuration>
-                                    <classesDirectory>${project.build.outputDirectory}-backport</classesDirectory>
-                                    <classifier>java7</classifier>
-                                </configuration>
-                            </execution>
-                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
