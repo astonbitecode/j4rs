@@ -189,8 +189,7 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.3.0</version>
-    <classifier>java7</classifier>
+    <version>0.3.0-java7</version>
 </dependency>
 ```
 
