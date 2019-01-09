@@ -173,10 +173,17 @@ fn initialize_env_linux(ld_library_path: &str) -> Result<(), J4rsBuildError> {
         let export_arg = format!("export LD_LIBRARY_PATH=\"{}:$LD_LIBRARY_PATH\"", ld_library_path);
 
         let exists_in_profile = {
-            let mut f = File::open(&env_file_path)?;
-            let mut buffer = String::new();
-            f.read_to_string(&mut buffer)?;
-            buffer.contains(&export_arg)
+            match File::open(&env_file_path) {
+                Ok(mut f) => {
+                    let mut buffer = String::new();
+                    f.read_to_string(&mut buffer)?;
+                    buffer.contains(&export_arg)
+                }
+                Err(_) => {
+                    let _ = File::create(&env_file_path)?;
+                    false
+                }
+            }
         };
 
         if !existing.contains(ld_library_path) && !exists_in_profile {
