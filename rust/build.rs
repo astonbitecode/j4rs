@@ -17,6 +17,8 @@ const VERSION: &'static str = "0.4.0-SNAPSHOT";
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
 
+    println!("cargo:rerun-if-changed=../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
+
     let target_os_res = env::var("CARGO_CFG_TARGET_OS");
     let target_os = target_os_res.as_ref().map(|x| &**x).unwrap_or("unknown");
     if target_os == "android" {
@@ -134,6 +136,8 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
     let home = env::var("CARGO_MANIFEST_DIR").unwrap();
     let jassets_path_buf = Path::new(&home).join("jassets");
     let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
+
+    let _ = fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref());
 
     let ref options = fs_extra::dir::CopyOptions::new();
     let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options);
