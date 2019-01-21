@@ -69,14 +69,19 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_d
 pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
     let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel.");
     jvm.detach_thread_on_drop(false);
-    let instance = Instance::from(native_invocation).unwrap();
-    let p = ptr_address as *mut Sender<Instance>;
-    let tx = unsafe { Box::from_raw(p) };
+    let instance_res = Instance::from(native_invocation);
+    if let Ok(instance) = instance_res {
+        let p = ptr_address as *mut Sender<Instance>;
+        let tx = unsafe { Box::from_raw(p) };
 
-    let result = tx.send(instance);
-    mem::forget(tx);
-    if let Err(error) = result {
-        panic!("Could not send to the defined callback channel: {:?}", error);
+        let result = tx.send(instance);
+        mem::forget(tx);
+        if let Err(error) = result {
+            panic!("Could not send to the defined callback channel: {:?}", error);
+        }
+    }
+    else {
+        panic!("Could not create Instance from the NativeInvocation object...");
     }
 }
 
