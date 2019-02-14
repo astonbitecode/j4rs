@@ -12,10 +12,12 @@ use std::path::{Path, PathBuf};
 
 use glob::glob;
 
-const VERSION: &'static str = "0.3.0-java7";
+const VERSION: &'static str = "0.4.0-java7";
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
+
+    println!("cargo:rerun-if-changed=../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
 
     let target_os_res = env::var("CARGO_CFG_TARGET_OS");
     let target_os = target_os_res.as_ref().map(|x| &**x).unwrap_or("unknown");
@@ -135,6 +137,8 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
     let jassets_path_buf = Path::new(&home).join("jassets");
     let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
 
+    let _ = fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref());
+
     let ref options = fs_extra::dir::CopyOptions::new();
     let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options);
     exec_dir_path_buf
@@ -173,10 +177,17 @@ fn initialize_env_linux(ld_library_path: &str) -> Result<(), J4rsBuildError> {
         let export_arg = format!("export LD_LIBRARY_PATH=\"{}:$LD_LIBRARY_PATH\"", ld_library_path);
 
         let exists_in_profile = {
-            let mut f = File::open(&env_file_path)?;
-            let mut buffer = String::new();
-            f.read_to_string(&mut buffer)?;
-            buffer.contains(&export_arg)
+            match File::open(&env_file_path) {
+                Ok(mut f) => {
+                    let mut buffer = String::new();
+                    f.read_to_string(&mut buffer)?;
+                    buffer.contains(&export_arg)
+                }
+                Err(_) => {
+                    let _ = File::create(&env_file_path)?;
+                    false
+                }
+            }
         };
 
         if !existing.contains(ld_library_path) && !exists_in_profile {
