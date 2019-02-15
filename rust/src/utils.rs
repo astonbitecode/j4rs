@@ -38,7 +38,12 @@ pub fn classpath_sep() -> &'static str {
 }
 
 pub fn java_library_path() -> errors::Result<String> {
-    Ok(format!("-Djava.library.path={}", deps_dir()?))
+    let default = format!("-Djava.library.path={}", deps_dir()?);
+    if cfg!(windows) {
+        Ok(default)
+    } else {
+        Ok(format!("{}:/usr/lib:/lib", default))
+    }
 }
 
 pub fn deps_dir() -> errors::Result<String> {
