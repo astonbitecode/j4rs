@@ -2,6 +2,7 @@ extern crate dirs;
 extern crate fs_extra;
 extern crate glob;
 
+use glob::glob;
 use std::{env, fs};
 use std::error::Error;
 use std::fmt;
@@ -9,8 +10,7 @@ use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-
-use glob::glob;
+use std::process::Command;
 
 const VERSION: &'static str = "0.5.0-SNAPSHOT";
 
@@ -60,10 +60,15 @@ fn main() {
 // Finds and returns the directory that contains the libjvm library
 fn get_ld_library_path(lib_file_name: &str) -> String {
     // Find the JAVA_HOME
-    let java_home = env::var("JAVA_HOME").unwrap_or("".to_owned());
+    let mut java_home = env::var("JAVA_HOME").unwrap_or("".to_owned());
+
     if java_home.is_empty() {
-        panic!("JAVA_HOME is not set. j4rs cannot work without it... \
-        Please make sure that Java is installed (version 1.8 at least) and the JAVA_HOME environment is set.");
+        println!("JAVA_HOME env var is not set. Attempting to locate it...");
+        // One more attempt to locate the JAVA_HOME
+        java_home = try_locate_java_home();
+        if java_home.is_empty() {
+            panic!("JAVA_HOME is not set. j4rs cannot work without it... \n Please make sure that Java is installed (version 1.8 at least) and the JAVA_HOME environment is set.");
+        }
     }
 
     let query = format!("{}/**/{}", java_home, lib_file_name);
@@ -212,6 +217,41 @@ fn initialize_env_linux(ld_library_path: &str) -> Result<(), J4rsBuildError> {
 
 fn initialize_env_windows(_: &str) -> Result<(), J4rsBuildError> {
     Ok(())
+}
+
+// Try to locate the JAVA_HOME by consulting the java executable
+fn try_locate_java_home() -> String {
+    let mut command: Command;
+
+    // Prepare the command depending on the host
+    if cfg!(windows) {
+        command = Command::new("where");
+    } else {
+        command = Command::new("which");
+    }
+
+    command.arg("java");
+
+    let output = command.output().expect("Failed to execute the command to try to locate the java executable");
+    let java_exec_path = String::from_utf8(output.stdout).expect("Cannot parse the output of the command while trying to locate the java executable");
+
+    let mut test_path = PathBuf::from(java_exec_path.trim());
+
+    while let Ok(path) = test_path.read_link() {
+        test_path = if path.is_absolute() {
+            path
+        } else {
+            test_path.pop();
+            test_path.push(path);
+            test_path
+        };
+    }
+
+    // Here we should have found ourselves in a directory like /usr/lib/jvm/java-8-oracle/jre/bin/java
+    test_path.pop();
+    test_path.pop();
+
+    String::from(test_path.to_str().unwrap_or(""))
 }
 
 #[derive(Debug)]
