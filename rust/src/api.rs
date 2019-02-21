@@ -19,6 +19,7 @@ use std::os::raw::c_void;
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
+use std::path::Path;
 
 use jni_sys::{
     self,
@@ -56,10 +57,6 @@ use crate::errors;
 use crate::utils;
 
 use super::logger::{debug, error, info, warn};
-
-#[cfg(not(target_os = "android"))]
-#[link(name = "jvm")]
-extern {}
 
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
@@ -1039,28 +1036,41 @@ impl<'a> JvmBuilder<'a> {
         };
         self.java_opts.clone().into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
 
+        let deps_dir = utils::deps_dir()?;
         // Pass to the Java world the name of the j4rs library.
         let lib_name_opt = if self.lib_name_opt.is_none() && !self.skip_setting_native_lib {
-            let found_libs: Vec<String> = fs::read_dir(utils::deps_dir()?)?
-                .filter(|entry| {
-                    entry.is_ok()
-                })
-                .filter(|entry| {
-                    let entry = entry.as_ref().unwrap();
-                    let file_name = entry.file_name();
-                    let file_name = file_name.to_str().unwrap();
-                    file_name.contains("j4rs") && (
-                        file_name.contains(".so") ||
-                            file_name.contains(".dll") ||
-                            file_name.contains(".dylib"))
-                })
-                .map(|entry| entry.
-                    unwrap().
-                    file_name().
-                    to_str().
-                    unwrap().
-                    to_owned())
-                .collect();
+            let found_libs: Vec<String> = if Path::new(&deps_dir).exists() {
+                fs::read_dir(deps_dir)?
+                    .filter(|entry| {
+                        entry.is_ok()
+                    })
+                    .filter(|entry| {
+                        let entry = entry.as_ref().unwrap();
+                        let file_name = entry.file_name();
+                        let file_name = file_name.to_str().unwrap();
+                        file_name.contains("j4rs") && (
+                            file_name.contains(".so") ||
+                                file_name.contains(".dll") ||
+                                file_name.contains(".dylib"))
+                    })
+                    .map(|entry| entry.
+                        unwrap().
+                        file_name().
+                        to_str().
+                        unwrap().
+                        to_owned())
+                    .collect()
+            } else {
+                // If deps dir is not found, fallback to default naming in order for the library to be searched in the default
+                // library locations of the system.
+                let default_lib_name = if cfg!(windows) {
+                    "l4rs.dll".to_string()
+                } else {
+                    "libj4rs.so".to_string()
+                };
+                info(&format!("Deps directory not found. Setting the library name to search to default: {}", default_lib_name));
+                vec![default_lib_name]
+            };
 
             let lib_name_opt = if found_libs.len() > 0 {
                 let a_lib = found_libs[0].clone().replace("lib", "");
