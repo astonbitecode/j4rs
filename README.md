@@ -193,25 +193,6 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
 </dependency>
 ```
 
-## Prerequisites for the compilation
-
-* [Rust](https://www.rust-lang.org/tools/install) is installed
-* Java 8 or higher is installed 
-* `$JAVA_HOME` is set
-
-## Prerequisites for running an application that has `j4rs` as dependency
-
-* [Rust](https://www.rust-lang.org/tools/install) is installed.
-* Java 8 or higher is installed.
-* `$LD_LIBRARY_PATH` is set and includes the directory that contains the `libjvm.so` shared library (`jvm.dll` in Windows).
-
-## Note
-
-The build script attempts to help setting up the environment as needed for the `j4rs` to work. However, things can be different depending on the use case and the environment.
-
-__In a Linux host__, the build script of `j4rs` populates the `$LD_LIBRARY_PATH` and exports it in the `$CARGO_HOME/env` file. This means that it is enough to execute 
-```source $CARGO_HOME/env``` in order to export the correct `$LD_LIBRARY_PATH` variable in your session.
-
 ## Next?
 
 * Implement macros to facilitate `j4rs` users
