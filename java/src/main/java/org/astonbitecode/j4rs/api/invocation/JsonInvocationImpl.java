@@ -83,14 +83,18 @@ public class JsonInvocationImpl<T> extends NativeInvocationBase implements Nativ
 
     @Override
     public void invokeToChannel(long channelAddress, String methodName, InvocationArg... args) {
+        initializeCallbackChannel(channelAddress);
+        invoke(methodName, args);
+    }
+
+    @Override
+    public void initializeCallbackChannel(long channelAddress) {
         // Check that the class of the invocation extends the NativeCallbackToRustChannelSupport
         if (!NativeCallbackToRustChannelSupport.class.isAssignableFrom(this.clazz)) {
-            throw new InvocationException("Cannot invoke the class " + this.clazz.getName() + ". The class does not extend the class " + NativeCallbackToRustChannelSupport.class.getName());
+            throw new InvocationException("Cannot initialize callback channel for class " + this.clazz.getName() + ". The class does not extend the class " + NativeCallbackToRustChannelSupport.class.getName());
         } else {
             // Initialize the pointer
             ((NativeCallbackToRustChannelSupport) object).initPointer(new RustPointer(channelAddress));
-            // Invoke (any possible returned objects will be dropped)
-            invoke(methodName, args);
         }
     }
 

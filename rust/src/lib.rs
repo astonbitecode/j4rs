@@ -148,6 +148,29 @@ mod lib_unit_tests {
     }
 
     #[test]
+    fn init_callback_channel() {
+        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+            Ok(i) => {
+                let instance_receiver_res = jvm.init_callback_channel(&i);
+                assert!(instance_receiver_res.is_ok());
+                let instance_receiver = instance_receiver_res.unwrap();
+                assert!(jvm.invoke(&i, "performCallback", &vec![]).is_ok());
+                let res_chan = instance_receiver.rx().recv();
+                let i = res_chan.unwrap();
+                let res_to_rust = jvm.to_rust(i);
+                assert!(res_to_rust.is_ok());
+                let _: String = res_to_rust.unwrap();
+                let millis = time::Duration::from_millis(500);
+                thread::sleep(millis);
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+    }
+
+    #[test]
     fn callback_to_channel() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {

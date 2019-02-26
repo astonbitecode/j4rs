@@ -622,6 +622,40 @@ impl Jvm {
         }
     }
 
+    pub fn init_callback_channel(&self, instance: &Instance) -> errors::Result<InstanceReceiver> {
+        debug(&format!("Initializing callback channel"));
+        unsafe {
+            let invoke_method_signature = "(J)V";
+            // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
+            let invoke_method = (self.jni_get_method_id)(
+                self.jni_env,
+                self.native_invocation_class,
+                utils::to_java_string("initializeCallbackChannel"),
+                utils::to_java_string(invoke_method_signature),
+            );
+
+            // Create the channel
+            let (sender, rx) = channel();
+            let tx = Box::new(sender);
+            // First argument: the address of the channel Sender
+            let raw_ptr = Box::into_raw(tx);
+            // Find the address of tx
+            let address_string = format!("{:p}", raw_ptr);
+            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
+
+            // Call the method of the instance
+            let _ = (self.jni_call_void_method)(
+                self.jni_env,
+                instance.jinstance,
+                invoke_method,
+                address,
+            );
+
+            // Create and return the Instance
+            self.do_return(InstanceReceiver::new(rx, address))
+        }
+    }
+
     /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
     pub fn invoke_static(&self, class_name: &str, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         debug(&format!("Invoking static method {} of class {} using {} arguments", method_name, class_name, inv_args.len()));
