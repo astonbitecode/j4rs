@@ -5,15 +5,11 @@ rust:
   - stable
 
 matrix:
-  allow_failures:
-    - os: osx
   include:
     - os: osx
       osx_image: xcode10.1
       script:
        - export JAVA_HOME=$(/usr/libexec/java_home)
-       - mvn -f java/pom.xml clean install
-       - cargo build --manifest-path=rust/Cargo.toml
        - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
     - os: linux
       jdk: openjdk11
