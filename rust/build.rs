@@ -35,6 +35,11 @@ fn main() -> Result<(), J4rsBuildError> {
     if target_os == "android" {
         generate_src(&out_dir)?;
         return Ok(());
+    } else if target_os == "macos" {
+        let ld_library_path = java_locator::locate_jvm_dyn_library()?;
+        let ld = env::var("DYLD_LIBRARY_PATH").unwrap_or("".to_string());
+        println!("cargo:rustc-env=DYLD_LIBRARY_PATH={}:{}", ld_library_path, ld);
+        println!("cargo:rustc-link-search={}", ld_library_path);
     }
 
     // Copy the needed jar files if they are available
