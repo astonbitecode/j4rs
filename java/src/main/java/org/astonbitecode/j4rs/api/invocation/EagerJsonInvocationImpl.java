@@ -52,6 +52,11 @@ public class EagerJsonInvocationImpl<T> implements NativeInvocation<T> {
     }
 
     @Override
+    public void initializeCallbackChannel(long channelAddress) {
+        throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
+    }
+
+    @Override
     public T getObject() {
         throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
     }

@@ -50,7 +50,7 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
 
     /**
      * Invokes a method of the instance of the class that is set for this {@link NativeInvocation}.
-     * The result of the invocation should be provided later using the performCallbackToChannel method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
+     * The result of the invocation should be provided later using the doCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
      * Any possible returned objects from the actual synchronous invocation of the defined method will be dropped.
      *
      * @param channelAddress
@@ -58,6 +58,13 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
      * @param args
      */
     void invokeToChannel(long channelAddress, String methodName, InvocationArg... args);
+
+    /**
+     * Initialize a callback channel for this {@link NativeInvocation}.
+     * The channel can be used by Java to send values to Rust using the doCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
+     * @param channelAddress
+     */
+    void initializeCallbackChannel(long channelAddress);
 
     /**
      * Casts a the object that is contained in a NativeInvocation to an object of class clazz.
