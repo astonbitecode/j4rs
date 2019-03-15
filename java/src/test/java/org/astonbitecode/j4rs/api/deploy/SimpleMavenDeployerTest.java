@@ -2,6 +2,7 @@ package org.astonbitecode.j4rs.api.deploy;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 
 public class SimpleMavenDeployerTest {
@@ -35,6 +36,9 @@ public class SimpleMavenDeployerTest {
                 "j4rs",
                 "0.5.1",
                 "");
+
+        File f = new File("./j4rs-0.5.1.jar");
+        f.delete();
     }
 
     @Test(expected = FileNotFoundException.class)

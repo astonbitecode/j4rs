@@ -150,7 +150,6 @@ pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
         jassets_path.pop();
     }
     jassets_path.push("jassets");
-    dbg!(get_dir_content(&jassets_path)?.directories.join(","));
     Ok(jassets_path)
 }
 
@@ -992,16 +991,20 @@ impl<'a> JvmBuilder<'a> {
                         format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
                     })
         } else {
-            // The default classpath contains the j4rs
-            let jar_file_name = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-            let mut default_classpath_entry = jassets_path()?;
-            default_classpath_entry.push(jar_file_name.clone());
+            // The default classpath contains all the jars in the jassets directory
+            let jassets_path = jassets_path()?;
+            let all_jars = get_dir_content(&jassets_path)?.files;
+            // This is the j4rs jar that should be included in the classpath
+            let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
+            // Filter out possible incorrect jars of j4rs
+            let filtered_jars: Vec<String> = all_jars.into_iter()
+                .filter(|jar| {
+                    !jar.contains("j4rs-") || jar.ends_with(&j4rs_jar_to_use)
+                })
+                .collect();
+            let cp_string = filtered_jars.join(utils::classpath_sep());
 
-            let last_resort_classpath = format!("./jassets/j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-            let default_class_path = format!("-Djava.class.path={}",
-                                             default_classpath_entry
-                                                 .to_str()
-                                                 .unwrap_or(&last_resort_classpath));
+            let default_class_path = format!("-Djava.class.path={}", cp_string);
 
             self.classpath_entries
                 .iter()
