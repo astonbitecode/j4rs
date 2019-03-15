@@ -16,10 +16,10 @@ use std::{fs, mem};
 use std::cell::RefCell;
 use std::ops::Drop;
 use std::os::raw::c_void;
+use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
-use std::path::Path;
 
 use jni_sys::{
     self,
@@ -51,6 +51,7 @@ use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
+use fs_extra::dir::get_dir_content;
 
 use crate::api_tweaks as tweaks;
 use crate::errors;
@@ -139,6 +140,18 @@ fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
         Some(env) => Ok(env.clone()),
         None => Err(errors::J4RsError::JavaError(format!("Could not find the JNIEnv in the thread local"))),
     }
+}
+
+pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
+    let mut jassets_path = std::env::current_exe()?;
+    jassets_path.pop();
+    let tmp_vec: Vec<String> = get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
+    if tmp_vec.is_empty() {
+        jassets_path.pop();
+    }
+    jassets_path.push("jassets");
+    dbg!(get_dir_content(&jassets_path)?.directories.join(","));
+    Ok(jassets_path)
 }
 
 /// Holds the assets for the JVM
@@ -818,6 +831,27 @@ impl Jvm {
         }
     }
 
+    /// Deploys a maven artifact in the default j4rs jars location.
+    ///
+    /// This is useful for build scripts that need jars for the runtime that can be downloaded from Maven.
+    ///
+    /// The function deploys __only__ the specified artifact, not its transitive dependencies.
+    pub fn deploy_maven(&self, artifact: MavenArtifact) -> errors::Result<()> {
+        let instance = self.create_instance(
+            "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
+            &vec![InvocationArg::from(artifact.base)])?;
+
+        let _  = self.invoke(
+            &instance,
+            "deploy",
+            &vec![
+                InvocationArg::from(artifact.group),
+                InvocationArg::from(artifact.id),
+                InvocationArg::from(artifact.version),
+                InvocationArg::from(artifact.qualifier)])?;
+        Ok(())
+    }
+
     fn do_return<T>(&self, to_return: T) -> errors::Result<T> {
         unsafe {
             if (self.jni_exception_check)(self.jni_env) == JNI_TRUE {
@@ -1020,24 +1054,12 @@ impl<'a> JvmBuilder<'a> {
         } else {
             // The default classpath contains the j4rs
             let jar_file_name = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-            let mut default_classpath_entry = std::env::current_exe()?;
-            default_classpath_entry.pop();
-            default_classpath_entry.push("jassets");
+            let mut default_classpath_entry = jassets_path()?;
             default_classpath_entry.push(jar_file_name.clone());
-            // Create a default classpath entry for the tests
-            let mut tests_classpath_entry = std::env::current_exe()?;
-            tests_classpath_entry.pop();
-            tests_classpath_entry.pop();
-            tests_classpath_entry.push("jassets");
-            tests_classpath_entry.push(jar_file_name);
 
             let last_resort_classpath = format!("./jassets/j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-            let default_class_path = format!("-Djava.class.path={}{}{}",
+            let default_class_path = format!("-Djava.class.path={}",
                                              default_classpath_entry
-                                                 .to_str()
-                                                 .unwrap_or(&last_resort_classpath),
-                                             utils::classpath_sep(),
-                                             tests_classpath_entry
                                                  .to_str()
                                                  .unwrap_or(&last_resort_classpath));
 
@@ -1604,6 +1626,52 @@ impl Drop for Instance {
 
 unsafe impl Send for Instance {}
 
+pub struct MavenArtifact {
+    base: String,
+    group: String,
+    id: String,
+    version: String,
+    qualifier: String,
+}
+
+impl From<&[&str]> for MavenArtifact {
+    fn from(slice: &[&str]) -> MavenArtifact {
+        MavenArtifact {
+            base: jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            group: slice.get(0).unwrap_or(&"").to_string(),
+            id: slice.get(1).unwrap_or(&"").to_string(),
+            version: slice.get(2).unwrap_or(&"").to_string(),
+            qualifier: slice.get(3).unwrap_or(&"").to_string(),
+        }
+    }
+}
+
+impl From<Vec<&str>> for MavenArtifact {
+    fn from(v: Vec<&str>) -> MavenArtifact {
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
+impl From<&Vec<&str>> for MavenArtifact {
+    fn from(v: &Vec<&str>) -> MavenArtifact {
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
+impl<'a> From<&'a str> for MavenArtifact {
+    fn from(string: &'a str) -> MavenArtifact {
+        let v: Vec<&str> = string.split(':').collect();
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
+impl From<String> for MavenArtifact {
+    fn from(string: String) -> MavenArtifact {
+        let v: Vec<&str> = string.split(':').collect();
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
 pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
@@ -1730,7 +1798,7 @@ impl<'a> ToString for JavaOpt<'a> {
 mod api_unit_tests {
     use serde_json;
 
-    use super::{InvocationArg, JvmBuilder};
+    use super::*;
 
     #[test]
     fn jvm_builder() {
@@ -1757,7 +1825,7 @@ mod api_unit_tests {
     }
 
     #[test]
-    fn from_primitive_types() {
+    fn invocation_arg_from_primitive_types() {
         validate_type(InvocationArg::from("str"), "java.lang.String");
         validate_type(InvocationArg::from("str".to_string()), "java.lang.String");
         validate_type(InvocationArg::from(true), "java.lang.Boolean");
@@ -1777,6 +1845,27 @@ mod api_unit_tests {
         validate_type(InvocationArg::from(&1_i64), "java.lang.Long");
         validate_type(InvocationArg::from(&0.1_f32), "java.lang.Float");
         validate_type(InvocationArg::from(&0.1_f64), "java.lang.Double");
+    }
+
+    #[test]
+    fn maven_artifact_from() {
+        let ma1 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1");
+        assert_eq!(ma1.group, "io.github.astonbitecode");
+        assert_eq!(ma1.id, "j4rs");
+        assert_eq!(ma1.version, "0.5.1");
+        assert_eq!(ma1.qualifier, "");
+
+        let ma2 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1".to_string());
+        assert_eq!(ma2.group, "io.github.astonbitecode");
+        assert_eq!(ma2.id, "j4rs");
+        assert_eq!(ma2.version, "0.5.1");
+        assert_eq!(ma2.qualifier, "");
+
+        let ma3 = MavenArtifact::from(&vec!["io.github.astonbitecode", "j4rs", "0.5.1"]);
+        assert_eq!(ma3.group, "io.github.astonbitecode");
+        assert_eq!(ma3.id, "j4rs");
+        assert_eq!(ma3.version, "0.5.1");
+        assert_eq!(ma3.qualifier, "");
     }
 
     fn validate_type(ia: InvocationArg, class: &str) {

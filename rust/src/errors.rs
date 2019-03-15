@@ -17,6 +17,7 @@ use std::{fmt, result};
 use std::error::Error;
 use std::ffi::NulError;
 use std::io;
+use fs_extra;
 
 pub type Result<T> = result::Result<T, J4RsError>;
 
@@ -68,5 +69,11 @@ impl From<io::Error> for J4RsError {
 impl From<serde_json::Error> for J4RsError {
     fn from(err: serde_json::Error) -> J4RsError {
         J4RsError::ParseError(format!("{:?}", err))
+    }
+}
+
+impl From<fs_extra::error::Error> for J4RsError {
+    fn from(err: fs_extra::error::Error) -> J4RsError {
+        J4RsError::GeneralError(format!("{:?}", err))
     }
 }

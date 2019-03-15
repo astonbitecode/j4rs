@@ -37,6 +37,7 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
+pub use self::api::MavenArtifact as MavenArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
@@ -90,7 +91,10 @@ mod lib_unit_tests {
     use std::{thread, time};
     use std::thread::JoinHandle;
 
-    use super::{ClasspathEntry, Instance, InvocationArg, Jvm, JvmBuilder};
+    use super::{ClasspathEntry, Instance, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
+    use super::api::jassets_path;
+    use fs_extra::remove_items;
+    use std::path::MAIN_SEPARATOR;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -385,6 +389,14 @@ mod lib_unit_tests {
         });
 
         assert!(jh.join().unwrap());
+    }
+
+    #[test]
+    fn deploy_maven() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        assert!(jvm.deploy_maven(MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
+        let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
+        let _ = remove_items(&vec![to_remove]);
     }
 
     fn _my_callback(jvm: Jvm, inst: Instance) {
