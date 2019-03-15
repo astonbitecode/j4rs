@@ -21,6 +21,7 @@ use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 
+use fs_extra::dir::get_dir_content;
 use jni_sys::{
     self,
     JavaVM,
@@ -51,7 +52,6 @@ use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
-use fs_extra::dir::get_dir_content;
 
 use crate::api_tweaks as tweaks;
 use crate::errors;
@@ -502,66 +502,6 @@ impl Jvm {
         }
     }
 
-
-    /// Invokes asynchronously the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
-    /// It returns void and the `Instance` of the result of the async invocation will come in the defined callback.
-    #[deprecated(since = "0.2.0", note = "please use `invoke_to_channel` instead")]
-    pub fn invoke_async(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg], callback: super::Callback) -> errors::Result<()> {
-        debug(&format!("Asynchronously invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
-        unsafe {
-            let invoke_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
-            // Get the method ID for the `NativeInvocation.invokeAsync`
-            let invoke_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("invokeAsync"),
-                utils::to_java_string(invoke_method_signature),
-            );
-
-            // First argument: the address of the callback function
-            let address_string = format!("{:p}", callback as *const ());
-            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
-            // Second argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(method_name),
-            );
-            // Rest of the arguments: Create a new objectarray of class InvocationArg
-            let size = inv_args.len() as i32;
-            let array_ptr = (self.jni_new_onject_array)(
-                self.jni_env,
-                size,
-                self.invocation_arg_class,
-                ptr::null_mut(),
-            );
-            // Rest of the arguments: populate the array
-            for i in 0..size {
-                // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
-                // Set it in the array
-                (self.jni_set_object_array_element)(
-                    self.jni_env,
-                    array_ptr,
-                    i,
-                    inv_arg_java,
-                );
-            }
-
-            // Call the method of the instance
-            let _ = (self.jni_call_object_method)(
-                self.jni_env,
-                instance.jinstance,
-                invoke_method,
-                address,
-                method_name_jstring,
-                array_ptr,
-            );
-
-            // Create and return the Instance
-            self.do_return(())
-        }
-    }
-
     /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
     /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`. The result of the invocation will come via this Receiver.
     pub fn invoke_to_channel(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<InstanceReceiver> {
@@ -841,7 +781,7 @@ impl Jvm {
             "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
             &vec![InvocationArg::from(artifact.base)])?;
 
-        let _  = self.invoke(
+        let _ = self.invoke(
             &instance,
             "deploy",
             &vec![

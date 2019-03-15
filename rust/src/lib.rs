@@ -24,7 +24,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 use std::mem;
-use std::os::raw::{c_long, c_void};
+use std::os::raw::c_void;
 use std::sync::mpsc::Sender;
 
 use jni_sys::{jlong, JNIEnv, jobject};
@@ -56,17 +56,6 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
 }
 
 #[no_mangle]
-pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_docallback(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
-    let pointer_from_address = ptr_address as *const ();
-    let function = unsafe {
-        mem::transmute::<*const (), Callback>(pointer_from_address)
-    };
-    let mut jvm = Jvm::new(&Vec::new(), None).expect("Could not create a j4rs Jvm while invoking deprecated callback.");
-    jvm.detach_thread_on_drop(false);
-    function(jvm, Instance::from(native_invocation).unwrap());
-}
-
-#[no_mangle]
 pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
     let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel.");
     jvm.detach_thread_on_drop(false);
@@ -80,8 +69,7 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
         if let Err(error) = result {
             panic!("Could not send to the defined callback channel: {:?}", error);
         }
-    }
-    else {
+    } else {
         panic!("Could not create Instance from the NativeInvocation object...");
     }
 }
@@ -89,12 +77,13 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
+    use std::path::MAIN_SEPARATOR;
     use std::thread::JoinHandle;
+
+    use fs_extra::remove_items;
 
     use super::{ClasspathEntry, Instance, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::api::jassets_path;
-    use fs_extra::remove_items;
-    use std::path::MAIN_SEPARATOR;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -131,24 +120,6 @@ mod lib_unit_tests {
 
         let static_invocation_result = jvm.invoke_static("java.lang.System", "currentTimeMillis", &Vec::new());
         assert!(static_invocation_result.is_ok());
-    }
-
-    //#[test]
-    //#[ignore]
-    fn _callback() {
-        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
-
-        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
-            Ok(i) => {
-                let res = jvm.invoke_async(&i, "performCallback", Vec::new().as_ref(), _my_callback);
-                let thousand_millis = time::Duration::from_millis(1000);
-                thread::sleep(thousand_millis);
-                assert!(res.is_ok());
-            }
-            Err(error) => {
-                panic!("ERROR when creating Instance: {:?}", error);
-            }
-        }
     }
 
     #[test]
