@@ -5,6 +5,8 @@ import org.junit.Test;
 import java.io.File;
 import java.io.FileNotFoundException;
 
+import static org.mockito.Mockito.*;
+
 public class SimpleMavenDeployerTest {
     @Test
     public void repoBase() {
@@ -50,4 +52,24 @@ public class SimpleMavenDeployerTest {
                 "non-existing",
                 "");
     }
+
+    @Test()
+    public void doNotDownloadArtifactIfAlreadyDeployed() throws Exception {
+        new SimpleMavenDeployer().deploy("io.github.astonbitecode",
+                "j4rs",
+                "0.5.1",
+                "");
+
+        SimpleMavenDeployer mdmock = mock(SimpleMavenDeployer.class);
+        mdmock.deploy("io.github.astonbitecode",
+                "j4rs",
+                "0.5.1",
+                "");
+
+        verify(mdmock, times(0)).deployFromLocalCache(any(), any(), any(), any());
+
+        File f = new File("./j4rs-0.5.1.jar");
+        f.delete();
+    }
+
 }

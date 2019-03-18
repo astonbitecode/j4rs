@@ -30,10 +30,6 @@ public class SimpleMavenDeployer {
     private final boolean checkLocalCache;
     private final String deployTarget;
 
-    public static void main(String args[]) throws Exception {
-        new SimpleMavenDeployer().deploy("io.github.astonbitecode", "j4rs", "0.5.2", "");
-    }
-
     public SimpleMavenDeployer() {
         this(MAVEN_CENTRAL, true, ".");
     }
@@ -54,19 +50,27 @@ public class SimpleMavenDeployer {
         String urlString = generateUrlTagret(groupId, artifactId, version, jarName);
         boolean searchRemoteRepo = true;
 
-        if (checkLocalCache) {
-            try {
-                deployFromLocalCache(groupId, artifactId, version, qualifier);
-                searchRemoteRepo = false;
-            } catch (Exception error) {
-                /* ignore */
+        if (!artifactExists(groupId, artifactId, version, qualifier)) {
+            if (checkLocalCache) {
+                try {
+                    deployFromLocalCache(groupId, artifactId, version, qualifier);
+                    searchRemoteRepo = false;
+                } catch (Exception error) {
+                    /* ignore */
+                }
+            }
+            if (searchRemoteRepo) {
+                ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(urlString).openStream());
+                FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
+                fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
             }
         }
-        if (searchRemoteRepo) {
-            ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(urlString).openStream());
-            FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
-            fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
-        }
+    }
+
+    boolean artifactExists(String groupId, String artifactId, String version, String qualifier) {
+        String jarName = generateArtifactName(artifactId, version, qualifier);
+        String pathString = generatePathTagret(groupId, artifactId, version, jarName);
+        return new File(pathString).exists();
     }
 
     void deployFromLocalCache(String groupId, String artifactId, String version, String qualifier) throws MalformedURLException, IOException {
@@ -81,7 +85,7 @@ public class SimpleMavenDeployer {
     String generateArtifactName(String artifactId, String version, String qualifier) {
         StringBuilder jarName = new StringBuilder(String.format("%s-%s", artifactId, version));
         if (qualifier != null && !qualifier.isEmpty()) {
-            jarName.append("-" + qualifier);
+            jarName.append("-").append(qualifier);
         }
         jarName.append(".jar");
         return jarName.toString();
