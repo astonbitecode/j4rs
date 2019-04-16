@@ -14,8 +14,13 @@ public class NativeCallbackToRustChannelSupport {
 
     private Optional<RustPointer> channelPointerOpt = Optional.empty();
 
-    static void initialize(String libname) throws UnsatisfiedLinkError {
-        System.loadLibrary(libname);
+    static void initialize(String libname) {
+        try {
+            System.loadLibrary(libname);
+        } catch(UnsatisfiedLinkError error) {
+            System.err.println("The Callbacks are not initialized because the j4rs lib was not found. You may ignore this error if you don't use callbacks.");
+            error.printStackTrace();
+        }
     }
 
     /**

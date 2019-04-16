@@ -144,11 +144,13 @@ fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
 
 pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
     let mut jassets_path = std::env::current_exe()?;
-    jassets_path.pop();
-    let tmp_vec: Vec<String> = get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
-    if tmp_vec.is_empty() {
+    let mut tmp_vec = Vec::new();
+
+    while tmp_vec.is_empty() {
         jassets_path.pop();
+        tmp_vec= get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
     }
+
     jassets_path.push("jassets");
     Ok(jassets_path)
 }
