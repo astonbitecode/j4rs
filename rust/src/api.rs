@@ -1571,6 +1571,7 @@ impl Drop for Instance {
 
 unsafe impl Send for Instance {}
 
+#[derive(Debug)]
 pub struct MavenArtifact {
     base: String,
     group: String,

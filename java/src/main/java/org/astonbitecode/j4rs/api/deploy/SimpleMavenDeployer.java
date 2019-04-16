@@ -69,13 +69,13 @@ public class SimpleMavenDeployer {
 
     boolean artifactExists(String groupId, String artifactId, String version, String qualifier) {
         String jarName = generateArtifactName(artifactId, version, qualifier);
-        String pathString = generatePathTagret(groupId, artifactId, version, jarName);
+        String pathString = generatePathTagret(deployTarget, groupId, artifactId, version, jarName);
         return new File(pathString).exists();
     }
 
     void deployFromLocalCache(String groupId, String artifactId, String version, String qualifier) throws MalformedURLException, IOException {
         String jarName = generateArtifactName(artifactId, version, qualifier);
-        String pathString = generatePathTagret(groupId, artifactId, version, jarName);
+        String pathString = generatePathTagret(M2_CACHE, groupId, artifactId, version, jarName);
 
         ReadableByteChannel readableByteChannel = Channels.newChannel(new File(pathString).toURI().toURL().openStream());
         FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
@@ -100,9 +100,9 @@ public class SimpleMavenDeployer {
                 jarName);
     }
 
-    String generatePathTagret(String groupId, String artifactId, String version, String jarName) {
+    String generatePathTagret(String base, String groupId, String artifactId, String version, String jarName) {
         return String.format("%s%s%s%s%s%s%s%s%s",
-                M2_CACHE,
+                base,
                 File.separator,
                 groupId.replace(".", File.separator),
                 File.separator,
