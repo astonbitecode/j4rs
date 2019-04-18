@@ -64,4 +64,21 @@ public class NativeInstantiationImplTest {
         assert (generated[0].getClazz().equals(Dummy.class));
     }
 
+    @Test
+    public void createJavaArraySuccess() throws Exception {
+        String className = Integer.class.getName();
+        GeneratedArg[] generatedArgs = {new GeneratedArg(Integer.class, new Integer(11))};
+        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.doCreateJavaArray(className, generatedArgs);
+        assert (createdInstance.getClazz().getName().equals("[Ljava.lang.Integer;"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void createJavaArrayFailure() throws Exception {
+        String className = Integer.class.getName();
+        GeneratedArg[] generatedArgs = {
+                new GeneratedArg(Integer.class, new Integer(11)),
+                new GeneratedArg(String.class, "this is a string")
+        };
+        NativeInstantiationImpl.doCreateJavaArray(className, generatedArgs);
+    }
 }

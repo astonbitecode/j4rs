@@ -370,6 +370,59 @@ mod lib_unit_tests {
         let _ = remove_items(&vec![to_remove]);
     }
 
+
+    #[test]
+    fn variadic_constructor() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+
+        let s1 = InvocationArg::from("abc");
+        let s2 = InvocationArg::from("def");
+        let s3 = InvocationArg::from("ghi");
+
+        let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
+
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[InvocationArg::from(arr_instance)]).unwrap();
+
+        let i = jvm.invoke(&test_instance, "getMyString", &[]).unwrap();
+
+        let s: String = jvm.to_rust(i).unwrap();
+        assert!(s == "abc, def, ghi");
+    }
+
+    #[test]
+    fn variadic_string_method() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let s1 = InvocationArg::from("abc");
+        let s2 = InvocationArg::from("def");
+        let s3 = InvocationArg::from("ghi");
+
+        let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
+
+        let i = jvm.invoke(&test_instance, "getMyWithArgsList", &vec![InvocationArg::from(arr_instance)]).unwrap();
+
+        let s: String = jvm.to_rust(i).unwrap();
+        assert!(s == "abcdefghi");
+    }
+
+    #[test]
+    fn variadic_int_method() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let s1 = InvocationArg::from(1);
+        let s2 = InvocationArg::from(2);
+        let s3 = InvocationArg::from(3);
+
+        let arr_instance = jvm.create_java_array("java.lang.Integer", &vec![s1, s2, s3]).unwrap();
+
+        let i = jvm.invoke(&test_instance, "addInts", &vec![InvocationArg::from(arr_instance)]).unwrap();
+
+        let num: i32 = jvm.to_rust(i).unwrap();
+        assert!(num == 6);
+    }
+
     fn _my_callback(jvm: Jvm, inst: Instance) {
         let string_from_java: String = jvm.to_rust(inst).unwrap();
         println!("Asynchronously got from Java: {}", string_from_java);

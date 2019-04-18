@@ -18,6 +18,7 @@ import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class MyTest extends NativeCallbackSupport {
     private String string;
@@ -35,6 +36,10 @@ public class MyTest extends NativeCallbackSupport {
         this.string = str;
     }
 
+    public MyTest(String... args) {
+        this.string = Arrays.stream(args).collect(Collectors.joining(", "));
+    }
+
     public String getMyString() {
         return string;
     }
@@ -46,12 +51,23 @@ public class MyTest extends NativeCallbackSupport {
     public String getMyWithArgsList(String... args) {
         String str = Arrays.stream(args)
                 .reduce(
-                        "The arguments passed where",
+                        "",
                         (a, b) -> {
-                            return a + "\n" + b;
+                            return a + b;
                         }
                 );
         return str;
+    }
+
+    public Integer addInts(Integer... args) {
+        int result = Arrays.stream(args)
+                .reduce(
+                        0,
+                        (a, b) -> {
+                            return a + b;
+                        }
+                );
+        return result;
     }
 
     public void list(List<String> l) {

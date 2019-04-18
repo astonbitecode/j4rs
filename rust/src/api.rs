@@ -148,7 +148,7 @@ pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
 
     while tmp_vec.is_empty() {
         jassets_path.pop();
-        tmp_vec= get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
+        tmp_vec = get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
     }
 
     jassets_path.push("jassets");
@@ -179,10 +179,12 @@ pub struct Jvm {
     factory_class: jclass,
     /// The constructor method of the `NativeInstantiationImpl`.
     factory_constructor_method: jmethodID,
-    /// The method id of the `instantiate` method of the `NativeInvocation`.
+    /// The method id of the `instantiate` method of the `NativeInstantiation`.
     factory_instantiate_method: jmethodID,
-    /// The method id of the `createForStatic` method of the `NativeInvocation`.
+    /// The method id of the `createForStatic` method of the `NativeInstantiation`.
     factory_create_for_static_method: jmethodID,
+    /// The method id of the `createJavaArray` method of the `NativeInstantiation`.
+    factory_create_java_array_method: jmethodID,
     /// The `NativeInvocation` class.
     native_invocation_class: jclass,
     /// The Java class for the `InvocationArg`.
@@ -320,26 +322,35 @@ impl Jvm {
                         jni_environment,
                         "org/astonbitecode/j4rs/api/dtos/InvocationArg",
                     );
-                    // `NativeInvocation` assets
                     let instantiate_method_signature = format!(
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
                         INVO_IFACE_NAME);
                     let create_for_static_method_signature = format!(
                         "(Ljava/lang/String;)L{};",
                         INVO_IFACE_NAME);
-                    // The method id of the `instantiate` method of the `NativeInvocation`
+                    let create_java_array_method_signature = format!(
+                        "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                        INVO_IFACE_NAME);
+                    // The method id of the `instantiate` method of the `NativeInstantiation`
                     let factory_instantiate_method = (gsmid)(
                         jni_environment,
                         factory_class,
                         utils::to_java_string("instantiate"),
                         utils::to_java_string(&instantiate_method_signature),
                     );
-                    // The method id of the `createForStatic` method of the `NativeInvocation`
+                    // The method id of the `createForStatic` method of the `NativeInstantiation`
                     let factory_create_for_static_method = (gsmid)(
                         jni_environment,
                         factory_class,
                         utils::to_java_string("createForStatic"),
                         utils::to_java_string(&create_for_static_method_signature),
+                    );
+                    // The method id of the `createJavaArray` method of the `NativeInstantiation`
+                    let factory_create_java_array_method = (gsmid)(
+                        jni_environment,
+                        factory_class,
+                        utils::to_java_string("createJavaArray"),
+                        utils::to_java_string(&create_java_array_method_signature),
                     );
                     // The `NativeInvocation class`
                     let native_invocation_class: jclass = tweaks::find_class(
@@ -374,6 +385,7 @@ impl Jvm {
                             factory_constructor_method: factory_constructor_method,
                             factory_instantiate_method: factory_instantiate_method,
                             factory_create_for_static_method: factory_create_for_static_method,
+                            factory_create_java_array_method: factory_create_java_array_method,
                             native_invocation_class: native_invocation_class,
                             invocation_arg_class: invocation_arg_class,
                             detach_thread_on_drop: true,
@@ -429,6 +441,57 @@ impl Jvm {
                 self.jni_env,
                 self.factory_class,
                 self.factory_instantiate_method,
+                class_name_jstring,
+                array_ptr,
+            );
+
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+
+            // Create and return the Instance
+            self.do_return(Instance {
+                jinstance: native_invocation_global_instance,
+                class_name: class_name.to_string(),
+            })
+        }
+    }
+
+    /// Creates a new Java Array with elements of the class `class_name`.
+    /// The array will have the `InvocationArg`s populated.
+    /// The `InvocationArg`s __must__ be of type _class_name_.
+    pub fn create_java_array(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+        debug(&format!("Creating a java array of class {} with {} elements", class_name, inv_args.len()));
+        unsafe {
+            // Factory invocation - first argument: create a jstring to pass as argument for the class_name
+            let class_name_jstring: jstring = (self.jni_new_string_utf)(
+                self.jni_env,
+                utils::to_java_string(class_name),
+            );
+            // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
+            let size = inv_args.len() as i32;
+            let array_ptr = (self.jni_new_onject_array)(
+                self.jni_env,
+                size,
+                self.invocation_arg_class,
+                ptr::null_mut(),
+            );
+            // Factory invocation - rest of the arguments: populate the array
+            for i in 0..size {
+                // Create an InvocationArg Java Object
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                // Set it in the array
+                (self.jni_set_object_array_element)(
+                    self.jni_env,
+                    array_ptr,
+                    i,
+                    inv_arg_java,
+                );
+            }
+            // Call the method of the factory that instantiates a new Java Array of `class_name`.
+            // This returns a NativeInvocation that acts like a proxy to the Java world.
+            let native_invocation_instance = (self.jni_call_static_object_method)(
+                self.jni_env,
+                self.factory_class,
+                self.factory_create_java_array_method,
                 class_name_jstring,
                 array_ptr,
             );
