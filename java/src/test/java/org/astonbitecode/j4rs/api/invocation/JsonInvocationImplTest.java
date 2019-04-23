@@ -17,10 +17,7 @@ package org.astonbitecode.j4rs.api.invocation;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.errors.InvocationException;
-import org.astonbitecode.j4rs.utils.ChildDummy;
-import org.astonbitecode.j4rs.utils.Dummy;
-import org.astonbitecode.j4rs.utils.DummyWithStatic;
-import org.astonbitecode.j4rs.utils.FailingDummy;
+import org.astonbitecode.j4rs.utils.*;
 import org.junit.Test;
 
 public class JsonInvocationImplTest {
@@ -82,9 +79,29 @@ public class JsonInvocationImplTest {
 //        assert(casted.getObject().getClass().equals(Dummy.class));
     }
 
-    @Test (expected = InvocationException.class)
+    @Test(expected = InvocationException.class)
     public void castFailure() {
         NativeInvocation from = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
         NativeInvocation.cast(from, Integer.class.getName());
+    }
+
+    @Test
+    public void invokeMethodInHierarchy() {
+        NativeInvocation ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        NativeInvocation res = ni.invoke("getI");
+        Integer i = (Integer) res.getObject();
+        assert (i.equals(33));
+    }
+
+    @Test
+    public void invokeMethodInInterface() {
+        NativeInvocation ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        ni.invoke("doSomething");
+    }
+
+    @Test(expected = Exception.class)
+    public void invokeMethodNotFoundInHierarchy() {
+        NativeInvocation ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        ni.invoke("nonExisting");
     }
 }

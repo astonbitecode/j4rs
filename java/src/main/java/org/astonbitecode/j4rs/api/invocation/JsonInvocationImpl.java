@@ -133,11 +133,23 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
                 })
                 .toArray(size -> new Object[size]);
 
-        Method methodToInvoke = this.clazz.getDeclaredMethod(methodName, argTypes);
+        Method methodToInvoke = findMethodInHierarchy(this.clazz, methodName, argTypes);
 
         Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
         Object returnedObject = methodToInvoke.invoke(this.object, argObjects);
         return new CreatedInstance(invokedMethodReturnType, returnedObject);
+    }
+
+    Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
+        try {
+            return clazz.getDeclaredMethod(methodName, argTypes);
+        } catch (NoSuchMethodException nsme) {
+            Class<?> superclass = clazz.getSuperclass();
+            if (superclass == null) {
+                throw new NoSuchMethodException("Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
+            }
+            return findMethodInHierarchy(superclass, methodName, argTypes);
+        }
     }
 
     class CreatedInstance {
@@ -157,4 +169,6 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
             return object;
         }
     }
+
+
 }
