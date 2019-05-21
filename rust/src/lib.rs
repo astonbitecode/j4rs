@@ -91,33 +91,30 @@ mod lib_unit_tests {
             .classpath_entry(ClasspathEntry::new("onemore.jar"))
             .build()
             .unwrap();
-
         let instantiation_args = vec![InvocationArg::from("arg from Rust")];
         let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref());
         match instance {
             Ok(i) => {
                 let invocation_args = vec![InvocationArg::from(" ")];
-                let invocation_result = jvm.invoke(&i, "split", &invocation_args);
+                let invocation_result = i.invoke("split", &invocation_args);
                 assert!(invocation_result.is_ok());
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
             }
         };
-
         let instantiation_args_2 = vec![InvocationArg::from("arg from Rust")];
         let instance_2 = jvm.create_instance("java.lang.String", instantiation_args_2.as_ref());
         match instance_2 {
             Ok(i) => {
                 let invocation_args = vec![InvocationArg::from(" ")];
-                let invocation_result = jvm.invoke(&i, "split", &invocation_args);
+                let invocation_result = i.invoke("split", &invocation_args);
                 assert!(invocation_result.is_ok());
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
             }
         };
-
         let static_invocation_result = jvm.invoke_static("java.lang.System", "currentTimeMillis", &Vec::new());
         assert!(static_invocation_result.is_ok());
     }
@@ -130,7 +127,7 @@ mod lib_unit_tests {
                 let instance_receiver_res = jvm.init_callback_channel(&i);
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res.unwrap();
-                assert!(jvm.invoke(&i, "performCallback", &vec![]).is_ok());
+                assert!(i.invoke("performCallback", &vec![]).is_ok());
                 let res_chan = instance_receiver.rx().recv();
                 let i = res_chan.unwrap();
                 let res_to_rust = jvm.to_rust(i);
@@ -150,7 +147,7 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let instance_receiver_res = jvm.invoke_to_channel(&i, "performCallback", Vec::new().as_ref());
+                let instance_receiver_res = i.invoke_to_channel("performCallback", Vec::new().as_ref());
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res.unwrap();
                 let res_chan = instance_receiver.rx().recv();
@@ -172,7 +169,7 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let instance_receiver_res = jvm.invoke_to_channel(&i, "performTenCallbacks", Vec::new().as_ref());
+                let instance_receiver_res = i.invoke_to_channel("performTenCallbacks", Vec::new().as_ref());
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res.unwrap();
                 for _i in 0..10 {
@@ -197,7 +194,7 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let instance_receiver_res = jvm.invoke_to_channel(&i, "performCallbackFromTenThreads", Vec::new().as_ref());
+                let instance_receiver_res = i.invoke_to_channel("performCallbackFromTenThreads", Vec::new().as_ref());
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res.unwrap();
                 for _i in 0..10 {
@@ -235,9 +232,9 @@ mod lib_unit_tests {
         assert!(invocation_res.is_ok());
     }
 
-    //#[test]
-    //#[ignore]
-    fn _memory_leaks() {
+//    #[test]
+//    #[ignore]
+    fn _memory_leaks_create_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
 
         for i in 0..100000000 {
@@ -251,6 +248,51 @@ mod lib_unit_tests {
                     panic!("ERROR when creating Instance: {:?}", error);
                 }
             }
+        }
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
+//    #[test]
+//    #[ignore]
+    fn _memory_leaks_invoke_instances() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+            Ok(instance) => {
+                for i in 0..100000000 {
+                    if i % 100000 == 0 {
+                        println!("{}", i);
+                    }
+                    instance.invoke("getMyString", &[]).unwrap();
+                }
+
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
+//    #[test]
+//    #[ignore]
+    fn _memory_leaks_create_instances_in_different_threads() {
+        for i in 0..100000000 {
+            thread::spawn(move || {
+                let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+                match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+                    Ok(_) => {
+                        if i % 100000 == 0 {
+                            println!("{}", i);
+                        }
+                    }
+                    Err(error) => {
+                        panic!("ERROR when creating Instance: {:?}", error);
+                    }
+                }
+            });
         }
         let thousand_millis = time::Duration::from_millis(1000);
         thread::sleep(thousand_millis);
@@ -272,7 +314,7 @@ mod lib_unit_tests {
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
                 let invocation_args = vec![InvocationArg::from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm))];
-                let _ = jvm.invoke(&i, "list", &invocation_args);
+                let _ = i.invoke("list", &invocation_args);
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
@@ -308,8 +350,8 @@ mod lib_unit_tests {
         let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
 
         let jh = thread::spawn(move || {
-            let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-            let res = jvm.invoke(&instance, "isEmpty", &Vec::new());
+            let _: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+            let res = instance.invoke("isEmpty", &Vec::new());
             res
         });
 
@@ -383,7 +425,7 @@ mod lib_unit_tests {
 
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[InvocationArg::from(arr_instance)]).unwrap();
 
-        let i = jvm.invoke(&test_instance, "getMyString", &[]).unwrap();
+        let i = test_instance.invoke("getMyString", &[]).unwrap();
 
         let s: String = jvm.to_rust(i).unwrap();
         assert!(s == "abc, def, ghi");
@@ -400,7 +442,7 @@ mod lib_unit_tests {
 
         let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
 
-        let i = jvm.invoke(&test_instance, "getMyWithArgsList", &vec![InvocationArg::from(arr_instance)]).unwrap();
+        let i = test_instance.invoke("getMyWithArgsList", &vec![InvocationArg::from(arr_instance)]).unwrap();
 
         let s: String = jvm.to_rust(i).unwrap();
         assert!(s == "abcdefghi");
@@ -417,7 +459,7 @@ mod lib_unit_tests {
 
         let arr_instance = jvm.create_java_array("java.lang.Integer", &vec![s1, s2, s3]).unwrap();
 
-        let i = jvm.invoke(&test_instance, "addInts", &vec![InvocationArg::from(arr_instance)]).unwrap();
+        let i = test_instance.invoke("addInts", &vec![InvocationArg::from(arr_instance)]).unwrap();
 
         let num: i32 = jvm.to_rust(i).unwrap();
         assert!(num == 6);

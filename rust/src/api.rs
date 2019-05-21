@@ -98,6 +98,7 @@ lazy_static! {
 
 thread_local! {
     static JNI_ENV: RefCell<Option<*mut JNIEnv>> = RefCell::new(None);
+    static JVM: RefCell<Option<Jvm>> = RefCell::new(None);
     static ACTIVE_JVMS: RefCell<i32> = RefCell::new(0);
 }
 
@@ -124,6 +125,20 @@ fn set_thread_local_env(jni_env_opt: Option<*mut JNIEnv>) {
     JNI_ENV.with(|existing_jni_env_opt| {
         *existing_jni_env_opt.borrow_mut() = jni_env_opt;
     });
+    if jni_env_opt.is_some() {
+        let jni_env = get_thread_local_env_opt().unwrap();
+        let jvm_opt = Jvm::try_from(jni_env);
+
+        set_thread_local_jvm(jvm_opt.ok());
+    }
+}
+
+fn set_thread_local_jvm(jvm_opt: Option<Jvm>) {
+    JVM.with(|existing_jvm_opt| {
+        if let Ok(mut opt_mut_ref) = existing_jvm_opt.try_borrow_mut() {
+            *opt_mut_ref = jvm_opt;
+        }
+    });
 }
 
 fn get_thread_local_env_opt() -> Option<*mut JNIEnv> {
@@ -140,6 +155,24 @@ fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
         Some(env) => Ok(env.clone()),
         None => Err(errors::J4RsError::JavaError(format!("Could not find the JNIEnv in the thread local"))),
     }
+}
+
+fn on_local_jvm<F>(op: F) -> errors::Result<Instance> where F: FnOnce(&Jvm) -> errors::Result<Instance> {
+    JVM.with(|existing_jvm_opt| {
+        match existing_jvm_opt.borrow().as_ref() {
+            Some(jvm) => op(jvm),
+            None => Err(errors::J4RsError::JavaError(format!("Could not find the JVM in the thread local"))),
+        }
+    })
+}
+
+fn on_local_jvm_to_channel<F>(op: F) -> errors::Result<InstanceReceiver> where F: FnOnce(&Jvm) -> errors::Result<InstanceReceiver> {
+    JVM.with(|existing_jvm_opt| {
+        match existing_jvm_opt.borrow().as_ref() {
+            Some(jvm) => op(jvm),
+            None => Err(errors::J4RsError::JavaError(format!("Could not find the JVM in the thread local"))),
+        }
+    })
 }
 
 pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
@@ -845,8 +878,7 @@ impl Jvm {
             "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
             &vec![InvocationArg::from(artifact.base)])?;
 
-        let _ = self.invoke(
-            &instance,
+        let _ = instance.invoke(
             "deploy",
             &vec![
                 InvocationArg::from(artifact.group),
@@ -953,7 +985,6 @@ impl Drop for Jvm {
     fn drop(&mut self) {
         if remove_active_jvm() <= 0 {
             if self.detach_thread_on_drop {
-                debug("Detaching thread from the JVM");
                 self.detach_current_thread();
             }
             set_thread_local_env(None);
@@ -1023,7 +1054,7 @@ impl<'a> JvmBuilder<'a> {
     /// A Jvm that is created with `detach_thread_on_drop(false)` will not detach the thread when being dropped.
     ///
     /// This is useful when in the Java world a native method is called and in the native code someone needs to create a j4rs Jvm.
-    /// Id that Jvm detaches its current thread when being dropped, there will be problems for the Java world code to continue executing.
+    /// If that Jvm detaches its current thread when being dropped, there will be problems for the Java world code to continue executing.
     pub fn detach_thread_on_drop(&'a mut self, detach_thread_on_drop: bool) -> &'a mut JvmBuilder {
         self.detach_thread_on_drop = detach_thread_on_drop;
         self
@@ -1620,6 +1651,17 @@ impl Instance {
             class_name: self.class_name.clone(),
             jinstance: _create_weak_global_ref_from_global_ref(self.jinstance.clone(), get_thread_local_env()?)?,
         })
+    }
+
+    /// Invokes the method `method_name` of a this `Instance`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
+    pub fn invoke(&self, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+        on_local_jvm(|jvm| jvm.invoke(&self, method_name, inv_args))
+    }
+
+    /// Invokes the method `method_name` of this `Instance`, passing an array of `InvocationArg`s.
+    /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`. The result of the invocation will come via this Receiver.
+    pub fn invoke_to_channel(&self, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<InstanceReceiver> {
+        on_local_jvm_to_channel(|jvm| jvm.invoke_to_channel(&self, method_name, inv_args))
     }
 }
 
