@@ -447,6 +447,9 @@ impl Jvm {
             );
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, class_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -498,6 +501,9 @@ impl Jvm {
             );
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, class_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -558,6 +564,9 @@ impl Jvm {
             );
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -625,6 +634,9 @@ impl Jvm {
                 method_name_jstring,
                 array_ptr,
             );
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance
             self.do_return(InstanceReceiver::new(rx, address))
@@ -728,6 +740,9 @@ impl Jvm {
                 method_name_jstring,
                 array_ptr,
             );
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, method_name_jstring);
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
 
@@ -801,6 +816,8 @@ impl Jvm {
                 from_instance.jinstance,
                 to_class_jstring,
             );
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, to_class_jstring);
 
             // Create and return the Instance
             self.do_return(Instance::from(native_invocation_instance)?)
@@ -1794,6 +1811,31 @@ fn _create_weak_global_ref_from_global_ref(global_ref: jobject, jni_env: *mut JN
 fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     unsafe {
         match ((**jni_env).DeleteGlobalRef,
+               (**jni_env).ExceptionCheck,
+               (**jni_env).ExceptionDescribe,
+               (**jni_env).ExceptionClear) {
+            (Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
+                dlr(
+                    jni_env,
+                    jinstance,
+                );
+                if (exc)(jni_env) == JNI_TRUE {
+                    (exd)(jni_env);
+                    (exclear)(jni_env);
+                    error("An Exception was thrown by Java... Please check the logs or the console.");
+                }
+            }
+            (_, _, _, _) => {
+                error("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks");
+            }
+        }
+    }
+}
+
+/// Deletes the java ref from the memory
+fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
+    unsafe {
+        match ((**jni_env).DeleteLocalRef,
                (**jni_env).ExceptionCheck,
                (**jni_env).ExceptionDescribe,
                (**jni_env).ExceptionClear) {

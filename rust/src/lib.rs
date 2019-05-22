@@ -235,16 +235,16 @@ mod lib_unit_tests {
         assert!(invocation_res.is_ok());
     }
 
-//    #[test]
+    //    #[test]
 //    #[ignore]
     fn _memory_leaks_create_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
 
         for i in 0..100000000 {
             match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
-                Ok(_) => {
+                Ok(instance) => {
                     if i % 100000 == 0 {
-                        println!("{}", i);
+                        println!("{}: {}", i, instance.class_name());
                     }
                 }
                 Err(error) => {
@@ -256,7 +256,7 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-//    #[test]
+    //    #[test]
 //    #[ignore]
     fn _memory_leaks_invoke_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
@@ -293,11 +293,12 @@ mod lib_unit_tests {
                     Err(error) => {
                         panic!("ERROR when creating Instance: {:?}", error);
                     }
-                }
+                };
             });
+
+            let millis = time::Duration::from_millis(10);
+            thread::sleep(millis);
         }
-        let thousand_millis = time::Duration::from_millis(1000);
-        thread::sleep(thousand_millis);
     }
 
     #[test]
