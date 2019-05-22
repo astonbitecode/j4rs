@@ -44,6 +44,11 @@ public class MyTest extends NativeCallbackSupport {
         return string;
     }
 
+    public String appendToMyString(String str) {
+        this.string = this.string + str;
+        return this.string;
+    }
+
     public String getMyWithArgs(String arg) {
         return string + arg;
     }

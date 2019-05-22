@@ -12,6 +12,7 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code, fr
 * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
 * Easily instantiate and invoke Java classes.
 * Java -> Rust callbacks support.
+* Java instances invocations chaining.
 * Simple Maven artifacts download and deployment.
 * Casting support.
 * Java arrays support.
@@ -55,6 +56,29 @@ let _static_invocation_result = jvm.invoke_static(
     &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
 ).unwrap();
 
+```
+
+### Java instances chaining
+```rust
+use j4rs::{Instance, InvocationArg, Jvm, JvmBuilder};
+
+// Create a JVM
+let jvm = JvmBuilder::new().build().unwrap();
+
+// Create an instance
+let string_instance = jvm.create_instance(
+    "java.lang.String",
+    &vec![InvocationArg::from(" a string ")],
+).unwrap();
+
+// Perform chained operations on the instance
+let string_size: isize = jvm.chain(string_instance)
+    .invoke("trim", &[]).unwrap()
+    .invoke("length", &[]).unwrap()
+    .to_rust().unwrap();
+
+// Assert that the string was trimmed
+assert!(string_size == 8)
 ```
 
 ### Callback support
