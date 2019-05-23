@@ -1,6 +1,6 @@
 [package]
 name = "j4rs"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["aston <astonbitecode@gmail.com>"]
 description = "j4rs stands for 'Java for Rust' and allows effortless calls to Java code, from Rust"
 keywords = ["java", "jni"]
@@ -29,6 +29,7 @@ serde_derive = "1.0"
 lazy_static = "1.1"
 java-locator = "0.1"
 libloading = "0.5"
+fs_extra = "1.1"
 
 [build-dependencies]
 fs_extra = "1.1"

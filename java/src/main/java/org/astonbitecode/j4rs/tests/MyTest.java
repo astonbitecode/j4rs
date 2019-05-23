@@ -14,6 +14,7 @@
  */
 package org.astonbitecode.j4rs.tests;
 
+import java8.util.stream.Collectors;
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 
 import java8.util.J8Arrays;
@@ -35,8 +36,17 @@ public class MyTest extends NativeCallbackSupport {
         this.string = str;
     }
 
+    public MyTest(String... args) {
+        this.string = J8Arrays.stream(args).collect(Collectors.joining(", "));
+    }
+
     public String getMyString() {
         return string;
+    }
+
+    public String appendToMyString(String str) {
+        this.string = this.string + str;
+        return this.string;
     }
 
     public String getMyWithArgs(String arg) {
@@ -46,12 +56,23 @@ public class MyTest extends NativeCallbackSupport {
     public String getMyWithArgsList(String... args) {
         String str = J8Arrays.stream(args)
                 .reduce(
-                        "The arguments passed where",
+                        "",
                         (a, b) -> {
-                            return a + "\n" + b;
+                            return a + b;
                         }
                 );
         return str;
+    }
+
+    public Integer addInts(Integer... args) {
+        int result = J8Arrays.stream(args)
+                .reduce(
+                        0,
+                        (a, b) -> {
+                            return a + b;
+                        }
+                );
+        return result;
     }
 
     public void list(List<String> l) {

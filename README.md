@@ -7,6 +7,17 @@
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code, from Rust.
 
+## Features
+
+* No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
+* Easily instantiate and invoke Java classes.
+* Java -> Rust callbacks support.
+* Java instances invocations chaining.
+* Simple Maven artifacts download and deployment.
+* Casting support.
+* Java arrays support.
+* Tested on Linux, Windows and Android.
+
 ## Usage
 
 ### Basics
@@ -45,6 +56,29 @@ let _static_invocation_result = jvm.invoke_static(
     &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
 ).unwrap();
 
+```
+
+### Java instances chaining
+```rust
+use j4rs::{Instance, InvocationArg, Jvm, JvmBuilder};
+
+// Create a JVM
+let jvm = JvmBuilder::new().build().unwrap();
+
+// Create an instance
+let string_instance = jvm.create_instance(
+    "java.lang.String",
+    &vec![InvocationArg::from(" a string ")],
+).unwrap();
+
+// Perform chained operations on the instance
+let string_size: isize = jvm.chain(string_instance)
+    .invoke("trim", &[]).unwrap()
+    .invoke("length", &[]).unwrap()
+    .to_rust().unwrap();
+
+// Assert that the string was trimmed
+assert!(string_size == 8)
 ```
 
 ### Callback support
@@ -101,6 +135,34 @@ public class MyTest extends NativeCallbackToRustChannelSupport {
 }
 ```
 
+### Adding jars to the classpath
+
+If we have one jar that needs to be accessed using `j4rs`, we need to add it in the classpath during the JVM creation:
+
+```rust
+let entry = ClasspathEntry::new("/home/myuser/dev/myjar-1.0.0.jar");
+let jvm: Jvm = JvmBuilder::new()
+    .classpath_entry(entry)
+    .build()
+    .unwrap();
+```
+
+### Maven artifacts deployment support
+
+Since release 0.6.0 (master branch currently) there is the possibility to download artifacts from the [maven central](https://search.maven.org/).
+For example, here is how the dropbox dependency can be downloaded and get deployed to be used from the rust code:
+
+```rust
+let dbx_artifact = MavenArtifact::from("com.dropbox.core:dropbox-core-sdk:3.0.11");
+jvm.deploy_maven(dbx_artifact).unwrap();
+```
+
+Maven artifacts are added automatically to the classpath and do not need to be added explicitly.
+
+A good practice is that the deployment of maven artifacts is done by build scripts, during the crate's compilation. This ensures that the classpath is properly populated during the actual Rust code execution.
+
+_Note: the deployment does not take care the transitive dependencies yet._  
+
 ### Passing arguments from Rust to Java
 
 j4rs uses the `InvocationArg` enum to pass arguments to the Java world.
@@ -152,17 +214,6 @@ let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref
 jvm.cast(&instance, "java.lang.Object").unwrap();
 ```
 
-### Adding jars in the classpath
-
-If we have one jar that needs to be accessed using `j4rs`, we need to add it in the classpath during the JVM creation:
-
-```rust
-let entry = ClasspathEntry::new("/home/myuser/dev/myjar-1.0.0.jar");
-let jvm: Jvm = JvmBuilder::new()
-    .classpath_entry(entry)
-    .build()
-    .unwrap();
-```
 
 ## j4rs Java library
 

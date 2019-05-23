@@ -14,8 +14,13 @@
  */
 package org.astonbitecode.j4rs.utils;
 
-public class ChildDummy extends Dummy {
+public class ChildDummy extends Dummy implements DummyInterface {
     public ChildDummy() {
         super();
+    }
+
+    @Override
+    public void doSomething() {
+        System.out.println("I am doing something...");
     }
 }

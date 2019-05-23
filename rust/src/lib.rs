@@ -24,7 +24,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 use std::mem;
-use std::os::raw::{c_long, c_void};
+use std::os::raw::c_void;
 use std::sync::mpsc::Sender;
 
 use jni_sys::{jlong, JNIEnv, jobject};
@@ -37,6 +37,7 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
+pub use self::api::MavenArtifact as MavenArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
@@ -55,17 +56,6 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
 }
 
 #[no_mangle]
-pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackSupport_docallback(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: c_long, native_invocation: jobject) {
-    let pointer_from_address = ptr_address as *const ();
-    let function = unsafe {
-        mem::transmute::<*const (), Callback>(pointer_from_address)
-    };
-    let mut jvm = Jvm::new(&Vec::new(), None).expect("Could not create a j4rs Jvm while invoking deprecated callback.");
-    jvm.detach_thread_on_drop(false);
-    function(jvm, Instance::from(native_invocation).unwrap());
-}
-
-#[no_mangle]
 pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
     let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel.");
     jvm.detach_thread_on_drop(false);
@@ -79,8 +69,7 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
         if let Err(error) = result {
             panic!("Could not send to the defined callback channel: {:?}", error);
         }
-    }
-    else {
+    } else {
         panic!("Could not create Instance from the NativeInvocation object...");
     }
 }
@@ -88,9 +77,13 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
+    use std::path::MAIN_SEPARATOR;
     use std::thread::JoinHandle;
 
-    use super::{ClasspathEntry, Instance, InvocationArg, Jvm, JvmBuilder};
+    use fs_extra::remove_items;
+
+    use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
+    use super::api::jassets_path;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -127,24 +120,6 @@ mod lib_unit_tests {
 
         let static_invocation_result = jvm.invoke_static("java.lang.System", "currentTimeMillis", &Vec::new());
         assert!(static_invocation_result.is_ok());
-    }
-
-    //#[test]
-    //#[ignore]
-    fn _callback() {
-        let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();
-
-        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
-            Ok(i) => {
-                let res = jvm.invoke_async(&i, "performCallback", Vec::new().as_ref(), _my_callback);
-                let thousand_millis = time::Duration::from_millis(1000);
-                thread::sleep(thousand_millis);
-                assert!(res.is_ok());
-            }
-            Err(error) => {
-                panic!("ERROR when creating Instance: {:?}", error);
-            }
-        }
     }
 
     #[test]
@@ -260,16 +235,16 @@ mod lib_unit_tests {
         assert!(invocation_res.is_ok());
     }
 
-    //#[test]
-    //#[ignore]
-    fn _memory_leaks() {
+    //    #[test]
+//    #[ignore]
+    fn _memory_leaks_create_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
 
         for i in 0..100000000 {
             match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
-                Ok(_) => {
+                Ok(instance) => {
                     if i % 100000 == 0 {
-                        println!("{}", i);
+                        println!("{}: {}", i, instance.class_name());
                     }
                 }
                 Err(error) => {
@@ -279,6 +254,51 @@ mod lib_unit_tests {
         }
         let thousand_millis = time::Duration::from_millis(1000);
         thread::sleep(thousand_millis);
+    }
+
+    //    #[test]
+//    #[ignore]
+    fn _memory_leaks_invoke_instances() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+            Ok(instance) => {
+                for i in 0..100000000 {
+                    if i % 100000 == 0 {
+                        println!("{}", i);
+                    }
+                    jvm.invoke(&instance, "getMyString", &[]).unwrap();
+                }
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
+//    #[test]
+//    #[ignore]
+    fn _memory_leaks_create_instances_in_different_threads() {
+        for i in 0..100000000 {
+            thread::spawn(move || {
+                let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+                match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+                    Ok(_) => {
+                        if i % 100000 == 0 {
+                            println!("{}", i);
+                        }
+                    }
+                    Err(error) => {
+                        panic!("ERROR when creating Instance: {:?}", error);
+                    }
+                };
+            });
+
+            let millis = time::Duration::from_millis(10);
+            thread::sleep(millis);
+        }
     }
 
     #[test]
@@ -387,8 +407,93 @@ mod lib_unit_tests {
         assert!(jh.join().unwrap());
     }
 
-    fn _my_callback(jvm: Jvm, inst: Instance) {
-        let string_from_java: String = jvm.to_rust(inst).unwrap();
-        println!("Asynchronously got from Java: {}", string_from_java);
+    #[test]
+    fn deploy_maven() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        assert!(jvm.deploy_maven(MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
+        let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
+        let _ = remove_items(&vec![to_remove]);
+    }
+
+
+    #[test]
+    fn variadic_constructor() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+
+        let s1 = InvocationArg::from("abc");
+        let s2 = InvocationArg::from("def");
+        let s3 = InvocationArg::from("ghi");
+
+        let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
+
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[InvocationArg::from(arr_instance)]).unwrap();
+
+        let i = jvm.invoke(&test_instance, "getMyString", &[]).unwrap();
+
+        let s: String = jvm.to_rust(i).unwrap();
+        assert!(s == "abc, def, ghi");
+    }
+
+    #[test]
+    fn variadic_string_method() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let s1 = InvocationArg::from("abc");
+        let s2 = InvocationArg::from("def");
+        let s3 = InvocationArg::from("ghi");
+
+        let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
+
+        let i = jvm.invoke(&test_instance, "getMyWithArgsList", &vec![InvocationArg::from(arr_instance)]).unwrap();
+
+        let s: String = jvm.to_rust(i).unwrap();
+        assert!(s == "abcdefghi");
+    }
+
+    #[test]
+    fn variadic_int_method() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let s1 = InvocationArg::from(1);
+        let s2 = InvocationArg::from(2);
+        let s3 = InvocationArg::from(3);
+
+        let arr_instance = jvm.create_java_array("java.lang.Integer", &vec![s1, s2, s3]).unwrap();
+
+        let i = jvm.invoke(&test_instance, "addInts", &vec![InvocationArg::from(arr_instance)]).unwrap();
+
+        let num: i32 = jvm.to_rust(i).unwrap();
+        assert!(num == 6);
+    }
+
+    #[test]
+    fn instance_invocation_chain_and_collect() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from("string")]).unwrap();
+
+        let i1 = jvm.chain(instance)
+            .invoke("appendToMyString", &vec![InvocationArg::from("_is_appended")]).unwrap()
+            .invoke("length", &[]).unwrap()
+            .collect();
+
+
+        let product: isize = jvm.to_rust(i1).unwrap();
+
+        assert!(product == 18);
+    }
+
+    #[test]
+    fn instance_invocation_chain_and_to_rust() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from("string")]).unwrap();
+
+        let product: isize = jvm.chain(instance)
+            .invoke("appendToMyString", &vec![InvocationArg::from("_is_appended")]).unwrap()
+            .invoke("length", &[]).unwrap()
+            .to_rust().unwrap();
+
+        assert!(product == 18);
     }
 }

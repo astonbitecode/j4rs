@@ -16,11 +16,12 @@ use std::{fs, mem};
 use std::cell::RefCell;
 use std::ops::Drop;
 use std::os::raw::c_void;
+use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
-use std::path::Path;
 
+use fs_extra::dir::get_dir_content;
 use jni_sys::{
     self,
     JavaVM,
@@ -98,6 +99,7 @@ lazy_static! {
 
 thread_local! {
     static JNI_ENV: RefCell<Option<*mut JNIEnv>> = RefCell::new(None);
+    static JVM: RefCell<Option<Jvm>> = RefCell::new(None);
     static ACTIVE_JVMS: RefCell<i32> = RefCell::new(0);
 }
 
@@ -142,6 +144,19 @@ fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
     }
 }
 
+pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
+    let mut jassets_path = std::env::current_exe()?;
+    let mut tmp_vec = Vec::new();
+
+    while tmp_vec.is_empty() {
+        jassets_path.pop();
+        tmp_vec = get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
+    }
+
+    jassets_path.push("jassets");
+    Ok(jassets_path)
+}
+
 /// Holds the assets for the JVM
 #[derive(Clone)]
 pub struct Jvm {
@@ -166,10 +181,12 @@ pub struct Jvm {
     factory_class: jclass,
     /// The constructor method of the `NativeInstantiationImpl`.
     factory_constructor_method: jmethodID,
-    /// The method id of the `instantiate` method of the `NativeInvocation`.
+    /// The method id of the `instantiate` method of the `NativeInstantiation`.
     factory_instantiate_method: jmethodID,
-    /// The method id of the `createForStatic` method of the `NativeInvocation`.
+    /// The method id of the `createForStatic` method of the `NativeInstantiation`.
     factory_create_for_static_method: jmethodID,
+    /// The method id of the `createJavaArray` method of the `NativeInstantiation`.
+    factory_create_java_array_method: jmethodID,
     /// The `NativeInvocation` class.
     native_invocation_class: jclass,
     /// The `JsonInvocationImpl` class.
@@ -309,26 +326,35 @@ impl Jvm {
                         jni_environment,
                         "org/astonbitecode/j4rs/api/dtos/InvocationArg",
                     );
-                    // `NativeInvocation` assets
                     let instantiate_method_signature = format!(
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
                         INVO_IFACE_NAME);
                     let create_for_static_method_signature = format!(
                         "(Ljava/lang/String;)L{};",
                         INVO_IFACE_NAME);
-                    // The method id of the `instantiate` method of the `NativeInvocation`
+                    let create_java_array_method_signature = format!(
+                        "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                        INVO_IFACE_NAME);
+                    // The method id of the `instantiate` method of the `NativeInstantiation`
                     let factory_instantiate_method = (gsmid)(
                         jni_environment,
                         factory_class,
                         utils::to_java_string("instantiate"),
                         utils::to_java_string(&instantiate_method_signature),
                     );
-                    // The method id of the `createForStatic` method of the `NativeInvocation`
+                    // The method id of the `createForStatic` method of the `NativeInstantiation`
                     let factory_create_for_static_method = (gsmid)(
                         jni_environment,
                         factory_class,
                         utils::to_java_string("createForStatic"),
                         utils::to_java_string(&create_for_static_method_signature),
+                    );
+                    // The method id of the `createJavaArray` method of the `NativeInstantiation`
+                    let factory_create_java_array_method = (gsmid)(
+                        jni_environment,
+                        factory_class,
+                        utils::to_java_string("createJavaArray"),
+                        utils::to_java_string(&create_java_array_method_signature),
                     );
                     // The `NativeInvocation class`
                     let native_invocation_class: jclass = tweaks::find_class(
@@ -368,6 +394,7 @@ impl Jvm {
                             factory_constructor_method: factory_constructor_method,
                             factory_instantiate_method: factory_instantiate_method,
                             factory_create_for_static_method: factory_create_for_static_method,
+                            factory_create_java_array_method: factory_create_java_array_method,
                             native_invocation_class: native_invocation_class,
                             json_invocation_impl_class: json_invocation_impl_class,
                             invocation_arg_class: invocation_arg_class,
@@ -429,6 +456,63 @@ impl Jvm {
             );
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, class_name_jstring);
+
+            // Create and return the Instance
+            self.do_return(Instance {
+                jinstance: native_invocation_global_instance,
+                class_name: class_name.to_string(),
+            })
+        }
+    }
+
+    /// Creates a new Java Array with elements of the class `class_name`.
+    /// The array will have the `InvocationArg`s populated.
+    /// The `InvocationArg`s __must__ be of type _class_name_.
+    pub fn create_java_array(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+        debug(&format!("Creating a java array of class {} with {} elements", class_name, inv_args.len()));
+        unsafe {
+            // Factory invocation - first argument: create a jstring to pass as argument for the class_name
+            let class_name_jstring: jstring = (self.jni_new_string_utf)(
+                self.jni_env,
+                utils::to_java_string(class_name),
+            );
+            // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
+            let size = inv_args.len() as i32;
+            let array_ptr = (self.jni_new_onject_array)(
+                self.jni_env,
+                size,
+                self.invocation_arg_class,
+                ptr::null_mut(),
+            );
+            // Factory invocation - rest of the arguments: populate the array
+            for i in 0..size {
+                // Create an InvocationArg Java Object
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                // Set it in the array
+                (self.jni_set_object_array_element)(
+                    self.jni_env,
+                    array_ptr,
+                    i,
+                    inv_arg_java,
+                );
+            }
+            // Call the method of the factory that instantiates a new Java Array of `class_name`.
+            // This returns a NativeInvocation that acts like a proxy to the Java world.
+            let native_invocation_instance = (self.jni_call_static_object_method)(
+                self.jni_env,
+                self.factory_class,
+                self.factory_create_java_array_method,
+                class_name_jstring,
+                array_ptr,
+            );
+
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, class_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -489,72 +573,15 @@ impl Jvm {
             );
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
                 jinstance: native_invocation_global_instance,
                 class_name: UNKNOWN_FOR_RUST.to_string(),
             })
-        }
-    }
-
-
-    /// Invokes asynchronously the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
-    /// It returns void and the `Instance` of the result of the async invocation will come in the defined callback.
-    #[deprecated(since = "0.2.0", note = "please use `invoke_to_channel` instead")]
-    pub fn invoke_async(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg], callback: super::Callback) -> errors::Result<()> {
-        debug(&format!("Asynchronously invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
-        unsafe {
-            let invoke_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
-            // Get the method ID for the `NativeInvocation.invokeAsync`
-            let invoke_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("invokeAsync"),
-                utils::to_java_string(invoke_method_signature),
-            );
-
-            // First argument: the address of the callback function
-            let address_string = format!("{:p}", callback as *const ());
-            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
-            // Second argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(method_name),
-            );
-            // Rest of the arguments: Create a new objectarray of class InvocationArg
-            let size = inv_args.len() as i32;
-            let array_ptr = (self.jni_new_onject_array)(
-                self.jni_env,
-                size,
-                self.invocation_arg_class,
-                ptr::null_mut(),
-            );
-            // Rest of the arguments: populate the array
-            for i in 0..size {
-                // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
-                // Set it in the array
-                (self.jni_set_object_array_element)(
-                    self.jni_env,
-                    array_ptr,
-                    i,
-                    inv_arg_java,
-                );
-            }
-
-            // Call the method of the instance
-            let _ = (self.jni_call_object_method)(
-                self.jni_env,
-                instance.jinstance,
-                invoke_method,
-                address,
-                method_name_jstring,
-                array_ptr,
-            );
-
-            // Create and return the Instance
-            self.do_return(())
         }
     }
 
@@ -616,6 +643,9 @@ impl Jvm {
                 method_name_jstring,
                 array_ptr,
             );
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance
             self.do_return(InstanceReceiver::new(rx, address))
@@ -719,6 +749,9 @@ impl Jvm {
                 method_name_jstring,
                 array_ptr,
             );
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, array_ptr);
+            delete_java_local_ref(self.jni_env, method_name_jstring);
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
 
@@ -792,6 +825,8 @@ impl Jvm {
                 from_instance.jinstance,
                 to_class_jstring,
             );
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, to_class_jstring);
 
             // Create and return the Instance
             self.do_return(Instance::from(native_invocation_instance)?)
@@ -825,6 +860,32 @@ impl Jvm {
             let json = self.to_rust_string(json_instance as jstring)?;
             self.do_return(serde_json::from_str(&json)?)
         }
+    }
+
+    /// Deploys a maven artifact in the default j4rs jars location.
+    ///
+    /// This is useful for build scripts that need jars for the runtime that can be downloaded from Maven.
+    ///
+    /// The function deploys __only__ the specified artifact, not its transitive dependencies.
+    pub fn deploy_maven(&self, artifact: MavenArtifact) -> errors::Result<()> {
+        let instance = self.create_instance(
+            "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
+            &vec![InvocationArg::from(artifact.base)])?;
+
+        let _ = self.invoke(
+            &instance,
+            "deploy",
+            &vec![
+                InvocationArg::from(artifact.group),
+                InvocationArg::from(artifact.id),
+                InvocationArg::from(artifact.version),
+                InvocationArg::from(artifact.qualifier)])?;
+        Ok(())
+    }
+
+    /// Initiates a chain of operations on Instances.
+    pub fn chain(&self, instance: Instance) -> ChainableInstance {
+        ChainableInstance::new(instance, &self)
     }
 
     fn do_return<T>(&self, to_return: T) -> errors::Result<T> {
@@ -924,7 +985,6 @@ impl Drop for Jvm {
     fn drop(&mut self) {
         if remove_active_jvm() <= 0 {
             if self.detach_thread_on_drop {
-                debug("Detaching thread from the JVM");
                 self.detach_current_thread();
             }
             set_thread_local_env(None);
@@ -994,7 +1054,7 @@ impl<'a> JvmBuilder<'a> {
     /// A Jvm that is created with `detach_thread_on_drop(false)` will not detach the thread when being dropped.
     ///
     /// This is useful when in the Java world a native method is called and in the native code someone needs to create a j4rs Jvm.
-    /// Id that Jvm detaches its current thread when being dropped, there will be problems for the Java world code to continue executing.
+    /// If that Jvm detaches its current thread when being dropped, there will be problems for the Java world code to continue executing.
     pub fn detach_thread_on_drop(&'a mut self, detach_thread_on_drop: bool) -> &'a mut JvmBuilder {
         self.detach_thread_on_drop = detach_thread_on_drop;
         self
@@ -1027,28 +1087,20 @@ impl<'a> JvmBuilder<'a> {
                         format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
                     })
         } else {
-            // The default classpath contains the j4rs
-            let jar_file_name = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-            let mut default_classpath_entry = std::env::current_exe()?;
-            default_classpath_entry.pop();
-            default_classpath_entry.push("jassets");
-            default_classpath_entry.push(jar_file_name.clone());
-            // Create a default classpath entry for the tests
-            let mut tests_classpath_entry = std::env::current_exe()?;
-            tests_classpath_entry.pop();
-            tests_classpath_entry.pop();
-            tests_classpath_entry.push("jassets");
-            tests_classpath_entry.push(jar_file_name);
+            // The default classpath contains all the jars in the jassets directory
+            let jassets_path = jassets_path()?;
+            let all_jars = get_dir_content(&jassets_path)?.files;
+            // This is the j4rs jar that should be included in the classpath
+            let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
+            // Filter out possible incorrect jars of j4rs
+            let filtered_jars: Vec<String> = all_jars.into_iter()
+                .filter(|jar| {
+                    !jar.contains("j4rs-") || jar.ends_with(&j4rs_jar_to_use)
+                })
+                .collect();
+            let cp_string = filtered_jars.join(utils::classpath_sep());
 
-            let last_resort_classpath = format!("./jassets/j4rs-{}-jar-with-dependencies.jar", j4rs_version());
-            let default_class_path = format!("-Djava.class.path={}{}{}",
-                                             default_classpath_entry
-                                                 .to_str()
-                                                 .unwrap_or(&last_resort_classpath),
-                                             utils::classpath_sep(),
-                                             tests_classpath_entry
-                                                 .to_str()
-                                                 .unwrap_or(&last_resort_classpath));
+            let default_class_path = format!("-Djava.class.path={}", cp_string);
 
             self.classpath_entries
                 .iter()
@@ -1613,6 +1665,92 @@ impl Drop for Instance {
 
 unsafe impl Send for Instance {}
 
+/// Allows chained Jvm calls to created Instances
+pub struct ChainableInstance<'a> {
+    instance: Instance,
+    jvm: &'a Jvm,
+}
+
+impl<'a> ChainableInstance<'a> {
+    fn new(instance: Instance, jvm: &'a Jvm) -> ChainableInstance {
+        ChainableInstance { instance, jvm }
+    }
+
+    pub fn collect(self) -> Instance {
+        self.instance
+    }
+
+    /// Invokes the method `method_name` of a this `Instance`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
+    pub fn invoke(&self, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<ChainableInstance> {
+        let instance = self.jvm.invoke(&self.instance, method_name, inv_args)?;
+        Ok(ChainableInstance::new(instance, self.jvm))
+    }
+
+    /// Creates a clone of the provided Instance
+    pub fn clone_instance(&self) -> errors::Result<ChainableInstance> {
+        let instance = self.jvm.clone_instance(&self.instance)?;
+        Ok(ChainableInstance::new(instance, self.jvm))
+    }
+
+    /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
+    pub fn cast(&self, to_class: &str) -> errors::Result<ChainableInstance> {
+        let instance = self.jvm.cast(&self.instance, to_class)?;
+        Ok(ChainableInstance::new(instance, self.jvm))
+    }
+
+    /// Returns the Rust representation of the provided instance
+    pub fn to_rust<T>(self) -> errors::Result<T> where T: DeserializeOwned {
+        self.jvm.to_rust(self.instance)
+    }
+}
+
+#[derive(Debug)]
+pub struct MavenArtifact {
+    base: String,
+    group: String,
+    id: String,
+    version: String,
+    qualifier: String,
+}
+
+impl From<&[&str]> for MavenArtifact {
+    fn from(slice: &[&str]) -> MavenArtifact {
+        MavenArtifact {
+            base: jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            group: slice.get(0).unwrap_or(&"").to_string(),
+            id: slice.get(1).unwrap_or(&"").to_string(),
+            version: slice.get(2).unwrap_or(&"").to_string(),
+            qualifier: slice.get(3).unwrap_or(&"").to_string(),
+        }
+    }
+}
+
+impl From<Vec<&str>> for MavenArtifact {
+    fn from(v: Vec<&str>) -> MavenArtifact {
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
+impl From<&Vec<&str>> for MavenArtifact {
+    fn from(v: &Vec<&str>) -> MavenArtifact {
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
+impl<'a> From<&'a str> for MavenArtifact {
+    fn from(string: &'a str) -> MavenArtifact {
+        let v: Vec<&str> = string.split(':').collect();
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
+impl From<String> for MavenArtifact {
+    fn from(string: String) -> MavenArtifact {
+        let v: Vec<&str> = string.split(':').collect();
+        MavenArtifact::from(v.as_slice())
+    }
+}
+
 pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
@@ -1703,6 +1841,31 @@ fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     }
 }
 
+/// Deletes the java ref from the memory
+fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
+    unsafe {
+        match ((**jni_env).DeleteLocalRef,
+               (**jni_env).ExceptionCheck,
+               (**jni_env).ExceptionDescribe,
+               (**jni_env).ExceptionClear) {
+            (Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
+                dlr(
+                    jni_env,
+                    jinstance,
+                );
+                if (exc)(jni_env) == JNI_TRUE {
+                    (exd)(jni_env);
+                    (exclear)(jni_env);
+                    error("An Exception was thrown by Java... Please check the logs or the console.");
+                }
+            }
+            (_, _, _, _) => {
+                error("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks");
+            }
+        }
+    }
+}
+
 /// A classpath entry.
 #[derive(Debug, Clone)]
 pub struct ClasspathEntry<'a> (&'a str);
@@ -1739,7 +1902,7 @@ impl<'a> ToString for JavaOpt<'a> {
 mod api_unit_tests {
     use serde_json;
 
-    use super::{InvocationArg, JvmBuilder};
+    use super::*;
 
     #[test]
     fn jvm_builder() {
@@ -1766,7 +1929,7 @@ mod api_unit_tests {
     }
 
     #[test]
-    fn from_primitive_types() {
+    fn invocation_arg_from_primitive_types() {
         validate_type(InvocationArg::from("str"), "java.lang.String");
         validate_type(InvocationArg::from("str".to_string()), "java.lang.String");
         validate_type(InvocationArg::from(true), "java.lang.Boolean");
@@ -1786,6 +1949,27 @@ mod api_unit_tests {
         validate_type(InvocationArg::from(&1_i64), "java.lang.Long");
         validate_type(InvocationArg::from(&0.1_f32), "java.lang.Float");
         validate_type(InvocationArg::from(&0.1_f64), "java.lang.Double");
+    }
+
+    #[test]
+    fn maven_artifact_from() {
+        let ma1 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1");
+        assert_eq!(ma1.group, "io.github.astonbitecode");
+        assert_eq!(ma1.id, "j4rs");
+        assert_eq!(ma1.version, "0.5.1");
+        assert_eq!(ma1.qualifier, "");
+
+        let ma2 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1".to_string());
+        assert_eq!(ma2.group, "io.github.astonbitecode");
+        assert_eq!(ma2.id, "j4rs");
+        assert_eq!(ma2.version, "0.5.1");
+        assert_eq!(ma2.qualifier, "");
+
+        let ma3 = MavenArtifact::from(&vec!["io.github.astonbitecode", "j4rs", "0.5.1"]);
+        assert_eq!(ma3.group, "io.github.astonbitecode");
+        assert_eq!(ma3.id, "j4rs");
+        assert_eq!(ma3.version, "0.5.1");
+        assert_eq!(ma3.qualifier, "");
     }
 
     fn validate_type(ia: InvocationArg, class: &str) {

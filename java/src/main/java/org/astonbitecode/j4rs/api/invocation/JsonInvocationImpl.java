@@ -26,6 +26,7 @@ import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
 public class JsonInvocationImpl<T> extends NativeInvocationBase implements NativeInvocation<T> {
 
@@ -134,11 +135,23 @@ public class JsonInvocationImpl<T> extends NativeInvocationBase implements Nativ
                 })
                 .toArray(size -> new Object[size]);
 
-        Method methodToInvoke = this.clazz.getDeclaredMethod(methodName, argTypes);
+        Method methodToInvoke = findMethodInHierarchy(this.clazz, methodName, argTypes);
 
         Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
         Object returnedObject = methodToInvoke.invoke(this.object, argObjects);
         return new CreatedInstance(invokedMethodReturnType, returnedObject);
+    }
+
+    Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
+        try {
+            return clazz.getDeclaredMethod(methodName, argTypes);
+        } catch (NoSuchMethodException nsme) {
+            Class<?> superclass = clazz.getSuperclass();
+            if (superclass == null) {
+                throw new NoSuchMethodException("Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
+            }
+            return findMethodInHierarchy(superclass, methodName, argTypes);
+        }
     }
 
     class CreatedInstance {

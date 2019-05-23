@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 astonbitecode
+ * Copyright 2019 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,14 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.api;
+package org.astonbitecode.j4rs.utils;
 
-import org.astonbitecode.j4rs.api.dtos.InvocationArg;
+public class GrandchildDummy extends ChildDummy {
+    public GrandchildDummy() {
+        super();
+    }
 
-public interface NativeInstantiation {
-    NativeInvocation instantiate(String className, InvocationArg... arg);
-
-    NativeInvocation createForStatic(String className);
-
-    NativeInvocation createJavaArray(String className, InvocationArg... arg);
 }

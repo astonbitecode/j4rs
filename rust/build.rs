@@ -23,7 +23,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use java_locator;
 
-const VERSION: &'static str = "0.5.1-java7";
+const VERSION: &'static str = "0.6.0-java7";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
