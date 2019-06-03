@@ -104,4 +104,70 @@ public class JsonInvocationImplTest {
         NativeInvocation ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
         ni.invoke("nonExisting");
     }
+
+    @Test
+    public void getFieldInstance() {
+        NativeInvocation ni = new JsonInvocationImpl(new DummyWithFields(), DummyWithFields.class);
+
+        NativeInvocation res1 = ni.field("pubInt");
+        Integer i1 = (Integer) res1.getObject();
+        assert (i1.equals(11));
+
+        try {
+            NativeInvocation res2 = ni.field("packageInt");
+            res2.getObject();
+            assert (false);
+        } catch (InvocationException ie) {
+            assert (true);
+        }
+
+        try {
+            NativeInvocation res3 = ni.field("protectedInt");
+            res3.getObject();
+            assert (false);
+        } catch (InvocationException ie) {
+            assert (true);
+        }
+
+        try {
+            NativeInvocation res4 = ni.field("privateInt");
+            res4.getObject();
+            assert (false);
+        } catch (InvocationException ie) {
+            assert (true);
+        }
+    }
+
+    @Test
+    public void getFieldInstanceInHierarchy() {
+        NativeInvocation ni = new JsonInvocationImpl(new ChildOfDummyWithFields(), ChildOfDummyWithFields.class);
+
+        NativeInvocation res1 = ni.field("pubInt");
+        Integer i1 = (Integer) res1.getObject();
+        assert (i1.equals(11));
+
+        try {
+            NativeInvocation res2 = ni.field("packageInt");
+            res2.getObject();
+            assert (false);
+        } catch (InvocationException ie) {
+            assert (true);
+        }
+
+        try {
+            NativeInvocation res3 = ni.field("protectedInt");
+            res3.getObject();
+            assert (false);
+        } catch (InvocationException ie) {
+            assert (true);
+        }
+
+        try {
+            NativeInvocation res4 = ni.field("privateInt");
+            res4.getObject();
+            assert (false);
+        } catch (InvocationException ie) {
+            assert (true);
+        }
+    }
 }

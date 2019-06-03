@@ -23,6 +23,7 @@ import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
@@ -44,10 +45,6 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
 
     @Override
     public NativeInvocation invoke(String methodName, InvocationArg... args) {
-        // Check the existence of the instance to invoke
-        if (this.object == null) {
-            throw new InvocationException("Cannot invoke the class " + this.clazz.getName() + ". It is not instantiated yet.");
-        }
         // Invoke the instance
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
@@ -98,6 +95,16 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
     }
 
     @Override
+    public NativeInvocation field(String fieldName) {
+        try {
+            CreatedInstance createdInstance = getField(fieldName);
+            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
+        } catch (Exception error) {
+            throw new InvocationException("Error while accessing field " + fieldName + " of Class " + this.clazz.getName(), error);
+        }
+    }
+
+    @Override
     public T getObject() {
         return object;
     }
@@ -111,6 +118,12 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
     public String getJson() {
         JsonValue jsonValue = new JsonValueImpl(this.object);
         return jsonValue.getJson();
+    }
+
+    CreatedInstance getField(String fieldName) throws Exception {
+        Field field = this.clazz.getField(fieldName);
+        Object fieldObject = field.get(this.object);
+        return new CreatedInstance(field.getType(), fieldObject);
     }
 
     CreatedInstance invokeMethod(String methodName, GeneratedArg[] generatedArgs) throws Exception {

@@ -67,6 +67,13 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     void initializeCallbackChannel(long channelAddress);
 
     /**
+     * Retrieves the instance held under the Field fieldName
+     * @param fieldName
+     * @return A {@link NativeInvocation} instance containing the defined field.
+     */
+    NativeInvocation field(String fieldName);
+
+    /**
      * Casts a the object that is contained in a NativeInvocation to an object of class clazz.
      *
      * @param <T>     Generically defined return type

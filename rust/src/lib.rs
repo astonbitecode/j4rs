@@ -278,7 +278,7 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-//    #[test]
+    //    #[test]
 //    #[ignore]
     fn _memory_leaks_create_instances_in_different_threads() {
         for i in 0..100000000 {
@@ -495,5 +495,42 @@ mod lib_unit_tests {
             .to_rust().unwrap();
 
         assert!(product == 18);
+    }
+
+    #[test]
+    fn static_invocation_chain_and_to_rust() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        let static_invocation = jvm.static_class("java.lang.System").unwrap();
+
+        let _: isize = jvm.chain(static_invocation)
+            .invoke("currentTimeMillis", &[]).unwrap()
+            .to_rust().unwrap();
+    }
+
+    #[test]
+    fn access_class_field() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        let static_invocation = jvm.static_class("java.lang.System").unwrap();
+        let field_instance_res = jvm.field(&static_invocation, "out");
+        assert!(field_instance_res.is_ok());
+    }
+
+    #[test]
+    fn java_hello_world() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        let system = jvm.static_class("java.lang.System").unwrap();
+        let _ = jvm.chain(system)
+            .field("out").unwrap()
+            .invoke("println", &vec![InvocationArg::from("Hello World")]).unwrap()
+            .collect();
     }
 }

@@ -459,6 +459,33 @@ impl Jvm {
         }
     }
 
+    /// Retrieves the static class `class_name`.
+    pub fn static_class(&self, class_name: &str) -> errors::Result<Instance> {
+        debug(&format!("Retrieving static class {}", class_name));
+        unsafe {
+            // Factory invocation - first argument: create a jstring to pass as argument for the class_name
+            let class_name_jstring: jstring = (self.jni_new_string_utf)(
+                self.jni_env,
+                utils::to_java_string(class_name),
+            );
+            // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
+            // This returns a NativeInvocation that acts like a proxy to the Java world.
+            let native_invocation_instance = (self.jni_call_static_object_method)(
+                self.jni_env,
+                self.factory_class,
+                self.factory_create_for_static_method,
+                class_name_jstring,
+            );
+
+            delete_java_local_ref(self.jni_env, class_name_jstring);
+
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+
+            // Create and return the Instance
+            self.do_return(Instance::from(native_invocation_global_instance)?)
+        }
+    }
+
     /// Creates a new Java Array with elements of the class `class_name`.
     /// The array will have the `InvocationArg`s populated.
     /// The `InvocationArg`s __must__ be of type _class_name_.
@@ -567,6 +594,47 @@ impl Jvm {
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
+
+            // Create and return the Instance
+            self.do_return(Instance {
+                jinstance: native_invocation_global_instance,
+                class_name: UNKNOWN_FOR_RUST.to_string(),
+            })
+        }
+    }
+
+    /// Retrieves the field `field_name` of a created `Instance`.
+    pub fn field(&self, instance: &Instance, field_name: &str) -> errors::Result<Instance> {
+        debug(&format!("Retrieving field {} of class {}", field_name, instance.class_name));
+        unsafe {
+            let invoke_method_signature = format!(
+                "(Ljava/lang/String;)L{};",
+                INVO_IFACE_NAME);
+            // Get the method ID for the `NativeInvocation.field`
+            let field_method = (self.jni_get_method_id)(
+                self.jni_env,
+                self.native_invocation_class,
+                utils::to_java_string("field"),
+                utils::to_java_string(invoke_method_signature.as_ref()),
+            );
+
+            // First argument: create a jstring to pass as argument for the field_name
+            let field_name_jstring: jstring = (self.jni_new_string_utf)(
+                self.jni_env,
+                utils::to_java_string(field_name),
+            );
+
+            // Call the method of the instance
+            let native_invocation_instance = (self.jni_call_object_method)(
+                self.jni_env,
+                instance.jinstance,
+                field_method,
+                field_name_jstring,
+            );
+
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, field_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -1677,7 +1745,7 @@ impl<'a> ChainableInstance<'a> {
         Ok(ChainableInstance::new(instance, self.jvm))
     }
 
-    /// Creates a clone of the provided Instance
+    /// Creates a clone of the Instance
     pub fn clone_instance(&self) -> errors::Result<ChainableInstance> {
         let instance = self.jvm.clone_instance(&self.instance)?;
         Ok(ChainableInstance::new(instance, self.jvm))
@@ -1689,10 +1757,17 @@ impl<'a> ChainableInstance<'a> {
         Ok(ChainableInstance::new(instance, self.jvm))
     }
 
+    /// Retrieves the field `field_name` of the `Instance`.
+    pub fn field(&self, field_name: &str) -> errors::Result<ChainableInstance> {
+        let instance = self.jvm.field(&self.instance, field_name)?;
+        Ok(ChainableInstance::new(instance, self.jvm))
+    }
+
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(self) -> errors::Result<T> where T: DeserializeOwned {
         self.jvm.to_rust(self.instance)
     }
+
 }
 
 #[derive(Debug)]
