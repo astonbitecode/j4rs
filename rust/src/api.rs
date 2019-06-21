@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::{fs, mem};
+use std::any::Any;
 use std::cell::RefCell;
 use std::ops::Drop;
 use std::os::raw::c_void;
@@ -55,6 +56,7 @@ use serde_json;
 
 use crate::api_tweaks as tweaks;
 use crate::errors;
+use crate::errors::J4RsError;
 use crate::utils;
 
 use super::logger::{debug, error, info, warn};
@@ -926,6 +928,7 @@ impl Jvm {
     /// This is useful for build scripts that need jars for the runtime that can be downloaded from Maven.
     ///
     /// The function deploys __only__ the specified artifact, not its transitive dependencies.
+    #[deprecated(since = "0.7.0", note = "please use `deploy_artifact` instead")]
     pub fn deploy_maven(&self, artifact: MavenArtifact) -> errors::Result<()> {
         let instance = self.create_instance(
             "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
@@ -940,6 +943,32 @@ impl Jvm {
                 InvocationArg::from(artifact.version),
                 InvocationArg::from(artifact.qualifier)])?;
         Ok(())
+    }
+
+    /// Deploys an artifact in the default j4rs jars location.
+    ///
+    /// This is useful for build scripts that need jars for the runtime that can be downloaded from e.g. Maven.
+    ///
+    /// The function deploys __only__ the specified artifact, not its transitive dependencies.
+    pub fn deploy_artifact<T: Any>(&self, artifact: &T) -> errors::Result<()> {
+        let artifact = artifact as &dyn Any;
+        if let Some(maven_artifact) = artifact.downcast_ref::<MavenArtifact>() {
+            let instance = self.create_instance(
+                "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
+                &vec![InvocationArg::from(&maven_artifact.base)])?;
+
+            let _ = self.invoke(
+                &instance,
+                "deploy",
+                &vec![
+                    InvocationArg::from(&maven_artifact.group),
+                    InvocationArg::from(&maven_artifact.id),
+                    InvocationArg::from(&maven_artifact.version),
+                    InvocationArg::from(&maven_artifact.qualifier)])?;
+            Ok(())
+        } else {
+            Err(J4RsError::GeneralError(format!("Don't know how to deploy artifacts of {:?}", artifact.type_id())))
+        }
     }
 
     /// Initiates a chain of operations on Instances.
@@ -1767,7 +1796,6 @@ impl<'a> ChainableInstance<'a> {
     pub fn to_rust<T>(self) -> errors::Result<T> where T: DeserializeOwned {
         self.jvm.to_rust(self.instance)
     }
-
 }
 
 #[derive(Debug)]

@@ -408,11 +408,13 @@ mod lib_unit_tests {
     }
 
     #[test]
-    fn deploy_maven() {
+    fn deploy_artifact() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-        assert!(jvm.deploy_maven(MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
+        assert!(jvm.deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
         let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
         let _ = remove_items(&vec![to_remove]);
+
+        assert!(jvm.deploy_artifact(&"What is this artifact???".to_owned()).is_err());
     }
 
 
