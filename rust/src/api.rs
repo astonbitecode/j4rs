@@ -966,6 +966,16 @@ impl Jvm {
                     InvocationArg::from(&maven_artifact.version),
                     InvocationArg::from(&maven_artifact.qualifier)])?;
             Ok(())
+        } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
+            let instance = self.create_instance(
+                "org.astonbitecode.j4rs.api.deploy.FileSystemDeployer",
+                &vec![InvocationArg::from(&local_jar_artifact.base)])?;
+
+            let _ = self.invoke(
+                &instance,
+                "deploy",
+                &vec![InvocationArg::from(&local_jar_artifact.path)])?;
+            Ok(())
         } else {
             Err(J4RsError::GeneralError(format!("Don't know how to deploy artifacts of {:?}", artifact.type_id())))
         }
@@ -1800,6 +1810,35 @@ impl<'a> ChainableInstance<'a> {
 
 /// Marker trait to be used for deploying artifacts.
 pub trait JavaArtifact {}
+
+#[derive(Debug)]
+pub struct LocalJarArtifact {
+    base: String,
+    path: String,
+}
+
+impl LocalJarArtifact {
+    pub fn new(path: &str) -> LocalJarArtifact {
+        LocalJarArtifact {
+            base: jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            path: path.to_string(),
+        }
+    }
+}
+
+impl JavaArtifact for LocalJarArtifact {}
+
+impl<'a> From<&'a str> for LocalJarArtifact {
+    fn from(string: &'a str) -> LocalJarArtifact {
+        LocalJarArtifact::new(string)
+    }
+}
+
+impl From<String> for LocalJarArtifact {
+    fn from(string: String) -> LocalJarArtifact {
+        LocalJarArtifact::new(&string)
+    }
+}
 
 #[derive(Debug)]
 pub struct MavenArtifact {

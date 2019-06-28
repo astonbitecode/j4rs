@@ -38,6 +38,7 @@ pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
 pub use self::api::MavenArtifact as MavenArtifact;
+pub use self::api::LocalJarArtifact as LocalJarArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
@@ -85,6 +86,7 @@ mod lib_unit_tests {
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::api::jassets_path;
     use crate::api::JavaArtifact;
+    use crate::LocalJarArtifact;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -409,13 +411,19 @@ mod lib_unit_tests {
     }
 
     #[test]
-    fn deploy_artifact() {
+    fn deploy_maven_artifact() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         assert!(jvm.deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
         let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
         let _ = remove_items(&vec![to_remove]);
 
         assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
+    }
+
+    #[test]
+    fn deploy_local_artifact() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        assert!(jvm.deploy_artifact(&LocalJarArtifact::from("./non_existing.jar")).is_err());
     }
 
     struct UnknownArtifact {}
