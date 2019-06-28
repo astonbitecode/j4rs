@@ -84,6 +84,7 @@ mod lib_unit_tests {
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::api::jassets_path;
+    use crate::api::JavaArtifact;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -414,9 +415,12 @@ mod lib_unit_tests {
         let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
         let _ = remove_items(&vec![to_remove]);
 
-        assert!(jvm.deploy_artifact(&"What is this artifact???".to_owned()).is_err());
+        assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
     }
 
+    struct UnknownArtifact {}
+
+    impl JavaArtifact for UnknownArtifact {}
 
     #[test]
     fn variadic_constructor() {

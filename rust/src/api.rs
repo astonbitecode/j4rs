@@ -950,7 +950,7 @@ impl Jvm {
     /// This is useful for build scripts that need jars for the runtime that can be downloaded from e.g. Maven.
     ///
     /// The function deploys __only__ the specified artifact, not its transitive dependencies.
-    pub fn deploy_artifact<T: Any>(&self, artifact: &T) -> errors::Result<()> {
+    pub fn deploy_artifact<T: Any + JavaArtifact>(&self, artifact: &T) -> errors::Result<()> {
         let artifact = artifact as &dyn Any;
         if let Some(maven_artifact) = artifact.downcast_ref::<MavenArtifact>() {
             let instance = self.create_instance(
@@ -1798,6 +1798,9 @@ impl<'a> ChainableInstance<'a> {
     }
 }
 
+/// Marker trait to be used for deploying artifacts.
+pub trait JavaArtifact {}
+
 #[derive(Debug)]
 pub struct MavenArtifact {
     base: String,
@@ -1806,6 +1809,8 @@ pub struct MavenArtifact {
     version: String,
     qualifier: String,
 }
+
+impl JavaArtifact for MavenArtifact {}
 
 impl From<&[&str]> for MavenArtifact {
     fn from(slice: &[&str]) -> MavenArtifact {
