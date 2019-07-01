@@ -27,7 +27,6 @@ const VERSION: &'static str = "0.7.0-SNAPSHOT";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
-
     println!("cargo:rerun-if-changed=../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
 
     let target_os_res = env::var("CARGO_CFG_TARGET_OS");
@@ -44,8 +43,8 @@ fn main() -> Result<(), J4rsBuildError> {
 
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
-    copy_jars_from_java();
-    let _ = copy_jars_to_exec_directory(&out_dir);
+    copy_jars_from_java()?;
+    let _ = copy_jars_to_exec_directory(&out_dir)?;
     generate_src(&out_dir)?;
 
     Ok(())
@@ -53,7 +52,7 @@ fn main() -> Result<(), J4rsBuildError> {
 
 fn generate_src(out_dir: &str) -> Result<(), J4rsBuildError> {
     let dest_path = Path::new(&out_dir).join("j4rs_init.rs");
-    let mut f = File::create(&dest_path).unwrap();
+    let mut f = File::create(&dest_path)?;
 
     let contents = format!(
         "
@@ -62,31 +61,32 @@ fn j4rs_version() -> &'static str {{
 }}
 ", VERSION);
 
-    f.write_all(contents.as_bytes()).unwrap();
+    f.write_all(contents.as_bytes())?;
     Ok(())
 }
 
 // Copies the jars from the `java` directory to the source directory of rust.
-fn copy_jars_from_java() {
+fn copy_jars_from_java() -> Result<(), J4rsBuildError> {
     // If the java directory exists, copy the generated jars in the `jassets` directory
     let jar_source_path = format!("../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
     if File::open(&jar_source_path).is_ok() {
-        let home = env::var("CARGO_MANIFEST_DIR").unwrap();
+        let home = env::var("CARGO_MANIFEST_DIR")?;
         let jassets_path_buf = Path::new(&home).join("jassets");
         let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
 
-        let _ = fs_extra::remove_items(vec![jassets_path.clone()].as_ref());
+        fs_extra::remove_items(vec![jassets_path.clone()].as_ref())?;
 
         let _ = fs::create_dir_all(jassets_path_buf.clone())
             .map_err(|error| panic!("Cannot create dir '{:?}': {:?}", jassets_path_buf, error));
 
         let ref options = fs_extra::dir::CopyOptions::new();
-        let _ = fs_extra::copy_items(vec![jar_source_path].as_ref(), jassets_path, options);
+        let _ = fs_extra::copy_items(vec![jar_source_path].as_ref(), jassets_path, options)?;
     }
+    Ok(())
 }
 
 // Copies the jars to and returns the PathBuf of the exec directory.
-fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
+fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError> {
     let mut exec_dir_path_buf = PathBuf::from(out_dir);
     exec_dir_path_buf.pop();
     exec_dir_path_buf.pop();
@@ -96,15 +96,14 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> PathBuf {
     let jassets_output_dir = jassets_output.to_str().unwrap();
 
 
-    let home = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let home = env::var("CARGO_MANIFEST_DIR")?;
     let jassets_path_buf = Path::new(&home).join("jassets");
     let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
-
-    let _ = fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref());
+    fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref())?;
 
     let ref options = fs_extra::dir::CopyOptions::new();
-    let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options);
-    exec_dir_path_buf
+    let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options)?;
+    Ok(exec_dir_path_buf)
 }
 
 #[derive(Debug)]
@@ -138,6 +137,12 @@ impl From<std::io::Error> for J4rsBuildError {
 
 impl From<java_locator::errors::JavaLocatorError> for J4rsBuildError {
     fn from(err: java_locator::errors::JavaLocatorError) -> J4rsBuildError {
+        J4rsBuildError { description: format!("{:?}", err) }
+    }
+}
+
+impl From<fs_extra::error::Error> for J4rsBuildError {
+    fn from(err: fs_extra::error::Error) -> J4rsBuildError {
         J4rsBuildError { description: format!("{:?}", err) }
     }
 }
