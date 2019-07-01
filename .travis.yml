@@ -9,7 +9,10 @@ matrix:
     - os: osx
       osx_image: xcode10.2
       script:
-       - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
+        - echo "-----------TEST"
+        - dtrace -n 'syscall::posix_spawn:entry { trace(copyinstr(arg1)); }' -c "/usr/bin/java -version"
+        - echo "-----------"
+        - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
     - os: linux
       jdk: openjdk11
       script:
