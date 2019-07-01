@@ -9,7 +9,6 @@ matrix:
     - os: osx
       osx_image: xcode10.2
       script:
-       - export JAVA_HOME=$(/usr/libexec/java_home)
        - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
     - os: linux
       jdk: openjdk11
