@@ -10,7 +10,7 @@ matrix:
       osx_image: xcode10.2
       script:
         - echo "-----------TESTS"
-        - dtrace -n 'syscall::posix_spawn:entry { trace(copyinstr(arg1)); }' -c "/usr/bin/java -version"
+        - /usr/libexec/java_home
         - echo "-----------"
         - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
     - os: linux
