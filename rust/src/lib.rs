@@ -38,6 +38,7 @@ pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
 pub use self::api::MavenArtifact as MavenArtifact;
+pub use self::api::LocalJarArtifact as LocalJarArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
@@ -84,6 +85,8 @@ mod lib_unit_tests {
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::api::jassets_path;
+    use crate::api::JavaArtifact;
+    use crate::LocalJarArtifact;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -278,7 +281,7 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-//    #[test]
+    //    #[test]
 //    #[ignore]
     fn _memory_leaks_create_instances_in_different_threads() {
         for i in 0..100000000 {
@@ -408,13 +411,24 @@ mod lib_unit_tests {
     }
 
     #[test]
-    fn deploy_maven() {
+    fn deploy_maven_artifact() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-        assert!(jvm.deploy_maven(MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
+        assert!(jvm.deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
         let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
         let _ = remove_items(&vec![to_remove]);
+
+        assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
     }
 
+    #[test]
+    fn deploy_local_artifact() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        assert!(jvm.deploy_artifact(&LocalJarArtifact::from("./non_existing.jar")).is_err());
+    }
+
+    struct UnknownArtifact {}
+
+    impl JavaArtifact for UnknownArtifact {}
 
     #[test]
     fn variadic_constructor() {
@@ -495,5 +509,42 @@ mod lib_unit_tests {
             .to_rust().unwrap();
 
         assert!(product == 18);
+    }
+
+    #[test]
+    fn static_invocation_chain_and_to_rust() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        let static_invocation = jvm.static_class("java.lang.System").unwrap();
+
+        let _: isize = jvm.chain(static_invocation)
+            .invoke("currentTimeMillis", &[]).unwrap()
+            .to_rust().unwrap();
+    }
+
+    #[test]
+    fn access_class_field() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        let static_invocation = jvm.static_class("java.lang.System").unwrap();
+        let field_instance_res = jvm.field(&static_invocation, "out");
+        assert!(field_instance_res.is_ok());
+    }
+
+    #[test]
+    fn java_hello_world() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        let system = jvm.static_class("java.lang.System").unwrap();
+        let _ = jvm.chain(system)
+            .field("out").unwrap()
+            .invoke("println", &vec![InvocationArg::from("Hello World")]).unwrap()
+            .collect();
     }
 }
