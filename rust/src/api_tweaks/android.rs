@@ -67,7 +67,7 @@ pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
     unsafe {
         let mut add_to_cache = false;
         let found = match CLASSES.lock() {
-            Ok(mut g) => {
+            Ok(g) => {
                 match g.get(classname) {
                     Some(j4rs_class) => {
                         Some(j4rs_class.class.clone())
