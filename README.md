@@ -1,7 +1,7 @@
 # j4rs
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.5.1-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.7.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
 ![Build Status](https://travis-ci.org/astonbitecode/j4rs.svg?branch=master)
 [![Build status](https://ci.appveyor.com/api/projects/status/9k83nufbt958w6p2?svg=true)](https://ci.appveyor.com/project/astonbitecode/j4rs)
 
@@ -147,10 +147,10 @@ let jvm: Jvm = JvmBuilder::new()
     .unwrap();
 ```
 
-### Maven artifacts deployment support
+### Using Maven artifacts
 
-Since release 0.6.0 (master branch currently) there is the possibility to download artifacts from the [maven central](https://search.maven.org/).
-For example, here is how the dropbox dependency can be downloaded and get deployed to be used from the rust code:
+Since release 0.6.0 there is the possibility to download artifacts from the [maven central](https://search.maven.org/).
+For example, here is how the dropbox dependency can be downloaded and get deployed to be used by the rust code:
 
 ```rust
 let dbx_artifact = MavenArtifact::from("com.dropbox.core:dropbox-core-sdk:3.0.11");
@@ -223,7 +223,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.5.1</version>
+    <version>0.7.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -240,25 +240,9 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.5.1-java7</version>
+    <version>0.7.0-java7</version>
 </dependency>
 ```
-
-## Next?
-
-* Implement macros to facilitate `j4rs` users
-
- Possibly something like: 
-
-```rust
-// Instantiation
-let i12 = jnew!(&jvm -> new java.lang.String("a-new-string"));
-
-// Invocation
-let i13 = j!(&i12.split("-"));
-```
-
-* Improve documentation
 
 ## Licence
 

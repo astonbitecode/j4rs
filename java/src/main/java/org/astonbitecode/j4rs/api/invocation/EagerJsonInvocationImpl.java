@@ -58,6 +58,11 @@ public class EagerJsonInvocationImpl<T> extends NativeInvocationBase implements 
     }
 
     @Override
+    public NativeInvocation field(String methodName) {
+        throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
+    }
+
+    @Override
     public T getObject() {
         throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
     }

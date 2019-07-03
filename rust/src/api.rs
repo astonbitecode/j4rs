@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::{fs, mem};
+use std::any::Any;
 use std::cell::RefCell;
 use std::ops::Drop;
 use std::os::raw::c_void;
@@ -55,6 +56,7 @@ use serde_json;
 
 use crate::api_tweaks as tweaks;
 use crate::errors;
+use crate::errors::J4RsError;
 use crate::utils;
 
 use super::logger::{debug, error, info, warn};
@@ -468,6 +470,33 @@ impl Jvm {
         }
     }
 
+    /// Retrieves the static class `class_name`.
+    pub fn static_class(&self, class_name: &str) -> errors::Result<Instance> {
+        debug(&format!("Retrieving static class {}", class_name));
+        unsafe {
+            // Factory invocation - first argument: create a jstring to pass as argument for the class_name
+            let class_name_jstring: jstring = (self.jni_new_string_utf)(
+                self.jni_env,
+                utils::to_java_string(class_name),
+            );
+            // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
+            // This returns a NativeInvocation that acts like a proxy to the Java world.
+            let native_invocation_instance = (self.jni_call_static_object_method)(
+                self.jni_env,
+                self.factory_class,
+                self.factory_create_for_static_method,
+                class_name_jstring,
+            );
+
+            delete_java_local_ref(self.jni_env, class_name_jstring);
+
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+
+            // Create and return the Instance
+            self.do_return(Instance::from(native_invocation_global_instance)?)
+        }
+    }
+
     /// Creates a new Java Array with elements of the class `class_name`.
     /// The array will have the `InvocationArg`s populated.
     /// The `InvocationArg`s __must__ be of type _class_name_.
@@ -576,6 +605,47 @@ impl Jvm {
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
+
+            // Create and return the Instance
+            self.do_return(Instance {
+                jinstance: native_invocation_global_instance,
+                class_name: UNKNOWN_FOR_RUST.to_string(),
+            })
+        }
+    }
+
+    /// Retrieves the field `field_name` of a created `Instance`.
+    pub fn field(&self, instance: &Instance, field_name: &str) -> errors::Result<Instance> {
+        debug(&format!("Retrieving field {} of class {}", field_name, instance.class_name));
+        unsafe {
+            let invoke_method_signature = format!(
+                "(Ljava/lang/String;)L{};",
+                INVO_IFACE_NAME);
+            // Get the method ID for the `NativeInvocation.field`
+            let field_method = (self.jni_get_method_id)(
+                self.jni_env,
+                self.native_invocation_class,
+                utils::to_java_string("field"),
+                utils::to_java_string(invoke_method_signature.as_ref()),
+            );
+
+            // First argument: create a jstring to pass as argument for the field_name
+            let field_name_jstring: jstring = (self.jni_new_string_utf)(
+                self.jni_env,
+                utils::to_java_string(field_name),
+            );
+
+            // Call the method of the instance
+            let native_invocation_instance = (self.jni_call_object_method)(
+                self.jni_env,
+                instance.jinstance,
+                field_method,
+                field_name_jstring,
+            );
+
+            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            delete_java_local_ref(self.jni_env, field_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -867,6 +937,7 @@ impl Jvm {
     /// This is useful for build scripts that need jars for the runtime that can be downloaded from Maven.
     ///
     /// The function deploys __only__ the specified artifact, not its transitive dependencies.
+    #[deprecated(since = "0.7.0", note = "please use `deploy_artifact` instead")]
     pub fn deploy_maven(&self, artifact: MavenArtifact) -> errors::Result<()> {
         let instance = self.create_instance(
             "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
@@ -881,6 +952,42 @@ impl Jvm {
                 InvocationArg::from(artifact.version),
                 InvocationArg::from(artifact.qualifier)])?;
         Ok(())
+    }
+
+    /// Deploys an artifact in the default j4rs jars location.
+    ///
+    /// This is useful for build scripts that need jars for the runtime that can be downloaded from e.g. Maven.
+    ///
+    /// The function deploys __only__ the specified artifact, not its transitive dependencies.
+    pub fn deploy_artifact<T: Any + JavaArtifact>(&self, artifact: &T) -> errors::Result<()> {
+        let artifact = artifact as &dyn Any;
+        if let Some(maven_artifact) = artifact.downcast_ref::<MavenArtifact>() {
+            let instance = self.create_instance(
+                "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
+                &vec![InvocationArg::from(&maven_artifact.base)])?;
+
+            let _ = self.invoke(
+                &instance,
+                "deploy",
+                &vec![
+                    InvocationArg::from(&maven_artifact.group),
+                    InvocationArg::from(&maven_artifact.id),
+                    InvocationArg::from(&maven_artifact.version),
+                    InvocationArg::from(&maven_artifact.qualifier)])?;
+            Ok(())
+        } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
+            let instance = self.create_instance(
+                "org.astonbitecode.j4rs.api.deploy.FileSystemDeployer",
+                &vec![InvocationArg::from(&local_jar_artifact.base)])?;
+
+            let _ = self.invoke(
+                &instance,
+                "deploy",
+                &vec![InvocationArg::from(&local_jar_artifact.path)])?;
+            Ok(())
+        } else {
+            Err(J4RsError::GeneralError(format!("Don't know how to deploy artifacts of {:?}", artifact.type_id())))
+        }
     }
 
     /// Initiates a chain of operations on Instances.
@@ -1686,7 +1793,7 @@ impl<'a> ChainableInstance<'a> {
         Ok(ChainableInstance::new(instance, self.jvm))
     }
 
-    /// Creates a clone of the provided Instance
+    /// Creates a clone of the Instance
     pub fn clone_instance(&self) -> errors::Result<ChainableInstance> {
         let instance = self.jvm.clone_instance(&self.instance)?;
         Ok(ChainableInstance::new(instance, self.jvm))
@@ -1698,9 +1805,47 @@ impl<'a> ChainableInstance<'a> {
         Ok(ChainableInstance::new(instance, self.jvm))
     }
 
+    /// Retrieves the field `field_name` of the `Instance`.
+    pub fn field(&self, field_name: &str) -> errors::Result<ChainableInstance> {
+        let instance = self.jvm.field(&self.instance, field_name)?;
+        Ok(ChainableInstance::new(instance, self.jvm))
+    }
+
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(self) -> errors::Result<T> where T: DeserializeOwned {
         self.jvm.to_rust(self.instance)
+    }
+}
+
+/// Marker trait to be used for deploying artifacts.
+pub trait JavaArtifact {}
+
+#[derive(Debug)]
+pub struct LocalJarArtifact {
+    base: String,
+    path: String,
+}
+
+impl LocalJarArtifact {
+    pub fn new(path: &str) -> LocalJarArtifact {
+        LocalJarArtifact {
+            base: jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            path: path.to_string(),
+        }
+    }
+}
+
+impl JavaArtifact for LocalJarArtifact {}
+
+impl<'a> From<&'a str> for LocalJarArtifact {
+    fn from(string: &'a str) -> LocalJarArtifact {
+        LocalJarArtifact::new(string)
+    }
+}
+
+impl From<String> for LocalJarArtifact {
+    fn from(string: String) -> LocalJarArtifact {
+        LocalJarArtifact::new(&string)
     }
 }
 
@@ -1712,6 +1857,8 @@ pub struct MavenArtifact {
     version: String,
     qualifier: String,
 }
+
+impl JavaArtifact for MavenArtifact {}
 
 impl From<&[&str]> for MavenArtifact {
     fn from(slice: &[&str]) -> MavenArtifact {
