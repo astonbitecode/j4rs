@@ -89,6 +89,7 @@ pub type Callback = fn(Jvm, Instance) -> ();
 const RUST: &'static str = "rust";
 const JAVA: &'static str = "java";
 const INST_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
+const INVO_BASE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocationBase";
 const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocation";
 const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
 const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
@@ -188,6 +189,10 @@ pub struct Jvm {
     factory_create_for_static_method: jmethodID,
     /// The method id of the `createJavaArray` method of the `NativeInstantiation`.
     factory_create_java_array_method: jmethodID,
+    /// The `NativeInvocationBase` class.
+    /// This is optional because it exists only in Android for Java7 compatibility
+    /// because Java7 does not support static method implementations in interfaces.
+    native_invocation_base_class: Option<jclass>,
     /// The `NativeInvocation` class.
     native_invocation_class: jclass,
     /// The Java class for the `InvocationArg`.
@@ -355,6 +360,16 @@ impl Jvm {
                         utils::to_java_string("createJavaArray"),
                         utils::to_java_string(&create_java_array_method_signature),
                     );
+                    // The `NativeInvocationBase class`
+                    let optional_class = if cfg!(target_os = "android") {
+                        let native_invocation_base_class: jclass = tweaks::find_class(
+                            jni_environment,
+                            INVO_BASE_NAME,
+                        );
+                        Some(native_invocation_base_class)
+                    } else {
+                        None
+                    };
                     // The `NativeInvocation class`
                     let native_invocation_class: jclass = tweaks::find_class(
                         jni_environment,
@@ -389,6 +404,7 @@ impl Jvm {
                             factory_instantiate_method: factory_instantiate_method,
                             factory_create_for_static_method: factory_create_for_static_method,
                             factory_create_java_array_method: factory_create_java_array_method,
+                            native_invocation_base_class: optional_class,
                             native_invocation_class: native_invocation_class,
                             invocation_arg_class: invocation_arg_class,
                             detach_thread_on_drop: true,
@@ -832,10 +848,16 @@ impl Jvm {
                 INVO_IFACE_NAME,
                 INVO_IFACE_NAME);
 
-            // Get the method ID for the `NativeInvocation.cast`
-            let cast_static_method = (self.jni_get_static_method_id)(
+            // The class to invoke the cloneInstance into is not the same in Android target os.
+            // The native_invocation_base_class is checked first because of Java7 compatibility issues in Android.
+            // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
+            // and there is a base class created for this reason.
+            let class_to_invoke_clone_instance = self.native_invocation_base_class.unwrap_or(self.native_invocation_class);
+
+            // Get the method ID for the `NativeInvocation.clone`
+            let clone_static_method = (self.jni_get_static_method_id)(
                 self.jni_env,
-                self.native_invocation_class,
+                class_to_invoke_clone_instance,
                 utils::to_java_string("cloneInstance"),
                 utils::to_java_string(clone_method_signature.as_ref()),
             );
@@ -843,8 +865,8 @@ impl Jvm {
             // Call the clone method
             let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                self.native_invocation_class,
-                cast_static_method,
+                class_to_invoke_clone_instance,
+                clone_static_method,
                 instance.jinstance,
             );
 
@@ -870,10 +892,16 @@ impl Jvm {
                 INVO_IFACE_NAME,
                 INVO_IFACE_NAME);
 
+            // The class to invoke the cast into is not the same in Android target os.
+            // The native_invocation_base_class is checked first because of Java7 compatibility issues in Android.
+            // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
+            // and there is a base class created for this reason.
+            let class_to_invoke_cast = self.native_invocation_base_class.unwrap_or(self.native_invocation_class);
+
             // Get the method ID for the `NativeInvocation.cast`
             let cast_static_method = (self.jni_get_static_method_id)(
                 self.jni_env,
-                self.native_invocation_class,
+                class_to_invoke_cast,
                 utils::to_java_string("cast"),
                 utils::to_java_string(cast_method_signature.as_ref()),
             );
@@ -881,7 +909,7 @@ impl Jvm {
             // Call the cast method
             let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                self.native_invocation_class,
+                class_to_invoke_cast,
                 cast_static_method,
                 from_instance.jinstance,
                 to_class_jstring,
