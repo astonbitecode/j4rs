@@ -464,6 +464,9 @@ impl Jvm {
                 array_ptr,
             );
 
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
+
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, array_ptr);
@@ -545,6 +548,9 @@ impl Jvm {
                 array_ptr,
             );
 
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
+
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, array_ptr);
@@ -608,6 +614,9 @@ impl Jvm {
                 array_ptr,
             );
 
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
+
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, array_ptr);
@@ -649,6 +658,9 @@ impl Jvm {
                 field_method,
                 field_name_jstring,
             );
+
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
@@ -720,6 +732,10 @@ impl Jvm {
                 method_name_jstring,
                 array_ptr,
             );
+
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
+
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
@@ -826,6 +842,10 @@ impl Jvm {
                 method_name_jstring,
                 array_ptr,
             );
+
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
+
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
@@ -914,6 +934,10 @@ impl Jvm {
                 from_instance.jinstance,
                 to_class_jstring,
             );
+
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
+
             // Prevent memory leaks from the created local references
             delete_java_local_ref(self.jni_env, to_class_jstring);
 
