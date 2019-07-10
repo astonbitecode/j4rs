@@ -146,7 +146,7 @@ fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
     }
 }
 
-pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
+pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
     let mut jassets_path = std::env::current_exe()?;
     let mut tmp_vec = Vec::new();
 
@@ -1150,6 +1150,7 @@ pub struct JvmBuilder<'a> {
     detach_thread_on_drop: bool,
     lib_name_opt: Option<String>,
     skip_setting_native_lib: bool,
+    jassets_path: Option<String>,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1162,6 +1163,7 @@ impl<'a> JvmBuilder<'a> {
             detach_thread_on_drop: true,
             lib_name_opt: None,
             skip_setting_native_lib: false,
+            jassets_path: None,
         }
     }
 
@@ -1226,6 +1228,13 @@ impl<'a> JvmBuilder<'a> {
         self
     }
 
+    /// Defines the location of the jassets directory. The jassets contains the j4rs jar.
+    /// Any other jar that is located there, is automatically added in the classpath.
+    pub fn with_jassets_path(&'a mut self, jassets_path: &str) -> &'a mut JvmBuilder {
+        self.jassets_path = Some(jassets_path.to_string());
+        self
+    }
+
     /// Creates a Jvm
     pub fn build(&self) -> errors::Result<Jvm> {
         let classpath = if self.no_implicit_classpath {
@@ -1238,7 +1247,12 @@ impl<'a> JvmBuilder<'a> {
                     })
         } else {
             // The default classpath contains all the jars in the jassets directory
-            let jassets_path = jassets_path()?;
+            let jassets_path = match &self.jassets_path {
+                Some(jassets_path_string) => {
+                    PathBuf::from(jassets_path_string)
+                },
+                None => default_jassets_path()?,
+            };
             let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath
             let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
@@ -1872,7 +1886,7 @@ pub struct LocalJarArtifact {
 impl LocalJarArtifact {
     pub fn new(path: &str) -> LocalJarArtifact {
         LocalJarArtifact {
-            base: jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            base: default_jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
             path: path.to_string(),
         }
     }
@@ -1906,7 +1920,7 @@ impl JavaArtifact for MavenArtifact {}
 impl From<&[&str]> for MavenArtifact {
     fn from(slice: &[&str]) -> MavenArtifact {
         MavenArtifact {
-            base: jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            base: default_jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
             group: slice.get(0).unwrap_or(&"").to_string(),
             id: slice.get(1).unwrap_or(&"").to_string(),
             version: slice.get(2).unwrap_or(&"").to_string(),
