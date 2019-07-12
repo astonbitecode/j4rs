@@ -555,6 +555,6 @@ mod lib_unit_tests {
             .build()
             .unwrap();
         assert!(jassets_path().is_ok());
-        assert!(jassets_path().unwrap() == PathBuf::from("./jassets"));
+        assert!(jassets_path().unwrap() == PathBuf::from(format!(".{}jassets", MAIN_SEPARATOR)));
     }
 }
