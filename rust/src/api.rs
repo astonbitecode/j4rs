@@ -1268,11 +1268,7 @@ impl<'a> JvmBuilder<'a> {
                     *global_jassets_path_opt = Some(pb.clone());
                     pb
                 }
-                None => {
-                    let mut global_jassets_path_opt = JASSETS_PATH.lock()?;
-                    *global_jassets_path_opt = None;
-                    utils::default_jassets_path()?
-                }
+                None => utils::default_jassets_path()?,
             };
             let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath

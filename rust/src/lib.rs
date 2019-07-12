@@ -37,8 +37,8 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
-pub use self::api::MavenArtifact as MavenArtifact;
 pub use self::api::LocalJarArtifact as LocalJarArtifact;
+pub use self::api::MavenArtifact as MavenArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
@@ -78,15 +78,16 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
-    use std::path::{MAIN_SEPARATOR, PathBuf};
+    use std::path::MAIN_SEPARATOR;
     use std::thread::JoinHandle;
 
     use fs_extra::remove_items;
 
-    use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
-    use super::utils::jassets_path;
     use crate::api::JavaArtifact;
     use crate::LocalJarArtifact;
+
+    use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
+    use super::utils::jassets_path;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -548,13 +549,4 @@ mod lib_unit_tests {
             .collect();
     }
 
-    #[test]
-    fn test_jassets_path() {
-        let _: Jvm = JvmBuilder::new()
-            .with_base_path(".")
-            .build()
-            .unwrap();
-        assert!(jassets_path().is_ok());
-        assert!(jassets_path().unwrap() == PathBuf::from(format!(".{}jassets", MAIN_SEPARATOR)));
-    }
 }
