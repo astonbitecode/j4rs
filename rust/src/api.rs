@@ -97,6 +97,8 @@ const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
 lazy_static! {
     // Synchronize the creation of Jvm
     static ref MUTEX: Mutex<bool> = Mutex::new(false);
+    // If a Jvm is created with defining a jassets_path other than the default, this is set here
+    pub(crate) static ref JASSETS_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
 }
 
 thread_local! {
@@ -144,19 +146,6 @@ fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
         Some(env) => Ok(env.clone()),
         None => Err(errors::J4RsError::JavaError(format!("Could not find the JNIEnv in the thread local"))),
     }
-}
-
-pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
-    let mut jassets_path = std::env::current_exe()?;
-    let mut tmp_vec = Vec::new();
-
-    while tmp_vec.is_empty() {
-        jassets_path.pop();
-        tmp_vec = get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
-    }
-
-    jassets_path.push("jassets");
-    Ok(jassets_path)
 }
 
 /// Holds the assets for the JVM
@@ -1033,6 +1022,29 @@ impl Jvm {
         }
     }
 
+    /// Copies the jassets default directory and the j4rs dynamic library under the specified location.
+    /// This is useful for cases when `with_base_path` method is used when building a Jvm with the JvmBuilder.
+    /// Build scripts should use this method.
+    pub fn copy_j4rs_libs_under(path: &str) -> errors::Result<()> {
+        let mut pb = PathBuf::from(path);
+        pb.push("deps");
+        fs::create_dir_all(&pb)?;
+
+        let default_jassets_path_buf = utils::default_jassets_path()?;
+        let default_jassets_path_string = default_jassets_path_buf.to_str().unwrap().to_owned();
+
+        // Copy the jassets
+        let ref options = fs_extra::dir::CopyOptions::new();
+        let _ = fs_extra::copy_items(vec![default_jassets_path_string].as_ref(), path, options)?;
+
+        // Copy the dynamic libraries
+        let dynlibs: Vec<String> = utils::find_j4rs_dynamic_libraries_paths()?;
+
+        let _ = fs_extra::copy_items(&dynlibs, &pb, options)?;
+
+        Ok(())
+    }
+
     /// Initiates a chain of operations on Instances.
     pub fn chain(&self, instance: Instance) -> ChainableInstance {
         ChainableInstance::new(instance, &self)
@@ -1150,7 +1162,7 @@ pub struct JvmBuilder<'a> {
     detach_thread_on_drop: bool,
     lib_name_opt: Option<String>,
     skip_setting_native_lib: bool,
-    jassets_path: Option<String>,
+    base_path: Option<String>,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1163,7 +1175,7 @@ impl<'a> JvmBuilder<'a> {
             detach_thread_on_drop: true,
             lib_name_opt: None,
             skip_setting_native_lib: false,
-            jassets_path: None,
+            base_path: None,
         }
     }
 
@@ -1228,10 +1240,10 @@ impl<'a> JvmBuilder<'a> {
         self
     }
 
-    /// Defines the location of the jassets directory. The jassets contains the j4rs jar.
-    /// Any other jar that is located there, is automatically added in the classpath.
-    pub fn with_jassets_path(&'a mut self, jassets_path: &str) -> &'a mut JvmBuilder {
-        self.jassets_path = Some(jassets_path.to_string());
+    /// Defines the location of the jassets and deps directory.
+    /// The jassets contains the j4rs jar and the deps the j4rs dynamic library.
+    pub fn with_base_path(&'a mut self, base_path: &str) -> &'a mut JvmBuilder {
+        self.base_path = Some(base_path.to_string());
         self
     }
 
@@ -1247,11 +1259,15 @@ impl<'a> JvmBuilder<'a> {
                     })
         } else {
             // The default classpath contains all the jars in the jassets directory
-            let jassets_path = match &self.jassets_path {
-                Some(jassets_path_string) => {
-                    PathBuf::from(jassets_path_string)
+            let jassets_path = match &self.base_path {
+                Some(base_path_string) => {
+                    let mut pb = PathBuf::from(base_path_string);
+                    pb.push("jassets");
+                    let mut global_jassets_path_opt = JASSETS_PATH.try_lock()?;
+                    *global_jassets_path_opt = Some(pb.clone());
+                    pb
                 },
-                None => default_jassets_path()?,
+                None => utils::default_jassets_path()?,
             };
             let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath
@@ -1290,26 +1306,7 @@ impl<'a> JvmBuilder<'a> {
         // Pass to the Java world the name of the j4rs library.
         let lib_name_opt = if self.lib_name_opt.is_none() && !self.skip_setting_native_lib {
             let found_libs: Vec<String> = if Path::new(&deps_dir).exists() {
-                fs::read_dir(deps_dir)?
-                    .filter(|entry| {
-                        entry.is_ok()
-                    })
-                    .filter(|entry| {
-                        let entry = entry.as_ref().unwrap();
-                        let file_name = entry.file_name();
-                        let file_name = file_name.to_str().unwrap();
-                        file_name.contains("j4rs") && (
-                            file_name.contains(".so") ||
-                                file_name.contains(".dll") ||
-                                file_name.contains(".dylib"))
-                    })
-                    .map(|entry| entry.
-                        unwrap().
-                        file_name().
-                        to_str().
-                        unwrap().
-                        to_owned())
-                    .collect()
+                utils::find_j4rs_dynamic_libraries_names()?
             } else {
                 // If deps dir is not found, fallback to default naming in order for the library to be searched in the default
                 // library locations of the system.
@@ -1886,7 +1883,7 @@ pub struct LocalJarArtifact {
 impl LocalJarArtifact {
     pub fn new(path: &str) -> LocalJarArtifact {
         LocalJarArtifact {
-            base: default_jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
             path: path.to_string(),
         }
     }
@@ -1920,7 +1917,7 @@ impl JavaArtifact for MavenArtifact {}
 impl From<&[&str]> for MavenArtifact {
     fn from(slice: &[&str]) -> MavenArtifact {
         MavenArtifact {
-            base: default_jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
             group: slice.get(0).unwrap_or(&"").to_string(),
             id: slice.get(1).unwrap_or(&"").to_string(),
             version: slice.get(2).unwrap_or(&"").to_string(),
@@ -2174,6 +2171,14 @@ mod api_unit_tests {
         assert_eq!(ma3.id, "j4rs");
         assert_eq!(ma3.version, "0.5.1");
         assert_eq!(ma3.qualifier, "");
+    }
+
+    #[test]
+    fn test_copy_j4rs_libs_under() {
+        let newdir = "./newdir";
+        Jvm::copy_j4rs_libs_under(newdir).unwrap();
+
+        let _ = fs_extra::remove_items(&vec![newdir]);
     }
 
     fn validate_type(ia: InvocationArg, class: &str) {

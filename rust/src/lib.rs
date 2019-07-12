@@ -78,13 +78,13 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
-    use std::path::MAIN_SEPARATOR;
+    use std::path::{MAIN_SEPARATOR, PathBuf};
     use std::thread::JoinHandle;
 
     use fs_extra::remove_items;
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
-    use super::api::default_jassets_path;
+    use super::utils::jassets_path;
     use crate::api::JavaArtifact;
     use crate::LocalJarArtifact;
 
@@ -414,7 +414,7 @@ mod lib_unit_tests {
     fn deploy_maven_artifact() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         assert!(jvm.deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
-        let to_remove = format!("{}{}j4rs-0.5.1.jar", default_jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
+        let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
         let _ = remove_items(&vec![to_remove]);
 
         assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
@@ -546,5 +546,15 @@ mod lib_unit_tests {
             .field("out").unwrap()
             .invoke("println", &vec![InvocationArg::from("Hello World")]).unwrap()
             .collect();
+    }
+
+    #[test]
+    fn test_jassets_path() {
+        let _: Jvm = JvmBuilder::new()
+            .with_base_path(".")
+            .build()
+            .unwrap();
+        assert!(jassets_path().is_ok());
+        assert!(jassets_path().unwrap() == PathBuf::from("./jassets"));
     }
 }

@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{self, fs, str};
+use std::ffi::{CStr, CString};
+use std::path::PathBuf;
+
+use fs_extra::dir::get_dir_content;
 use libc::c_char;
-use std::ffi::{CStr, CString, OsStr};
-use std::{str, self};
-use crate::errors;
+
+use crate::{api, errors};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -46,17 +50,80 @@ pub fn java_library_path() -> errors::Result<String> {
     }
 }
 
-pub fn deps_dir() -> errors::Result<String> {
-    let mut deps_fallback = std::env::current_exe()?;
-    deps_fallback.pop();
-
-    if deps_fallback.file_name() == Some(OsStr::new("deps")) {
-        deps_fallback.pop();
-    }
-
-    deps_fallback.push("deps");
-
-    Ok(deps_fallback
+pub(crate) fn deps_dir() -> errors::Result<String> {
+    let mut pb = jassets_path()?;
+    pb.pop();
+    pb.push("deps");
+    Ok(pb
         .to_str()
         .unwrap_or("./deps/").to_owned())
+}
+
+pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
+    let pb_opt = {
+        let guard = api::JASSETS_PATH.try_lock()?;
+        guard.clone()
+    };
+    match pb_opt {
+        Some(pb) => Ok(pb),
+        None => default_jassets_path(),
+    }
+}
+
+pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
+    let mut jassets_path = std::env::current_exe()?;
+    let mut tmp_vec = Vec::new();
+
+    while tmp_vec.is_empty() {
+        jassets_path.pop();
+        tmp_vec = get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
+    }
+
+    jassets_path.push("jassets");
+    Ok(jassets_path)
+}
+
+
+pub(crate) fn find_j4rs_dynamic_libraries_names() -> errors::Result<Vec<String>> {
+    let entries: Vec<String> = find_j4rs_dynamic_libraries_dir_entries()?.iter()
+        .map(|entry| entry
+            .file_name()
+            .to_str()
+            .unwrap()
+            .to_owned())
+        .collect();
+
+    Ok(entries)
+}
+
+pub(crate) fn find_j4rs_dynamic_libraries_paths() -> errors::Result<Vec<String>> {
+    let entries: Vec<String> = find_j4rs_dynamic_libraries_dir_entries()?.iter()
+        .map(|entry| entry
+            .path()
+            .to_str()
+            .unwrap()
+            .to_owned())
+        .collect();
+
+    Ok(entries)
+}
+
+fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>> {
+    let v: Vec<fs::DirEntry> = fs::read_dir(deps_dir()?)?
+        .filter(|entry| {
+            entry.is_ok()
+        })
+        .filter(|entry| {
+            let entry = entry.as_ref().unwrap();
+            let file_name = entry.file_name();
+            let file_name = file_name.to_str().unwrap();
+            file_name.contains("j4rs") && (
+                file_name.contains(".so") ||
+                    file_name.contains(".dll") ||
+                    file_name.contains(".dylib"))
+        })
+        .map(|entry| entry.unwrap())
+        .collect();
+
+    Ok(v)
 }
