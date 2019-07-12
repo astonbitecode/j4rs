@@ -217,7 +217,7 @@ impl Jvm {
         let mut jni_environment: *mut JNIEnv = ptr::null_mut();
 
         // Create the Jvm atomically
-        let _g = MUTEX.lock().unwrap();
+        let _g = MUTEX.lock()?;
 
         let result = if let Some(env) = get_thread_local_env_opt() {
             info("A JVM is already created for this thread. Retrieving it...");
@@ -1034,7 +1034,8 @@ impl Jvm {
         let default_jassets_path_string = default_jassets_path_buf.to_str().unwrap().to_owned();
 
         // Copy the jassets
-        let ref options = fs_extra::dir::CopyOptions::new();
+        let ref mut options = fs_extra::dir::CopyOptions::new();
+        options.overwrite = true;
         let _ = fs_extra::copy_items(vec![default_jassets_path_string].as_ref(), path, options)?;
 
         // Copy the dynamic libraries
@@ -1263,11 +1264,15 @@ impl<'a> JvmBuilder<'a> {
                 Some(base_path_string) => {
                     let mut pb = PathBuf::from(base_path_string);
                     pb.push("jassets");
-                    let mut global_jassets_path_opt = JASSETS_PATH.try_lock()?;
+                    let mut global_jassets_path_opt = JASSETS_PATH.lock()?;
                     *global_jassets_path_opt = Some(pb.clone());
                     pb
-                },
-                None => utils::default_jassets_path()?,
+                }
+                None => {
+                    let mut global_jassets_path_opt = JASSETS_PATH.lock()?;
+                    *global_jassets_path_opt = None;
+                    utils::default_jassets_path()?
+                }
             };
             let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath

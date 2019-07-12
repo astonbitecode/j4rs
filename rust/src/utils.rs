@@ -61,7 +61,7 @@ pub(crate) fn deps_dir() -> errors::Result<String> {
 
 pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
     let pb_opt = {
-        let guard = api::JASSETS_PATH.try_lock()?;
+        let guard = api::JASSETS_PATH.lock()?;
         guard.clone()
     };
     match pb_opt {
