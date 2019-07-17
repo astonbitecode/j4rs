@@ -37,8 +37,8 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
-pub use self::api::MavenArtifact as MavenArtifact;
 pub use self::api::LocalJarArtifact as LocalJarArtifact;
+pub use self::api::MavenArtifact as MavenArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
@@ -83,10 +83,11 @@ mod lib_unit_tests {
 
     use fs_extra::remove_items;
 
-    use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
-    use super::api::jassets_path;
     use crate::api::JavaArtifact;
     use crate::LocalJarArtifact;
+
+    use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
+    use super::utils::jassets_path;
 
     #[test]
     fn create_instance_and_invoke() {
@@ -547,4 +548,5 @@ mod lib_unit_tests {
             .invoke("println", &vec![InvocationArg::from("Hello World")]).unwrap()
             .collect();
     }
+
 }

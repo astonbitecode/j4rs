@@ -18,6 +18,7 @@ use std::error::Error;
 use std::ffi::NulError;
 use std::io;
 use fs_extra;
+use std::sync::{TryLockError, PoisonError};
 
 pub type Result<T> = result::Result<T, J4RsError>;
 
@@ -74,6 +75,18 @@ impl From<serde_json::Error> for J4RsError {
 
 impl From<fs_extra::error::Error> for J4RsError {
     fn from(err: fs_extra::error::Error) -> J4RsError {
+        J4RsError::GeneralError(format!("{:?}", err))
+    }
+}
+
+impl <T> From<TryLockError<T>> for J4RsError {
+    fn from(err:TryLockError<T>) -> J4RsError {
+        J4RsError::GeneralError(format!("{:?}", err))
+    }
+}
+
+impl <T> From<PoisonError<T>> for J4RsError {
+    fn from(err:PoisonError<T>) -> J4RsError {
         J4RsError::GeneralError(format!("{:?}", err))
     }
 }
