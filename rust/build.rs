@@ -29,7 +29,10 @@ const VERSION: &'static str = "0.8.0";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
-    println!("cargo:rerun-if-changed=../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
+    let source_jar_location = format!("../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
+    if File::open(&source_jar_location).is_ok() {
+        println!("cargo:rerun-if-changed={}", source_jar_location);
+    }
 
     let target_os_res = env::var("CARGO_CFG_TARGET_OS");
     let target_os = target_os_res.as_ref().map(|x| &**x).unwrap_or("unknown");
@@ -45,7 +48,7 @@ fn main() -> Result<(), J4rsBuildError> {
 
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
-    copy_jars_from_java()?;
+    copy_jars_from_java(&source_jar_location)?;
     let _ = copy_jars_to_exec_directory(&out_dir)?;
     generate_src(&out_dir)?;
 
@@ -68,9 +71,7 @@ fn j4rs_version() -> &'static str {{
 }
 
 // Copies the jars from the `java` directory to the source directory of rust.
-fn copy_jars_from_java() -> Result<(), J4rsBuildError> {
-    // If the java directory exists, maybe copy the generated jars in the `jassets` directory
-    let jar_source_path = format!("../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
+fn copy_jars_from_java(jar_source_path: &str) -> Result<(), J4rsBuildError> {
     if let Ok(mut source_jar_file) = File::open(&jar_source_path) {
         // Find the destination file
         let home = env::var("CARGO_MANIFEST_DIR")?;
