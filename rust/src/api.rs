@@ -1303,9 +1303,9 @@ impl<'a> JvmBuilder<'a> {
         };
         self.java_opts.clone().into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
 
-        let deps_dir = utils::deps_dir()?;
         // Pass to the Java world the name of the j4rs library.
         let lib_name_opt = if self.lib_name_opt.is_none() && !self.skip_setting_native_lib {
+            let deps_dir = utils::deps_dir()?;
             let found_libs: Vec<String> = if Path::new(&deps_dir).exists() {
                 utils::find_j4rs_dynamic_libraries_names()?
             } else {
