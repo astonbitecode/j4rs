@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.7.1-java7</version>
+    <version>0.8.0-java7</version>
     <name>j4rs</name>
     <description>Java for Rust</description>
     <url>https://github.com/astonbitecode/j4rs</url>
@@ -61,7 +61,7 @@
         <maven.assembly.plugin.version>3.1.0</maven.assembly.plugin.version>
         <logback.version>1.2.3</logback.version>
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
-        <jackson.version>2.9.9</jackson.version>
+        <jackson.version>2.10.0.pr1</jackson.version>
         <mockito.version>2.23.4</mockito.version>
         <retrolambda.version>2.5.6</retrolambda.version>
     </properties>
