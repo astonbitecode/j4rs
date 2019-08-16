@@ -14,6 +14,10 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
@@ -22,10 +26,6 @@ import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
 import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Arrays;
 
 public class JsonInvocationImpl<T> implements NativeInvocation<T> {
 
@@ -155,6 +155,9 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
 
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
         try {
+            if (clazz.isInterface()) {
+                return clazz.getMethod(methodName, argTypes);
+            }
             return clazz.getDeclaredMethod(methodName, argTypes);
         } catch (NoSuchMethodException nsme) {
             Class<?> superclass = clazz.getSuperclass();

@@ -17,10 +17,36 @@ package org.astonbitecode.j4rs.api.invocation;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.errors.InvocationException;
-import org.astonbitecode.j4rs.utils.*;
+import org.astonbitecode.j4rs.utils.ChildDummy;
+import org.astonbitecode.j4rs.utils.ChildOfDummyWithFields;
+import org.astonbitecode.j4rs.utils.Dummy;
+import org.astonbitecode.j4rs.utils.DummyMapImpl;
+import org.astonbitecode.j4rs.utils.DummyMapInterface;
+import org.astonbitecode.j4rs.utils.DummyWithFields;
+import org.astonbitecode.j4rs.utils.DummyWithStatic;
+import org.astonbitecode.j4rs.utils.FailingDummy;
+import org.astonbitecode.j4rs.utils.GrandchildDummy;
 import org.junit.Test;
 
 public class JsonInvocationImplTest {
+    @Test
+    public void interfaceMethodMatches() {
+        JsonInvocationImpl toTest = new JsonInvocationImpl(new DummyMapImpl(), DummyMapInterface.class);
+
+        NativeInvocation invocation = toTest.invoke("keysLength");
+        assert (invocation.getObject().getClass().equals(Long.class));
+        assert (((Long) invocation.getObject()) == 6L);
+    }
+
+    @Test
+    public void parentInterfaceMethodMatches() {
+        JsonInvocationImpl toTest = new JsonInvocationImpl(new DummyMapImpl(), DummyMapInterface.class);
+
+        NativeInvocation invocation = toTest.invoke("size");
+        assert (invocation.getObject().getClass().equals(Integer.class));
+        assert (((Integer) invocation.getObject()) == 2);
+    }
+
     @Test
     public void methodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(new Dummy(33), Dummy.class);
