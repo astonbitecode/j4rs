@@ -1495,6 +1495,17 @@ impl From<Instance> for InvocationArg {
     }
 }
 
+impl From<(Instance, String)> for InvocationArg {
+    fn from(pair: (Instance, String)) -> InvocationArg {
+        let (instance, class_name) = pair;
+        InvocationArg::Java {
+            instance: instance,
+            class_name: class_name,
+            arg_from: JAVA.to_string(),
+        }
+    }
+}
+
 impl From<String> for InvocationArg {
     fn from(s: String) -> InvocationArg {
         InvocationArg::new(&s, "java.lang.String")
