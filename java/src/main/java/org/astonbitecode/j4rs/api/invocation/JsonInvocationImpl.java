@@ -17,7 +17,6 @@ package org.astonbitecode.j4rs.api.invocation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.NativeInvocation;
@@ -51,13 +50,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
-            throw new InvocationException(
-                String.format(
-                    "While invoking method %s of Class %s with args[%s]",
-                    methodName,
-                    this.clazz.getName(),
-                    Arrays.stream(args).map(InvocationArg::getClassName).collect(Collectors.joining(","))
-                ), error);
+            throw new InvocationException("While invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }
     }
 
@@ -143,6 +136,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
                     }
                 })
                 .toArray(size -> new Class[size]);
+
         Object[] argObjects = Arrays.stream(generatedArgs)
                 .map(invGeneratedArg -> {
                     try {
