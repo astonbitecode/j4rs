@@ -549,4 +549,19 @@ mod lib_unit_tests {
             .collect();
     }
 
+    #[test]
+    fn parent_interface_method() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let size: isize = jvm.chain(instance)
+            .invoke("getMap", &[]).unwrap()
+            .cast("java.util.Map").unwrap()
+            .invoke("size", &[]).unwrap()
+            .to_rust().unwrap();
+
+        assert!(size == 2);
+    }
 }

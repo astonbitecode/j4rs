@@ -99,4 +99,8 @@ public class MyTest extends NativeCallbackSupport {
         }).start();
     }
 
+    public DummyMapInterface<String, Object> getMap() {
+        return new DummyMapImpl();
+    }
+
 }
