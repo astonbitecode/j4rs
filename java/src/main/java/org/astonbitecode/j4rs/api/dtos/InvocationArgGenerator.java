@@ -14,13 +14,13 @@
  */
 package org.astonbitecode.j4rs.api.dtos;
 
+import java.util.Arrays;
+
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
 import org.astonbitecode.j4rs.utils.Defs;
-
-import java.util.Arrays;
 
 public class InvocationArgGenerator {
     public GeneratedArg[] generateArgObjects(InvocationArg[] args) throws Exception {
@@ -28,7 +28,13 @@ public class InvocationArgGenerator {
             GeneratedArg generatedArg;
             if (invArg.getArgFrom().equals(Defs.JAVA)) {
                 NativeInvocation inv = invArg.getNativeInvocation();
-                generatedArg = new GeneratedArg(inv.getObjectClass(), inv.getObject());
+                Class theClass = inv.getObjectClass();
+                try {
+                    theClass = Class.forName(invArg.getClassName());
+                } catch (ClassNotFoundException cnfe) {
+                    // ignore it
+                }
+                generatedArg = new GeneratedArg(theClass, inv.getObject());
             } else if (invArg.getArgFrom().equals(Defs.RUST)) {
                 ObjectValue objValue = new JsonValueImpl(invArg.getJson(), invArg.getClassName());
                 generatedArg = new GeneratedArg(objValue.getObject().getClass(), objValue.getObject());
