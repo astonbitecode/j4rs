@@ -564,4 +564,27 @@ mod lib_unit_tests {
 
         assert!(size == 2);
     }
+
+    #[test]
+    fn invoke_generic_method() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        // Create the MyTest instance
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        // Retrieve the annotated Map
+        let dummy_map = jvm.invoke(&instance, "getMap", &[]).unwrap();
+
+        // Put a new Map entry
+        let _ = jvm.invoke(&dummy_map, "put", &vec![InvocationArg::from("three"), InvocationArg::from(3)]).unwrap();
+
+        // Get the size of the new map and assert
+        let size: isize = jvm.chain(dummy_map)
+            .invoke("size", &[]).unwrap()
+            .to_rust().unwrap();
+
+        assert!(size == 3);
+    }
 }

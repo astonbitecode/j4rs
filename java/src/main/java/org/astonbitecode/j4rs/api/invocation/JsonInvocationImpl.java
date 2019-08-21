@@ -14,10 +14,6 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Arrays;
-
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
@@ -27,10 +23,19 @@ import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
+import java.lang.reflect.*;
+import java.util.*;
+import java.util.stream.Collectors;
+
 public class JsonInvocationImpl<T> implements NativeInvocation<T> {
 
+    // The instance that this JsonInvocationImpl holds
     private T object;
+    // The class of the instance that this JsonInvocationImpl holds
     private Class<T> clazz;
+    // A list of Types that may have been defined for the instance that this JsonInvocationImpl holds.
+    // It is non empty in the case that the instance that this JsonInvocationImpl holds is created using generics.
+    private List<Type> classGenTypes = new ArrayList<>();
     private InvocationArgGenerator gen = new InvocationArgGenerator();
 
     public JsonInvocationImpl(Class<T> clazz) {
@@ -43,12 +48,18 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
         this.clazz = clazz;
     }
 
+    public JsonInvocationImpl(T instance, Class<T> clazz, List<Type> classGenTypes) {
+        this.object = instance;
+        this.clazz = clazz;
+        this.classGenTypes = classGenTypes;
+    }
+
     @Override
     public NativeInvocation invoke(String methodName, InvocationArg... args) {
         // Invoke the instance
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
+            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
         } catch (Exception error) {
             throw new InvocationException("While invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }
@@ -58,7 +69,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
     public NativeInvocation invokeStatic(String methodName, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
+            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
         } catch (Exception error) {
             throw new InvocationException("Error while invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }
@@ -147,19 +158,71 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
                 .toArray(size -> new Object[size]);
 
         Method methodToInvoke = findMethodInHierarchy(this.clazz, methodName, argTypes);
+        List<Type> retClassGenTypes = new ArrayList<>();
+
+        Type returnType = methodToInvoke.getGenericReturnType();
+        if (returnType instanceof ParameterizedType) {
+            ParameterizedType type = (ParameterizedType) returnType;
+            retClassGenTypes = Arrays.asList(type.getActualTypeArguments());
+        }
 
         Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
         Object returnedObject = methodToInvoke.invoke(this.object, argObjects);
-        return new CreatedInstance(invokedMethodReturnType, returnedObject);
+        return new CreatedInstance(invokedMethodReturnType, returnedObject, retClassGenTypes);
     }
 
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
-        try {
-            if (clazz.isInterface()) {
-                return clazz.getMethod(methodName, argTypes);
-            }
-            return clazz.getDeclaredMethod(methodName, argTypes);
-        } catch (NoSuchMethodException nsme) {
+        // Get the declared and methods defined in the interfaces of the class.
+        Set<Method> methods = new HashSet<>(Arrays.asList(clazz.getDeclaredMethods()));
+        Set<Method> interfacesMethods = Arrays.stream(clazz.getInterfaces())
+                .map(c -> c.getDeclaredMethods())
+                .flatMap(m -> Arrays.stream(m))
+                .collect(Collectors.toSet());
+        methods.addAll(interfacesMethods);
+
+        List<Method> found = methods.stream()
+                // Match the method name
+                .filter(m -> m.getName().equals(methodName))
+                // Match the params number
+                .filter(m -> m.getGenericParameterTypes().length == argTypes.length)
+                // Match the actual parameters
+                .filter(m -> {
+                    // Each element of the matchedParams list shows whether a parameter is matched or not
+                    List<Boolean> matchedParams = new ArrayList<>();
+
+                    // Get the parameter types of the method to check if matches
+                    Type[] pts = m.getGenericParameterTypes();
+                    for (int i = 0; i < argTypes.length; i++) {
+                        // Check each parameter type
+                        Type typ = pts[i];
+
+                        if (typ instanceof ParameterizedType || typ instanceof WildcardType) {
+                            // For generic parameters, the type erasure makes the parameter be an Object.class
+                            // Therefore, the argument is always matched
+                            matchedParams.add(true);
+                        } else if (typ instanceof GenericArrayType) {
+                            // TODO: Improve by checking the actual types of the arrays?
+                            matchedParams.add(argTypes[i].isArray());
+                        } else if (typ instanceof Class) {
+                            // In case of TypeVariable, the arg matches via the equals method
+                            matchedParams.add(typ.equals(argTypes[i]));
+                        } else {
+                            // We get to this point if the TypeVariable is a generic, which is defined with a name like T, U etc.
+                            // The type erasure makes the parameter be an Object.class. Therefore, the argument is always matched.
+                            // TODO:
+                            // We may have some info about the generic types (if they are defined in the Class scope).
+                            // Can we use this info to provide some type safety? Use matchedParams.add(validateSomeTypeSafety(argTypes[i]));
+                            // In that case however, we don't catch the situation where a class is defined with a generic T in the class scope,
+                            // but there is a method that defines another generic U in the method scope.
+                            matchedParams.add(true);
+                        }
+                    }
+                    return matchedParams.stream().allMatch(Boolean::booleanValue);
+                })
+                .collect(Collectors.toList());
+        if (!found.isEmpty()) {
+            return found.get(0);
+        } else {
             Class<?> superclass = clazz.getSuperclass();
             if (superclass == null) {
                 throw new NoSuchMethodException("Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
@@ -168,13 +231,28 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
         }
     }
 
+    private boolean validateSomeTypeSafety(Class c) {
+        List<Type> filteredTypeList = this.classGenTypes.stream()
+                .filter(cgt -> ((Class) cgt).isAssignableFrom(c))
+                .collect(Collectors.toList());
+        // If ClassGenTypes exist, the class c should be one of them
+        return this.classGenTypes.isEmpty() || filteredTypeList.isEmpty();
+    }
+
     class CreatedInstance {
         private Class clazz;
         private Object object;
+        private List<Type> classGenTypes;
 
         public CreatedInstance(Class clazz, Object object) {
             this.clazz = clazz;
             this.object = object;
+        }
+
+        public CreatedInstance(Class clazz, Object object, List<Type> classGenTypes) {
+            this.clazz = clazz;
+            this.object = object;
+            this.classGenTypes = classGenTypes;
         }
 
         public Class getClazz() {

@@ -27,4 +27,8 @@ public class ChildDummy extends Dummy implements DummyInterface {
     public DummyMapInterface<String, Object> getMap() {
         return new DummyMapImpl();
     }
+
+    public <T> Class<T> invokeGeneric(T check) {
+        return (Class<T>)check.getClass();
+    }
 }
