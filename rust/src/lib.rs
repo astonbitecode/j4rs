@@ -37,14 +37,15 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
-pub use self::api::LocalJarArtifact as LocalJarArtifact;
-pub use self::api::MavenArtifact as MavenArtifact;
+pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
+pub use self::provisioning::MavenArtifact as MavenArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
 pub(crate) mod api_tweaks;
 mod utils;
 mod logger;
+mod provisioning;
 
 pub mod errors;
 
@@ -83,7 +84,7 @@ mod lib_unit_tests {
 
     use fs_extra::remove_items;
 
-    use crate::api::JavaArtifact;
+    use crate::provisioning::JavaArtifact;
     use crate::LocalJarArtifact;
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};

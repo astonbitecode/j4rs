@@ -57,6 +57,7 @@ use serde_json;
 use crate::api_tweaks as tweaks;
 use crate::errors;
 use crate::errors::J4RsError;
+use crate::provisioning::{JavaArtifact, LocalJarArtifact, MavenArtifact};
 use crate::utils;
 
 use super::logger::{debug, error, info, warn};
@@ -1872,87 +1873,6 @@ impl<'a> ChainableInstance<'a> {
     }
 }
 
-/// Marker trait to be used for deploying artifacts.
-pub trait JavaArtifact {}
-
-#[derive(Debug)]
-pub struct LocalJarArtifact {
-    base: String,
-    path: String,
-}
-
-impl LocalJarArtifact {
-    pub fn new(path: &str) -> LocalJarArtifact {
-        LocalJarArtifact {
-            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
-            path: path.to_string(),
-        }
-    }
-}
-
-impl JavaArtifact for LocalJarArtifact {}
-
-impl<'a> From<&'a str> for LocalJarArtifact {
-    fn from(string: &'a str) -> LocalJarArtifact {
-        LocalJarArtifact::new(string)
-    }
-}
-
-impl From<String> for LocalJarArtifact {
-    fn from(string: String) -> LocalJarArtifact {
-        LocalJarArtifact::new(&string)
-    }
-}
-
-#[derive(Debug)]
-pub struct MavenArtifact {
-    base: String,
-    group: String,
-    id: String,
-    version: String,
-    qualifier: String,
-}
-
-impl JavaArtifact for MavenArtifact {}
-
-impl From<&[&str]> for MavenArtifact {
-    fn from(slice: &[&str]) -> MavenArtifact {
-        MavenArtifact {
-            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
-            group: slice.get(0).unwrap_or(&"").to_string(),
-            id: slice.get(1).unwrap_or(&"").to_string(),
-            version: slice.get(2).unwrap_or(&"").to_string(),
-            qualifier: slice.get(3).unwrap_or(&"").to_string(),
-        }
-    }
-}
-
-impl From<Vec<&str>> for MavenArtifact {
-    fn from(v: Vec<&str>) -> MavenArtifact {
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
-impl From<&Vec<&str>> for MavenArtifact {
-    fn from(v: &Vec<&str>) -> MavenArtifact {
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
-impl<'a> From<&'a str> for MavenArtifact {
-    fn from(string: &'a str) -> MavenArtifact {
-        let v: Vec<&str> = string.split(':').collect();
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
-impl From<String> for MavenArtifact {
-    fn from(string: String) -> MavenArtifact {
-        let v: Vec<&str> = string.split(':').collect();
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
 pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
@@ -2151,27 +2071,6 @@ mod api_unit_tests {
         validate_type(InvocationArg::from(&1_i64), "java.lang.Long");
         validate_type(InvocationArg::from(&0.1_f32), "java.lang.Float");
         validate_type(InvocationArg::from(&0.1_f64), "java.lang.Double");
-    }
-
-    #[test]
-    fn maven_artifact_from() {
-        let ma1 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1");
-        assert_eq!(ma1.group, "io.github.astonbitecode");
-        assert_eq!(ma1.id, "j4rs");
-        assert_eq!(ma1.version, "0.5.1");
-        assert_eq!(ma1.qualifier, "");
-
-        let ma2 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1".to_string());
-        assert_eq!(ma2.group, "io.github.astonbitecode");
-        assert_eq!(ma2.id, "j4rs");
-        assert_eq!(ma2.version, "0.5.1");
-        assert_eq!(ma2.qualifier, "");
-
-        let ma3 = MavenArtifact::from(&vec!["io.github.astonbitecode", "j4rs", "0.5.1"]);
-        assert_eq!(ma3.group, "io.github.astonbitecode");
-        assert_eq!(ma3.id, "j4rs");
-        assert_eq!(ma3.version, "0.5.1");
-        assert_eq!(ma3.qualifier, "");
     }
 
     #[test]

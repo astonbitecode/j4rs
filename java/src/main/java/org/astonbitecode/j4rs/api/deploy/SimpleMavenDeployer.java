@@ -45,7 +45,7 @@ public class SimpleMavenDeployer {
         new File(deployTarget).mkdirs();
     }
 
-    public void deploy(String groupId, String artifactId, String version, String qualifier) throws MalformedURLException, IOException {
+    public void deploy(String groupId, String artifactId, String version, String qualifier) throws IOException {
         String jarName = generateArtifactName(artifactId, version, qualifier);
         String urlString = generateUrlTagret(groupId, artifactId, version, jarName);
         boolean searchRemoteRepo = true;
