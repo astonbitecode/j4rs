@@ -36,3 +36,10 @@ fs_extra = "1.1"
 dirs = "2.0"
 java-locator = "0.1"
 sha2 = "0.8"
+
+[dev-dependencies]
+criterion = "0.2"
+
+[[bench]]
+name = "j4rs_benchmark"
+harness = false
