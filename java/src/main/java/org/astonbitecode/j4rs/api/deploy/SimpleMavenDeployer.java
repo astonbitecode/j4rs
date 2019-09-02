@@ -38,6 +38,10 @@ public class SimpleMavenDeployer {
         this(MAVEN_CENTRAL, true, deployTarget);
     }
 
+    public SimpleMavenDeployer(String repoBase, String deployTarget) {
+        this(repoBase, true, deployTarget);
+    }
+
     public SimpleMavenDeployer(String repoBase, boolean checkLocalCache, String deployTarget) {
         this.repoBase = repoBase;
         this.checkLocalCache = checkLocalCache;

@@ -39,6 +39,8 @@ pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
 pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
 pub use self::provisioning::MavenArtifact as MavenArtifact;
+pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
+pub use self::provisioning::MavenSettings as MavenSettings;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
@@ -85,7 +87,7 @@ mod lib_unit_tests {
     use fs_extra::remove_items;
 
     use crate::provisioning::JavaArtifact;
-    use crate::LocalJarArtifact;
+    use crate::{LocalJarArtifact, MavenSettings, MavenArtifactRepo};
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::utils::jassets_path;
@@ -420,6 +422,20 @@ mod lib_unit_tests {
         let _ = remove_items(&vec![to_remove]);
 
         assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
+    }
+
+    #[test]
+    fn deploy_maven_artifact_from_more_artifactories() {
+        let jvm: Jvm = JvmBuilder::new()
+            .with_maven_settings(MavenSettings::new(vec![
+                MavenArtifactRepo::from("myrepo1::https://my.repo.io/artifacts"),
+                MavenArtifactRepo::from("myrepo2::https://my.other.repo.io/artifacts")])
+            )
+            .build()
+            .unwrap();
+        assert!(jvm.deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
+        let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
+        let _ = remove_items(&vec![to_remove]);
     }
 
     #[test]

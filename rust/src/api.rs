@@ -54,10 +54,11 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
 
-use crate::api_tweaks as tweaks;
+use crate::{api_tweaks as tweaks, MavenSettings};
 use crate::errors;
 use crate::errors::J4RsError;
-use crate::provisioning::{JavaArtifact, LocalJarArtifact, MavenArtifact};
+use crate::provisioning::{get_maven_settings, JavaArtifact, LocalJarArtifact, MavenArtifact};
+use crate::provisioning;
 use crate::utils;
 
 use super::logger::{debug, error, info, warn};
@@ -995,18 +996,27 @@ impl Jvm {
     pub fn deploy_artifact<T: Any + JavaArtifact>(&self, artifact: &T) -> errors::Result<()> {
         let artifact = artifact as &dyn Any;
         if let Some(maven_artifact) = artifact.downcast_ref::<MavenArtifact>() {
-            let instance = self.create_instance(
-                "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
-                &vec![InvocationArg::from(&maven_artifact.base)])?;
+            for repo in get_maven_settings().repos.into_iter() {
+                let instance = self.create_instance(
+                    "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
+                    &vec![
+                        InvocationArg::from(repo.uri),
+                        InvocationArg::from(&maven_artifact.base)])?;
 
-            let _ = self.invoke(
-                &instance,
-                "deploy",
-                &vec![
-                    InvocationArg::from(&maven_artifact.group),
-                    InvocationArg::from(&maven_artifact.id),
-                    InvocationArg::from(&maven_artifact.version),
-                    InvocationArg::from(&maven_artifact.qualifier)])?;
+                let res = self.invoke(
+                    &instance,
+                    "deploy",
+                    &vec![
+                        InvocationArg::from(&maven_artifact.group),
+                        InvocationArg::from(&maven_artifact.id),
+                        InvocationArg::from(&maven_artifact.version),
+                        InvocationArg::from(&maven_artifact.qualifier)]);
+
+                if res.is_ok() {
+                    break;
+                }
+            }
+
             Ok(())
         } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
             let instance = self.create_instance(
@@ -1165,6 +1175,7 @@ pub struct JvmBuilder<'a> {
     lib_name_opt: Option<String>,
     skip_setting_native_lib: bool,
     base_path: Option<String>,
+    maven_settings: MavenSettings,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1178,6 +1189,7 @@ impl<'a> JvmBuilder<'a> {
             lib_name_opt: None,
             skip_setting_native_lib: false,
             base_path: None,
+            maven_settings: MavenSettings::default(),
         }
     }
 
@@ -1246,6 +1258,12 @@ impl<'a> JvmBuilder<'a> {
     /// The jassets contains the j4rs jar and the deps the j4rs dynamic library.
     pub fn with_base_path(&'a mut self, base_path: &str) -> &'a mut JvmBuilder {
         self.base_path = Some(base_path.to_string());
+        self
+    }
+
+    /// Defines the maven settings to use for provisioning maven artifacts.
+    pub fn with_maven_settings(&'a mut self, maven_settings: MavenSettings) -> &'a mut JvmBuilder {
+        self.maven_settings = maven_settings;
         self
     }
 
@@ -1339,6 +1357,8 @@ impl<'a> JvmBuilder<'a> {
         } else {
             None
         };
+
+        provisioning::set_maven_settings(&self.maven_settings);
 
         Jvm::new(&jvm_options, lib_name_opt)
             .and_then(|mut jvm| {

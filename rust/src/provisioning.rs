@@ -12,8 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::utils;
+use std::cell::RefCell;
 use std::path::PathBuf;
+
+use crate::utils;
+
+const MAVEN_CENTRAL: &'static str = "MavenCentral::https://repo.maven.apache.org/maven2";
+
+thread_local! {
+    static MAVEN_SETTINGS: RefCell<MavenSettings> = RefCell::new(MavenSettings::default());
+}
+
+pub(crate) fn set_maven_settings(ms: &MavenSettings) {
+    MAVEN_SETTINGS.with(|maven_settings| {
+        *maven_settings.borrow_mut() = ms.clone();
+    });
+}
+
+pub(crate) fn get_maven_settings() -> MavenSettings {
+    MAVEN_SETTINGS.with(|maven_settings| {
+        let ms = maven_settings.borrow();
+        ms.clone()
+    })
+}
 
 /// Marker trait to be used for deploying artifacts.
 pub trait JavaArtifact {}
@@ -53,7 +74,7 @@ impl From<String> for LocalJarArtifact {
 
 /// Represents an Artifact that can be fetched by a remote Maven repository.
 /// It can loaded and used by j4rs by calling the `JVM::deploy_artifact` method.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MavenArtifact {
     pub(crate) base: String,
     pub(crate) group: String,
@@ -65,7 +86,6 @@ pub struct MavenArtifact {
 impl JavaArtifact for MavenArtifact {}
 
 impl From<&[&str]> for MavenArtifact {
-
     fn from(slice: &[&str]) -> MavenArtifact {
         MavenArtifact {
             base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
@@ -90,6 +110,14 @@ impl From<&Vec<&str>> for MavenArtifact {
 }
 
 impl<'a> From<&'a str> for MavenArtifact {
+    /// Convenience for creating a MavenArtifact.
+    ///
+    /// The `&str` should be formed like following:
+    ///
+    /// __group__:__id__:__version__:__qualifier__
+    ///
+    /// E.g:
+    /// _io.github.astonbitecode:j4rs:0.5.1_
     fn from(string: &'a str) -> MavenArtifact {
         let v: Vec<&str> = string.split(':').collect();
         MavenArtifact::from(v.as_slice())
@@ -108,6 +136,73 @@ impl From<String> for MavenArtifact {
     fn from(string: String) -> MavenArtifact {
         let v: Vec<&str> = string.split(':').collect();
         MavenArtifact::from(v.as_slice())
+    }
+}
+
+/// Contains Maven settings and configuration
+#[derive(Debug, Clone)]
+pub struct MavenSettings {
+    pub(crate) repos: Vec<MavenArtifactRepo>
+}
+
+impl MavenSettings {
+    /// Creates new Maven Settings by defining additional repositories to use.
+    /// The [maven central](https://repo.maven.apache.org/maven2) is always being included as a repo.
+    pub fn new(repos: Vec<MavenArtifactRepo>) -> MavenSettings {
+        let mut repos = repos;
+        repos.push(MavenArtifactRepo::from(MAVEN_CENTRAL));
+        MavenSettings { repos }
+    }
+}
+
+impl Default for MavenSettings {
+    fn default() -> Self {
+        MavenSettings::new(vec![])
+    }
+}
+
+/// A repository from which Java artifacts can be fetched.
+#[derive(Debug, Clone)]
+pub struct MavenArtifactRepo {
+    pub(crate) id: String,
+    pub(crate) uri: String,
+}
+
+impl From<&[&str]> for MavenArtifactRepo {
+    fn from(slice: &[&str]) -> MavenArtifactRepo {
+        MavenArtifactRepo {
+            id: slice.get(0).unwrap_or(&"").to_string(),
+            uri: slice.get(1).unwrap_or(&"").to_string(),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for MavenArtifactRepo {
+    /// Convenience for creating a MavenArtifactRepo.
+    ///
+    /// The `&str` should be formed like following:
+    ///
+    /// __id::uri__
+    ///
+    /// E.g:
+    /// _MyAlterRepo::https://myalterrepo.io_
+    fn from(string: &'a str) -> MavenArtifactRepo {
+        let v: Vec<&str> = string.split("::").collect();
+        MavenArtifactRepo::from(v.as_slice())
+    }
+}
+
+impl From<String> for MavenArtifactRepo {
+    /// Convenience for creating a MavenArtifactRepo.
+    ///
+    /// The `&str` should be formed like following:
+    ///
+    /// __id::uri__
+    ///
+    /// E.g:
+    /// _MyAlterRepo::https://myalterrepo.io_
+    fn from(string: String) -> MavenArtifactRepo {
+        MavenArtifactRepo::from(string.as_str())
     }
 }
 
@@ -136,4 +231,10 @@ mod provisioning_unit_tests {
         assert_eq!(ma3.qualifier, "");
     }
 
+    #[test]
+    fn maven_artifact_repo_from() {
+        let mar = MavenArtifactRepo::from("myrepo::https://myrepo.io");
+        assert_eq!(mar.id, "myrepo");
+        assert_eq!(mar.uri, "https://myrepo.io");
+    }
 }
