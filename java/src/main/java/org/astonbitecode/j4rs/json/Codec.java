@@ -14,19 +14,15 @@
  */
 package org.astonbitecode.j4rs.json;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.astonbitecode.j4rs.errors.JsonCodecException;
+import org.astonbitecode.j4rs.utils.Utils;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class Codec {
     private static final String RUST_FIELD = "Rust";
@@ -39,7 +35,7 @@ public class Codec {
 
     @SuppressWarnings("unchecked")
     public <T> T decode(String json, String className) throws ClassNotFoundException, IOException {
-        Class<T> clazz = (Class<T>) Class.forName(className);
+        Class<T> clazz = (Class<T>) Utils.forNameEnhanced(className);
         T obj = mapper.readValue(json, clazz);
         return obj;
     }

@@ -1404,6 +1404,29 @@ impl InvocationArg {
         InvocationArg::from((json.as_ref(), class_name))
     }
 
+    fn make_primitive(&mut self) -> errors::Result<()> {
+        match utils::primitive_of(self) {
+            Some(primitive_repr) => {
+                match self {
+                    &mut InvocationArg::Java { instance: _, ref mut class_name, arg_from: _ } => *class_name = primitive_repr,
+                    &mut InvocationArg::Rust { json: _, ref mut class_name, arg_from: _ } => *class_name = primitive_repr,
+                };
+                Ok(())
+            }
+            None => Err(errors::J4RsError::JavaError(format!("Cannot transform to primitive: {}", utils::get_class_name(&self))))
+        }
+    }
+
+    /// Consumes this InvocationArg and transforms it to an InvocationArg that contains a Java primitive, leveraging Java's autoboxing.
+    ///
+    /// This action can be done by calling `Jvm::cast` of Instances as well (e.g.: jvm.cast(&instance, "int"))
+    /// but calling `into_primitive` is faster, as it does not involve JNI calls.
+    pub fn into_primitive(self) -> errors::Result<InvocationArg> {
+        let mut ia = self;
+        ia.make_primitive()?;
+        Ok(ia)
+    }
+
     /// Creates a `jobject` from this InvocationArg.
     pub fn as_java_ptr(&self, jvm: &Jvm) -> jobject {
         match self {
@@ -2091,6 +2114,20 @@ mod api_unit_tests {
         validate_type(InvocationArg::from(&1_i64), "java.lang.Long");
         validate_type(InvocationArg::from(&0.1_f32), "java.lang.Float");
         validate_type(InvocationArg::from(&0.1_f64), "java.lang.Double");
+    }
+
+    #[test]
+    fn invocation_into_primitive() {
+        assert!(InvocationArg::from(false).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_i8).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_i16).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_32).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_i64).into_primitive().is_ok());
+        assert!(InvocationArg::from(0.1_f32).into_primitive().is_ok());
+        assert!(InvocationArg::from(0.1_f64).into_primitive().is_ok());
+        assert!(InvocationArg::from('c').into_primitive().is_ok());
+        assert!(InvocationArg::from(()).into_primitive().is_ok());
+        assert!(InvocationArg::from("string").into_primitive().is_err());
     }
 
     #[test]

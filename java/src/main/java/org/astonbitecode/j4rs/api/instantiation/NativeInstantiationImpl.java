@@ -20,6 +20,7 @@ import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InstantiationException;
+import org.astonbitecode.j4rs.utils.Utils;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -39,7 +40,7 @@ public class NativeInstantiationImpl {
 
     public static NativeInvocation createForStatic(String className) {
         try {
-            Class<?> clazz = Class.forName(className);
+            Class<?> clazz = Utils.forNameEnhanced(className);
             return new JsonInvocationImpl(clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create instance of " + className, error);
@@ -60,7 +61,7 @@ public class NativeInstantiationImpl {
     }
 
     static CreatedInstance createInstance(String className, GeneratedArg[] params) throws Exception {
-        Class<?> clazz = Class.forName(className);
+        Class<?> clazz = Utils.forNameEnhanced(className);
         Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
         Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject())
@@ -71,7 +72,7 @@ public class NativeInstantiationImpl {
     }
 
     static CreatedInstance doCreateJavaArray(String className, GeneratedArg[] params) throws Exception {
-        Class<?> clazz = Class.forName(className);
+        Class<?> clazz = Utils.forNameEnhanced(className);
         Object arrayObj = Array.newInstance(clazz, params.length);
 
         Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())

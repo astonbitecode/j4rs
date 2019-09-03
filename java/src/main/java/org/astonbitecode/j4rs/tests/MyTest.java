@@ -75,6 +75,10 @@ public class MyTest extends NativeCallbackSupport {
         return result;
     }
 
+    public Integer addInts(int a, int b) {
+        return a + b;
+    }
+
     public void list(List<String> l) {
         String str = l.stream()
                 .reduce(

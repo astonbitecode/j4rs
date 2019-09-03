@@ -19,6 +19,7 @@ import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
 import org.astonbitecode.j4rs.utils.Defs;
+import org.astonbitecode.j4rs.utils.Utils;
 
 import java.util.Arrays;
 
@@ -31,7 +32,14 @@ public class InvocationArgGenerator {
                 generatedArg = new GeneratedArg(inv.getObjectClass(), inv.getObject());
             } else if (invArg.getArgFrom().equals(Defs.RUST)) {
                 ObjectValue objValue = new JsonValueImpl(invArg.getJson(), invArg.getClassName());
-                generatedArg = new GeneratedArg(objValue.getObject().getClass(), objValue.getObject());
+                try {
+                    // If the invArg is an array, use its type class. In other cases, use the forNameEnhanced to retrieve its class.
+                    generatedArg = invArg.getClassName().equals(InvocationArg.CONTENTS_ARRAY) ?
+                            new GeneratedArg(objValue.getObjectClass(), objValue.getObject()) :
+                            new GeneratedArg(Utils.forNameEnhanced(invArg.getClassName()), objValue.getObject());
+                } catch (ClassNotFoundException cnfe) {
+                    throw new InvalidArgumentException("Cannot parse argument generated from " + invArg.getArgFrom(), cnfe);
+                }
             } else {
                 throw new InvalidArgumentException("Cannot parse argument generated from " + invArg.getArgFrom());
             }

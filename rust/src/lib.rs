@@ -604,4 +604,22 @@ mod lib_unit_tests {
 
         assert!(size == 3);
     }
+
+    #[test]
+    fn invoke_method_with_primitive_args() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+
+        // Test the primitives in constructors.
+        // The constructor of Integer takes a primitive int as an argument.
+        let ia = InvocationArg::from(1_i32).into_primitive().unwrap();
+        let res1 = jvm.create_instance("java.lang.Integer", &[ia]);
+        assert!(res1.is_ok());
+
+        // Test the primitives in invocations.
+        let ia1 = InvocationArg::from(1_i32);
+        let ia2 = InvocationArg::from(1_i32);
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let res2 = jvm.invoke(&test_instance, "addInts", &[ia1.into_primitive().unwrap(), ia2.into_primitive().unwrap()]);
+        assert!(res2.is_ok());
+    }
 }
