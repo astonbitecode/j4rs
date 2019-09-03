@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use fs_extra::dir::get_dir_content;
 use libc::c_char;
 
-use crate::{api, errors};
+use crate::{api, errors, InvocationArg};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -126,4 +126,50 @@ fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>
         .collect();
 
     Ok(v)
+}
+
+pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
+    match get_class_name(inv_arg) {
+        "java.lang.Boolean" => Some("bool".to_string()),
+        "java.lang.Byte" => Some("byte".to_string()),
+        "java.lang.Short" => Some("short".to_string()),
+        "java.lang.Integer" => Some("int".to_string()),
+        "java.lang.Long" => Some("long".to_string()),
+        "java.lang.Float" => Some("float".to_string()),
+        "java.lang.Double" => Some("double".to_string()),
+        "java.lang.Character" => Some("char".to_string()),
+        "void" => Some("void".to_string()),
+        _ => None,
+    }
+}
+
+pub(crate) fn get_class_name(inv_arg: &InvocationArg) -> &str {
+    let class_name = match inv_arg {
+        &InvocationArg::Java { instance: _, ref class_name, arg_from: _ } => class_name,
+        &InvocationArg::Rust { json: _, ref class_name, arg_from: _ } => class_name,
+    };
+    class_name.as_ref()
+}
+
+#[cfg(test)]
+mod utils_unit_tests {
+    use super::*;
+
+    #[test]
+    fn get_class_name_test() {
+        assert!(get_class_name(&InvocationArg::from(false)) == "java.lang.Boolean");
+    }
+
+    #[test]
+    fn primitive_of_test() {
+        assert!(primitive_of(&InvocationArg::from(false)) == Some("bool".to_string()));
+        assert!(primitive_of(&InvocationArg::from(1_i8)) == Some("byte".to_string()));
+        assert!(primitive_of(&InvocationArg::from(1_i16)) == Some("short".to_string()));
+        assert!(primitive_of(&InvocationArg::from(1_32)) == Some("int".to_string()));
+        assert!(primitive_of(&InvocationArg::from(1_i64)) == Some("long".to_string()));
+        assert!(primitive_of(&InvocationArg::from(0.1_f32)) == Some("float".to_string()));
+        assert!(primitive_of(&InvocationArg::from(0.1_f64)) == Some("double".to_string()));
+        assert!(primitive_of(&InvocationArg::from('c')) == Some("char".to_string()));
+        assert!(primitive_of(&InvocationArg::from(())) == Some("void".to_string()));
+    }
 }

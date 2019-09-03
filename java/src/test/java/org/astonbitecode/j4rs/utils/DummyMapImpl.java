@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 astonbitecode
+ * Copyright 2019 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,21 +14,18 @@
  */
 package org.astonbitecode.j4rs.utils;
 
-public class ChildDummy extends Dummy implements DummyInterface {
-    public ChildDummy() {
-        super();
-    }
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
-    @Override
-    public void doSomething() {
-        System.out.println("I am doing something...");
-    }
+public class DummyMapImpl extends HashMap<String, Object> implements DummyMapInterface<String, Object> {
+  private static final long serialVersionUID = 1L;
 
-    public DummyMapInterface<String, Object> getMap() {
-        return new DummyMapImpl();
-    }
+  public DummyMapImpl() {
+    put("one", 1);
+    put("two", 2);
+  }
 
-    public <T> Class<T> invokeGeneric(T check) {
-        return (Class<T>)check.getClass();
-    }
+  public long keysLength() {
+    return keySet().stream().map(String::length).collect(Collectors.summingInt(Integer::intValue));
+  }
 }

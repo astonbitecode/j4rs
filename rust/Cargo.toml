@@ -1,6 +1,6 @@
 [package]
 name = "j4rs"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["aston <astonbitecode@gmail.com>"]
 description = "j4rs stands for 'Java for Rust' and allows effortless calls to Java code, from Rust"
 keywords = ["java", "jni"]
@@ -36,3 +36,10 @@ fs_extra = "1.1"
 dirs = "2.0"
 java-locator = "0.1"
 sha2 = "0.8"
+
+[dev-dependencies]
+criterion = "0.2"
+
+[[bench]]
+name = "j4rs_benchmark"
+harness = false

@@ -37,14 +37,17 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
-pub use self::api::LocalJarArtifact as LocalJarArtifact;
-pub use self::api::MavenArtifact as MavenArtifact;
+pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
+pub use self::provisioning::MavenArtifact as MavenArtifact;
+pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
+pub use self::provisioning::MavenSettings as MavenSettings;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
 pub(crate) mod api_tweaks;
 mod utils;
 mod logger;
+mod provisioning;
 
 pub mod errors;
 
@@ -83,8 +86,8 @@ mod lib_unit_tests {
 
     use fs_extra::remove_items;
 
-    use crate::api::JavaArtifact;
-    use crate::LocalJarArtifact;
+    use crate::provisioning::JavaArtifact;
+    use crate::{LocalJarArtifact, MavenSettings, MavenArtifactRepo};
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::utils::jassets_path;
@@ -422,6 +425,20 @@ mod lib_unit_tests {
     }
 
     #[test]
+    fn deploy_maven_artifact_from_more_artifactories() {
+        let jvm: Jvm = JvmBuilder::new()
+            .with_maven_settings(MavenSettings::new(vec![
+                MavenArtifactRepo::from("myrepo1::https://my.repo.io/artifacts"),
+                MavenArtifactRepo::from("myrepo2::https://my.other.repo.io/artifacts")])
+            )
+            .build()
+            .unwrap();
+        assert!(jvm.deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
+        let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
+        let _ = remove_items(&vec![to_remove]);
+    }
+
+    #[test]
     fn deploy_local_artifact() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         assert!(jvm.deploy_artifact(&LocalJarArtifact::from("./non_existing.jar")).is_err());
@@ -549,4 +566,60 @@ mod lib_unit_tests {
             .collect();
     }
 
+    #[test]
+    fn parent_interface_method() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let size: isize = jvm.chain(instance)
+            .invoke("getMap", &[]).unwrap()
+            .cast("java.util.Map").unwrap()
+            .invoke("size", &[]).unwrap()
+            .to_rust().unwrap();
+
+        assert!(size == 2);
+    }
+
+    #[test]
+    fn invoke_generic_method() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        // Create the MyTest instance
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        // Retrieve the annotated Map
+        let dummy_map = jvm.invoke(&instance, "getMap", &[]).unwrap();
+
+        // Put a new Map entry
+        let _ = jvm.invoke(&dummy_map, "put", &vec![InvocationArg::from("three"), InvocationArg::from(3)]).unwrap();
+
+        // Get the size of the new map and assert
+        let size: isize = jvm.chain(dummy_map)
+            .invoke("size", &[]).unwrap()
+            .to_rust().unwrap();
+
+        assert!(size == 3);
+    }
+
+    #[test]
+    fn invoke_method_with_primitive_args() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+
+        // Test the primitives in constructors.
+        // The constructor of Integer takes a primitive int as an argument.
+        let ia = InvocationArg::from(1_i32).into_primitive().unwrap();
+        let res1 = jvm.create_instance("java.lang.Integer", &[ia]);
+        assert!(res1.is_ok());
+
+        // Test the primitives in invocations.
+        let ia1 = InvocationArg::from(1_i32);
+        let ia2 = InvocationArg::from(1_i32);
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let res2 = jvm.invoke(&test_instance, "addInts", &[ia1.into_primitive().unwrap(), ia2.into_primitive().unwrap()]);
+        assert!(res2.is_ok());
+    }
 }

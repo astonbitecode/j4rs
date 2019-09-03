@@ -75,6 +75,10 @@ public class MyTest extends NativeCallbackSupport {
         return result;
     }
 
+    public Integer addInts(int a, int b) {
+        return a + b;
+    }
+
     public void list(List<String> l) {
         String str = l.stream()
                 .reduce(
@@ -97,6 +101,10 @@ public class MyTest extends NativeCallbackSupport {
         new Thread(() -> {
             doCallback("THIS IS FROM CALLBACK!");
         }).start();
+    }
+
+    public DummyMapInterface<String, Object> getMap() {
+        return new DummyMapImpl();
     }
 
 }

@@ -25,6 +25,10 @@ public class Dummy {
         this.setI(ig);
     }
 
+    public Dummy(int ig) {
+        this.setI(ig);
+    }
+
     public Integer getI() {
         return i;
     }

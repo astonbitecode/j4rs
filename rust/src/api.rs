@@ -54,9 +54,11 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
 
-use crate::api_tweaks as tweaks;
+use crate::{api_tweaks as tweaks, MavenSettings};
 use crate::errors;
 use crate::errors::J4RsError;
+use crate::provisioning::{get_maven_settings, JavaArtifact, LocalJarArtifact, MavenArtifact};
+use crate::provisioning;
 use crate::utils;
 
 use super::logger::{debug, error, info, warn};
@@ -994,18 +996,27 @@ impl Jvm {
     pub fn deploy_artifact<T: Any + JavaArtifact>(&self, artifact: &T) -> errors::Result<()> {
         let artifact = artifact as &dyn Any;
         if let Some(maven_artifact) = artifact.downcast_ref::<MavenArtifact>() {
-            let instance = self.create_instance(
-                "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
-                &vec![InvocationArg::from(&maven_artifact.base)])?;
+            for repo in get_maven_settings().repos.into_iter() {
+                let instance = self.create_instance(
+                    "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
+                    &vec![
+                        InvocationArg::from(repo.uri),
+                        InvocationArg::from(&maven_artifact.base)])?;
 
-            let _ = self.invoke(
-                &instance,
-                "deploy",
-                &vec![
-                    InvocationArg::from(&maven_artifact.group),
-                    InvocationArg::from(&maven_artifact.id),
-                    InvocationArg::from(&maven_artifact.version),
-                    InvocationArg::from(&maven_artifact.qualifier)])?;
+                let res = self.invoke(
+                    &instance,
+                    "deploy",
+                    &vec![
+                        InvocationArg::from(&maven_artifact.group),
+                        InvocationArg::from(&maven_artifact.id),
+                        InvocationArg::from(&maven_artifact.version),
+                        InvocationArg::from(&maven_artifact.qualifier)]);
+
+                if res.is_ok() {
+                    break;
+                }
+            }
+
             Ok(())
         } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
             let instance = self.create_instance(
@@ -1164,6 +1175,7 @@ pub struct JvmBuilder<'a> {
     lib_name_opt: Option<String>,
     skip_setting_native_lib: bool,
     base_path: Option<String>,
+    maven_settings: MavenSettings,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1177,6 +1189,7 @@ impl<'a> JvmBuilder<'a> {
             lib_name_opt: None,
             skip_setting_native_lib: false,
             base_path: None,
+            maven_settings: MavenSettings::default(),
         }
     }
 
@@ -1245,6 +1258,12 @@ impl<'a> JvmBuilder<'a> {
     /// The jassets contains the j4rs jar and the deps the j4rs dynamic library.
     pub fn with_base_path(&'a mut self, base_path: &str) -> &'a mut JvmBuilder {
         self.base_path = Some(base_path.to_string());
+        self
+    }
+
+    /// Defines the maven settings to use for provisioning maven artifacts.
+    pub fn with_maven_settings(&'a mut self, maven_settings: MavenSettings) -> &'a mut JvmBuilder {
+        self.maven_settings = maven_settings;
         self
     }
 
@@ -1339,6 +1358,8 @@ impl<'a> JvmBuilder<'a> {
             None
         };
 
+        provisioning::set_maven_settings(&self.maven_settings);
+
         Jvm::new(&jvm_options, lib_name_opt)
             .and_then(|mut jvm| {
                 if !self.detach_thread_on_drop {
@@ -1381,6 +1402,29 @@ impl InvocationArg {
     {
         let json = serde_json::to_string(arg).unwrap();
         InvocationArg::from((json.as_ref(), class_name))
+    }
+
+    fn make_primitive(&mut self) -> errors::Result<()> {
+        match utils::primitive_of(self) {
+            Some(primitive_repr) => {
+                match self {
+                    &mut InvocationArg::Java { instance: _, ref mut class_name, arg_from: _ } => *class_name = primitive_repr,
+                    &mut InvocationArg::Rust { json: _, ref mut class_name, arg_from: _ } => *class_name = primitive_repr,
+                };
+                Ok(())
+            }
+            None => Err(errors::J4RsError::JavaError(format!("Cannot transform to primitive: {}", utils::get_class_name(&self))))
+        }
+    }
+
+    /// Consumes this InvocationArg and transforms it to an InvocationArg that contains a Java primitive, leveraging Java's autoboxing.
+    ///
+    /// This action can be done by calling `Jvm::cast` of Instances as well (e.g.: jvm.cast(&instance, "int"))
+    /// but calling `into_primitive` is faster, as it does not involve JNI calls.
+    pub fn into_primitive(self) -> errors::Result<InvocationArg> {
+        let mut ia = self;
+        ia.make_primitive()?;
+        Ok(ia)
     }
 
     /// Creates a `jobject` from this InvocationArg.
@@ -1872,87 +1916,6 @@ impl<'a> ChainableInstance<'a> {
     }
 }
 
-/// Marker trait to be used for deploying artifacts.
-pub trait JavaArtifact {}
-
-#[derive(Debug)]
-pub struct LocalJarArtifact {
-    base: String,
-    path: String,
-}
-
-impl LocalJarArtifact {
-    pub fn new(path: &str) -> LocalJarArtifact {
-        LocalJarArtifact {
-            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
-            path: path.to_string(),
-        }
-    }
-}
-
-impl JavaArtifact for LocalJarArtifact {}
-
-impl<'a> From<&'a str> for LocalJarArtifact {
-    fn from(string: &'a str) -> LocalJarArtifact {
-        LocalJarArtifact::new(string)
-    }
-}
-
-impl From<String> for LocalJarArtifact {
-    fn from(string: String) -> LocalJarArtifact {
-        LocalJarArtifact::new(&string)
-    }
-}
-
-#[derive(Debug)]
-pub struct MavenArtifact {
-    base: String,
-    group: String,
-    id: String,
-    version: String,
-    qualifier: String,
-}
-
-impl JavaArtifact for MavenArtifact {}
-
-impl From<&[&str]> for MavenArtifact {
-    fn from(slice: &[&str]) -> MavenArtifact {
-        MavenArtifact {
-            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
-            group: slice.get(0).unwrap_or(&"").to_string(),
-            id: slice.get(1).unwrap_or(&"").to_string(),
-            version: slice.get(2).unwrap_or(&"").to_string(),
-            qualifier: slice.get(3).unwrap_or(&"").to_string(),
-        }
-    }
-}
-
-impl From<Vec<&str>> for MavenArtifact {
-    fn from(v: Vec<&str>) -> MavenArtifact {
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
-impl From<&Vec<&str>> for MavenArtifact {
-    fn from(v: &Vec<&str>) -> MavenArtifact {
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
-impl<'a> From<&'a str> for MavenArtifact {
-    fn from(string: &'a str) -> MavenArtifact {
-        let v: Vec<&str> = string.split(':').collect();
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
-impl From<String> for MavenArtifact {
-    fn from(string: String) -> MavenArtifact {
-        let v: Vec<&str> = string.split(':').collect();
-        MavenArtifact::from(v.as_slice())
-    }
-}
-
 pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
@@ -2154,24 +2117,17 @@ mod api_unit_tests {
     }
 
     #[test]
-    fn maven_artifact_from() {
-        let ma1 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1");
-        assert_eq!(ma1.group, "io.github.astonbitecode");
-        assert_eq!(ma1.id, "j4rs");
-        assert_eq!(ma1.version, "0.5.1");
-        assert_eq!(ma1.qualifier, "");
-
-        let ma2 = MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1".to_string());
-        assert_eq!(ma2.group, "io.github.astonbitecode");
-        assert_eq!(ma2.id, "j4rs");
-        assert_eq!(ma2.version, "0.5.1");
-        assert_eq!(ma2.qualifier, "");
-
-        let ma3 = MavenArtifact::from(&vec!["io.github.astonbitecode", "j4rs", "0.5.1"]);
-        assert_eq!(ma3.group, "io.github.astonbitecode");
-        assert_eq!(ma3.id, "j4rs");
-        assert_eq!(ma3.version, "0.5.1");
-        assert_eq!(ma3.qualifier, "");
+    fn invocation_into_primitive() {
+        assert!(InvocationArg::from(false).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_i8).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_i16).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_32).into_primitive().is_ok());
+        assert!(InvocationArg::from(1_i64).into_primitive().is_ok());
+        assert!(InvocationArg::from(0.1_f32).into_primitive().is_ok());
+        assert!(InvocationArg::from(0.1_f64).into_primitive().is_ok());
+        assert!(InvocationArg::from('c').into_primitive().is_ok());
+        assert!(InvocationArg::from(()).into_primitive().is_ok());
+        assert!(InvocationArg::from("string").into_primitive().is_err());
     }
 
     #[test]

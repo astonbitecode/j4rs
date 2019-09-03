@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use java_locator;
 use sha2::{Digest, Sha256};
 
-const VERSION: &'static str = "0.8.0-java7";
+const VERSION: &'static str = "0.9.0-java7";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;

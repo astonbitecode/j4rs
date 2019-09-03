@@ -17,6 +17,7 @@ package org.astonbitecode.j4rs.api;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
+import org.astonbitecode.j4rs.utils.Utils;
 
 public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     /**
@@ -83,7 +84,7 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
      */
     static <T> NativeInvocation cast(NativeInvocation from, String toClass) {
         try {
-            Class<T> clazz = (Class<T>) Class.forName(toClass);
+            Class<T> clazz = (Class<T>) Utils.forNameEnhanced(toClass);
             return new JsonInvocationImpl(clazz.cast(from.getObject()), clazz);
         } catch (Exception error) {
             throw new InvocationException("Cannot cast instance of " + from.getObject().getClass().getName() + " to " + toClass, error);

@@ -38,6 +38,10 @@ public class SimpleMavenDeployer {
         this(MAVEN_CENTRAL, true, deployTarget);
     }
 
+    public SimpleMavenDeployer(String repoBase, String deployTarget) {
+        this(repoBase, true, deployTarget);
+    }
+
     public SimpleMavenDeployer(String repoBase, boolean checkLocalCache, String deployTarget) {
         this.repoBase = repoBase;
         this.checkLocalCache = checkLocalCache;
@@ -45,7 +49,7 @@ public class SimpleMavenDeployer {
         new File(deployTarget).mkdirs();
     }
 
-    public void deploy(String groupId, String artifactId, String version, String qualifier) throws MalformedURLException, IOException {
+    public void deploy(String groupId, String artifactId, String version, String qualifier) throws IOException {
         String jarName = generateArtifactName(artifactId, version, qualifier);
         String urlString = generateUrlTagret(groupId, artifactId, version, jarName);
         boolean searchRemoteRepo = true;
