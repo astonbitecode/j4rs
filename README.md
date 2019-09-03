@@ -10,12 +10,14 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code, fr
 ## Features
 
 * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
-* Easily instantiate and invoke Java classes.
-* Java -> Rust callbacks support.
-* Java instances invocations chaining.
-* Simple Maven artifacts download and deployment.
-* Casting support.
-* Java arrays support.
+* [Easily instantiate and invoke Java classes.](#Basics)
+* [Casting support.](#Casting)
+* [Java arrays / variadic support.](#Java arrays and variadics)
+* [Java generics support.](#Java Generics)
+* [Java primitives support.](#Java primitives)
+* [Java instances invocations chaining.](#Java instances chaining)
+* [Java -> Rust callbacks support.](#Callback support)
+* [Simple Maven artifacts download and deployment.](#Using Maven artifacts)
 * Tested on Linux, Windows and Android.
 
 ## Usage
@@ -56,6 +58,102 @@ let _static_invocation_result = jvm.invoke_static(
     &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
 ).unwrap();
 
+```
+
+### Passing arguments from Rust to Java
+
+j4rs uses the `InvocationArg` enum to pass arguments to the Java world.
+
+Users can benefit of the existing `From` implementations for several basic types:
+
+```rust
+let i1 = InvocationArg::from("a str");      // Creates an arg of java.lang.String
+let my_string = "a string".to_owned();
+let i2 = InvocationArg::from(my_string);    // Creates an arg of java.lang.String
+let i3 = InvocationArg::from(true);         // Creates an arg of java.lang.Boolean
+let i4 = InvocationArg::from(1_i8);         // Creates an arg of java.lang.Byte
+let i5 = InvocationArg::from('c');          // Creates an arg of java.lang.Character
+let i6 = InvocationArg::from(1_i16);        // Creates an arg of java.lang.Short
+let i7 = InvocationArg::from(1_i64);        // Creates an arg of java.lang.Long
+let i8 = InvocationArg::from(0.1_f32);      // Creates an arg of java.lang.Float
+let i9 = InvocationArg::from(0.1_f64);      // Creates an arg of java.lang.Double
+```
+
+And for `Vec`s:
+
+```rust
+let my_vec: Vec<String> = vec![
+    "abc".to_owned(),
+    "def".to_owned(),
+    "ghi".to_owned()];
+
+let i10 = InvocationArg::from((my_vec.as_slice(), &jvm));
+```
+
+The `Instance`s returned by j4rs can be transformed to `InvocationArg`s and be used for invoking methods as well:
+
+```rust
+let one_more_string_instance = jvm.create_instance(
+    "java.lang.String",     // The Java class to create an instance for
+    &Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
+).unwrap();
+
+let i11 = InvocationArg::from(one_more_string_instance);
+```
+
+### Casting
+
+An `Instance` may be casted to some other Class:
+
+```rust
+let instantiation_args = vec![InvocationArg::from("Hi")];
+let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
+jvm.cast(&instance, "java.lang.Object").unwrap();
+```
+
+### Java arrays and variadics
+
+```rust
+// Create a Java array of Strings
+let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
+// Invoke the Arrays.asList(...) and retrieve a java.util.List<String>
+let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[InvocationArg::from(arr_instance)]).unwrap();
+```
+
+### Java Generics
+
+```rust
+// Assuming that the following map_instance is a Map<String, Integer>
+// we may invoke its put method
+jvm.invoke(&map_instance, "put", &vec![InvocationArg::from("one"), InvocationArg::from(1)]).unwrap();
+```
+
+### Java primitives
+
+Even if auto boxing and unboxing is in place, `j4rs` cannot invoke methods with _primitive_ int arguments using _Integer_ instances.
+
+For example, the following code does not work:
+
+```rust
+let ia = InvocationArg::from(1_i32);
+jvm.create_instance("java.lang.Integer", &[ia]).unwrap();
+``` 
+
+It throws an _InstantiationException_ because the constructor of `Integer` takes a primitive `int` as an argument:
+
+>Exception in thread "main" org.astonbitecode.j4rs.errors.InstantiationException: Cannot create instance of java.lang.Integer
+  	at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.instantiate(NativeInstantiationImpl.java:37)
+  Caused by: java.lang.NoSuchMethodException: java.lang.Integer.<init>(java.lang.Integer)
+  	at java.base/java.lang.Class.getConstructor0(Class.java:3349)
+  	at java.base/java.lang.Class.getConstructor(Class.java:2151)
+  	at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.createInstance(NativeInstantiationImpl.java:69)
+  	at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.instantiate(NativeInstantiationImpl.java:34)
+
+In situations like this, the `java.lang.Integer` instance should be transformed to a primitive `int` first:
+
+```rust
+let ia = InvocationArg::from(1_i32).into_primitive().unwrap();
+jvm.create_instance("java.lang.Integer", &[ia]);
 ```
 
 ### Java instances chaining
@@ -135,6 +233,38 @@ public class MyTest extends NativeCallbackToRustChannelSupport {
 }
 ```
 
+### Using Maven artifacts
+
+Since release 0.6.0 there is the possibility to download Java artifacts from the Maven repositories.
+While it is possible to define more repos, the [maven central](https://search.maven.org/) is by default and always available.
+
+For example, here is how the dropbox dependency can be downloaded and get deployed to be used by the rust code:
+
+```rust
+let dbx_artifact = MavenArtifact::from("com.dropbox.core:dropbox-core-sdk:3.0.11");
+jvm.deploy_artifact(dbx_artifact).unwrap();
+```
+
+Additional artifactories can be used as well:
+
+```rust
+let jvm: Jvm = JvmBuilder::new()
+    .with_maven_settings(MavenSettings::new(vec![
+        MavenArtifactRepo::from("myrepo1::https://my.repo.io/artifacts"),
+        MavenArtifactRepo::from("myrepo2::https://my.other.repo.io/artifacts")])
+    )
+    .build()
+    .unwrap();
+
+jvm.deploy_artifact(&MavenArtifact::from("io.my:library:1.2.3")).unwrap();
+```
+
+Maven artifacts are added automatically to the classpath and do not need to be explicitly added.
+
+A good practice is that the deployment of maven artifacts is done by build scripts, during the crate's compilation. This ensures that the classpath is properly populated during the actual Rust code execution.
+
+_Note: the deployment does not take care the transitive dependencies yet._  
+
 ### Adding jars to the classpath
 
 If we have one jar that needs to be accessed using `j4rs`, we need to add it in the classpath during the JVM creation:
@@ -146,74 +276,6 @@ let jvm: Jvm = JvmBuilder::new()
     .build()
     .unwrap();
 ```
-
-### Using Maven artifacts
-
-Since release 0.6.0 there is the possibility to download artifacts from the [maven central](https://search.maven.org/).
-For example, here is how the dropbox dependency can be downloaded and get deployed to be used by the rust code:
-
-```rust
-let dbx_artifact = MavenArtifact::from("com.dropbox.core:dropbox-core-sdk:3.0.11");
-jvm.deploy_maven(dbx_artifact).unwrap();
-```
-
-Maven artifacts are added automatically to the classpath and do not need to be added explicitly.
-
-A good practice is that the deployment of maven artifacts is done by build scripts, during the crate's compilation. This ensures that the classpath is properly populated during the actual Rust code execution.
-
-_Note: the deployment does not take care the transitive dependencies yet._  
-
-### Passing arguments from Rust to Java
-
-j4rs uses the `InvocationArg` enum to pass arguments to the Java world.
-
-Users can benefit of the existing `From` implementations for several basic types:
-
-```rust
-let i1 = InvocationArg::from("a str");      // Creates an arg of java.lang.String
-let my_string = "a string".to_owned();
-let i2 = InvocationArg::from(my_string);    // Creates an arg of java.lang.String
-let i3 = InvocationArg::from(true);         // Creates an arg of java.lang.Boolean
-let i4 = InvocationArg::from(1_i8);         // Creates an arg of java.lang.Byte
-let i5 = InvocationArg::from('c');          // Creates an arg of java.lang.Character
-let i6 = InvocationArg::from(1_i16);        // Creates an arg of java.lang.Short
-let i7 = InvocationArg::from(1_i64);        // Creates an arg of java.lang.Long
-let i8 = InvocationArg::from(0.1_f32);      // Creates an arg of java.lang.Float
-let i9 = InvocationArg::from(0.1_f64);      // Creates an arg of java.lang.Double
-```
-
-And for `Vec`s:
-
-```rust
-let my_vec: Vec<String> = vec![
-    "abc".to_owned(),
-    "def".to_owned(),
-    "ghi".to_owned()];
-
-let i10 = InvocationArg::from((my_vec.as_slice(), &jvm));
-```
-
-The `Instance`s returned by j4rs can be transformed to `InvocationArg`s and be used for invoking methods as well:
-
-```rust
-let one_more_string_instance = jvm.create_instance(
-    "java.lang.String",     // The Java class to create an instance for
-    &Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
-).unwrap();
-
-let i11 = InvocationArg::from(one_more_string_instance);
-```
-
-### Casting
-
-An `Instance` may be casted to some other Class:
-
-```rust
-let instantiation_args = vec![InvocationArg::from("Hi")];
-let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
-jvm.cast(&instance, "java.lang.Object").unwrap();
-```
-
 
 ## j4rs Java library
 
