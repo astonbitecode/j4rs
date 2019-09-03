@@ -12,12 +12,12 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code, fr
 * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
 * [Easily instantiate and invoke Java classes.](#Basics)
 * [Casting support.](#Casting)
-* [Java arrays / variadic support.](#Java arrays and variadics)
-* [Java generics support.](#Java Generics)
-* [Java primitives support.](#Java primitives)
-* [Java instances invocations chaining.](#Java instances chaining)
-* [Java -> Rust callbacks support.](#Callback support)
-* [Simple Maven artifacts download and deployment.](#Using Maven artifacts)
+* [Java arrays / variadic support.](#Java-arrays-and-variadics)
+* [Java generics support.](#Java-Generics)
+* [Java primitives support.](#Java-primitives)
+* [Java instances invocations chaining.](#Java-instances-chaining)
+* [Java -> Rust callbacks support.](#Callback-support)
+* [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
 * Tested on Linux, Windows and Android.
 
 ## Usage
