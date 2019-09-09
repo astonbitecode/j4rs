@@ -83,6 +83,7 @@ mod lib_unit_tests {
     use std::{thread, time};
     use std::path::MAIN_SEPARATOR;
     use std::thread::JoinHandle;
+    use std::convert::TryFrom;
 
     use fs_extra::remove_items;
 
@@ -323,7 +324,7 @@ mod lib_unit_tests {
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let invocation_args = vec![InvocationArg::from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm))];
+                let invocation_args = vec![InvocationArg::try_from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm)).unwrap()];
                 let _ = jvm.invoke(&i, "list", &invocation_args);
             }
             Err(error) => {

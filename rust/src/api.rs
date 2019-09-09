@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
+use std::convert::TryFrom;
 
 use fs_extra::dir::get_dir_content;
 use jni_sys::{
@@ -1545,14 +1546,14 @@ impl From<String> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [String], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [String], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [String], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [String], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1562,14 +1563,14 @@ impl<'a> From<&'a str> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [&'a str], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [&'a str], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [&'a str], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [&'a str], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1579,14 +1580,14 @@ impl From<bool> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [bool], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [bool], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [bool], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [bool], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1596,14 +1597,14 @@ impl From<i8> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [i8], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [i8], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [i8], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [i8], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1613,14 +1614,14 @@ impl From<char> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [char], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [char], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [char], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [char], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1630,14 +1631,14 @@ impl From<i16> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [i16], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [i16], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [i16], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [i16], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1647,14 +1648,14 @@ impl From<i32> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [i32], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [i32], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [i32], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [i32], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1664,14 +1665,14 @@ impl From<i64> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [i64], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [i64], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [i64], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [i64], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1681,14 +1682,14 @@ impl From<f32> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [f32], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [f32], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [f32], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [f32], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
@@ -1698,25 +1699,25 @@ impl From<f64> for InvocationArg {
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b> From<(&'a [f64], &'b Jvm)> for InvocationArg {
-    fn from(vec_t_tup: (&'a [f64], &'b Jvm)) -> InvocationArg {
+impl<'a, 'b> TryFrom<(&'a [f64], &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [f64], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
-// TODO: Use try_from when it becomes stable (Use ParseError in case of error)
-impl<'a, 'b, T> From<(&'a [T], &'a str, &'b Jvm)> for InvocationArg where T: Serialize {
-    fn from(vec_t_tup: (&'a [T], &'a str, &'b Jvm)) -> InvocationArg {
+impl<'a, 'b, T> TryFrom<(&'a [T], &'a str, &'b Jvm)> for InvocationArg where T: Serialize {
+    type Error = errors::J4RsError;
+    fn try_from(vec_t_tup: (&'a [T], &'a str, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, elements_class_name, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::new(elem, elements_class_name)).collect();
         let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        InvocationArg::from(res.unwrap())
+        Ok(InvocationArg::from(res?))
     }
 }
 
