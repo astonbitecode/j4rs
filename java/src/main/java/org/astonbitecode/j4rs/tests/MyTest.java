@@ -19,6 +19,7 @@ import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class MyTest extends NativeCallbackSupport {
     private String string;
@@ -62,6 +63,10 @@ public class MyTest extends NativeCallbackSupport {
                         }
                 );
         return str;
+    }
+
+    public List<Integer> getNumbersUntil(Integer until) {
+        return IntStream.range(0, until).boxed().collect(Collectors.toList());
     }
 
     public Integer addInts(Integer... args) {

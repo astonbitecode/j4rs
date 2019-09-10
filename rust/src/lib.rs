@@ -37,11 +37,11 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
+pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
 pub use self::provisioning::MavenArtifact as MavenArtifact;
 pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
 pub use self::provisioning::MavenSettings as MavenSettings;
-pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 
 mod api;
 pub(crate) mod api_tweaks;
@@ -81,14 +81,14 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
+    use std::convert::TryFrom;
     use std::path::MAIN_SEPARATOR;
     use std::thread::JoinHandle;
-    use std::convert::TryFrom;
 
     use fs_extra::remove_items;
 
+    use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings};
     use crate::provisioning::JavaArtifact;
-    use crate::{LocalJarArtifact, MavenSettings, MavenArtifactRepo};
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::utils::jassets_path;
@@ -622,5 +622,14 @@ mod lib_unit_tests {
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
         let res2 = jvm.invoke(&test_instance, "addInts", &[ia1.into_primitive().unwrap(), ia2.into_primitive().unwrap()]);
         assert!(res2.is_ok());
+    }
+
+    #[test]
+    fn to_tust_returns_list() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(10_i32)]).unwrap();
+        let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
+        assert!(vec.len() == 10)
     }
 }
