@@ -18,19 +18,15 @@ import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
-import org.astonbitecode.j4rs.utils.Defs;
 import org.astonbitecode.j4rs.utils.Utils;
 
 import java.util.Arrays;
 
 public class InvocationArgGenerator {
-    public GeneratedArg[] generateArgObjects(InvocationArg[] args) throws Exception {
+    public GeneratedArg[] generateArgObjects(InvocationArg[] args) {
         GeneratedArg[] generatedArgArr = Arrays.stream(args).map(invArg -> {
             GeneratedArg generatedArg;
-            if (invArg.getArgFrom().equals(Defs.JAVA)) {
-                NativeInvocation inv = invArg.getNativeInvocation();
-                generatedArg = new GeneratedArg(inv.getObjectClass(), inv.getObject());
-            } else if (invArg.getArgFrom().equals(Defs.RUST)) {
+            if (invArg.isSerialized()) {
                 ObjectValue objValue = new JsonValueImpl(invArg.getJson(), invArg.getClassName());
                 try {
                     // If the invArg is an array, use its type class. In other cases, use the forNameEnhanced to retrieve its class.
@@ -38,10 +34,11 @@ public class InvocationArgGenerator {
                             new GeneratedArg(objValue.getObjectClass(), objValue.getObject()) :
                             new GeneratedArg(Utils.forNameEnhanced(invArg.getClassName()), objValue.getObject());
                 } catch (ClassNotFoundException cnfe) {
-                    throw new InvalidArgumentException("Cannot parse argument generated from " + invArg.getArgFrom(), cnfe);
+                    throw new InvalidArgumentException("Cannot parse InvocationArgument ", cnfe);
                 }
             } else {
-                throw new InvalidArgumentException("Cannot parse argument generated from " + invArg.getArgFrom());
+                NativeInvocation inv = invArg.getNativeInvocation();
+                generatedArg = new GeneratedArg(inv.getObjectClass(), inv.getObject());
             }
             return generatedArg;
         }).toArray(i -> new GeneratedArg[i]);
@@ -52,6 +49,5 @@ public class InvocationArgGenerator {
     public static GeneratedArg argOf(Class clazz, Object object) {
         return new GeneratedArg(clazz, object);
     }
-
 
 }

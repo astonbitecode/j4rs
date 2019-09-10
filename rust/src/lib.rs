@@ -45,11 +45,11 @@ pub use self::provisioning::MavenSettings as MavenSettings;
 
 mod api;
 pub(crate) mod api_tweaks;
-mod utils;
+pub mod errors;
+mod jni_utils;
 mod logger;
 mod provisioning;
-
-pub mod errors;
+mod utils;
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
@@ -631,5 +631,16 @@ mod lib_unit_tests {
         let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(10_i32)]).unwrap();
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.len() == 10)
+    }
+
+    #[test]
+    #[ignore]
+    fn new2_inv_arg() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let ia = InvocationArg::new_2(&"astring".to_string(), "java.lang.String", &jvm).unwrap();
+        let ret_instance = jvm.invoke(&test_instance, "getMyWithArgs", &[ia]).unwrap();
+        let ret: String = jvm.to_rust(ret_instance).unwrap();
+        println!("---------------{}", ret);
     }
 }

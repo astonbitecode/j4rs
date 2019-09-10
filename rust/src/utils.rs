@@ -145,8 +145,9 @@ pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
 
 pub(crate) fn get_class_name(inv_arg: &InvocationArg) -> &str {
     let class_name = match inv_arg {
-        &InvocationArg::Java { instance: _, ref class_name, arg_from: _ } => class_name,
-        &InvocationArg::Rust { json: _, ref class_name, arg_from: _ } => class_name,
+        &InvocationArg::Java { instance: _, ref class_name, serialized: _ } => class_name,
+        &InvocationArg::Rust { json: _, ref class_name, serialized: _ } => class_name,
+        &InvocationArg::RustBasic { instance: _, ref class_name, serialized: _ } => class_name,
     };
     class_name.as_ref()
 }

@@ -38,12 +38,11 @@ public class InvocationArgTest {
     @Test
     public void getArgFrom() {
         InvocationArg ia1 = new InvocationArg(CLASS_NAME, "{\"a\":\"b\"}");
-        assert ia1.getArgFrom().equals(Defs.RUST);
+        assert ia1.isSerialized();
         assert ia1.getClassName().equals(CLASS_NAME);
 
         InvocationArg ia2 = new InvocationArg(CLASS_NAME, new JsonInvocationImpl(new Dummy(), Dummy.class));
-        assert ia2.getArgFrom().equals(Defs.JAVA);
+        assert !ia2.isSerialized();
         assert ia2.getClassName().equals(CLASS_NAME);
-
     }
 }
