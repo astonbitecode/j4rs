@@ -59,8 +59,6 @@ public class InvocationArg {
     }
 
     public InvocationArg(String className, Object object) throws ClassNotFoundException {
-        System.out.println("object: " + object);
-        System.out.println("actualclass: " + object.getClass());
         this.nativeInvocation = new JsonInvocationImpl(object, Utils.forNameEnhanced(className));
         this.className = className;
         this.json = null;

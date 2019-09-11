@@ -39,22 +39,27 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jv
             }
         };
 
+        let class_name_jstring = (jvm.jni_new_string_utf)(
+            jvm.jni_env,
+            utils::to_java_string(class_name.as_ref()),
+        );
+        let json_jstring = (jvm.jni_new_string_utf)(
+            jvm.jni_env,
+            utils::to_java_string(json.as_ref()),
+        );
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
             jvm.invocation_arg_class,
             inv_arg_rust_constructor_method,
             // First argument: class_name
-            (jvm.jni_new_string_utf)(
-                jvm.jni_env,
-                utils::to_java_string(class_name.as_ref()),
-            ),
+            class_name_jstring,
             // Second argument: json
-            (jvm.jni_new_string_utf)(
-                jvm.jni_env,
-                utils::to_java_string(json.as_ref()),
-            ),
+            json_jstring,
         );
+
+        delete_java_local_ref(jvm.jni_env, class_name_jstring);
+        delete_java_local_ref(jvm.jni_env, json_jstring);
 
         inv_arg_instance
     }
@@ -79,22 +84,26 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
             }
             &InvocationArg::RustBasic { ref class_name, ref instance, .. } => {
                 debug(&format!("Creating jobject from Rust for class {}", class_name));
-                (class_name.to_owned(), instance)
+                (class_name.to_owned(), instance.jinstance)
             }
         };
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
+        let class_name_jstring = (jvm.jni_new_string_utf)(
+            jvm.jni_env,
+            utils::to_java_string(class_name.as_ref()),
+        );
+
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
             jvm.invocation_arg_class,
             inv_arg_java_constructor_method,
             // First argument: class_name
-            (jvm.jni_new_string_utf)(
-                jvm.jni_env,
-                utils::to_java_string(class_name.as_ref()),
-            ),
+            class_name_jstring,
             // Second argument: NativeInvocation instance
             jinstance,
         );
+
+        delete_java_local_ref(jvm.jni_env, class_name_jstring);
 
         inv_arg_instance
     }
@@ -120,6 +129,11 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) ->
 
         debug(&format!("Calling the InvocationArg constructor for class '{}'", class_name));
 
+        let class_name_jstring = (jvm.jni_new_string_utf)(
+            jvm.jni_env,
+            utils::to_java_string(class_name.as_ref()),
+        );
+
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
             jvm.invocation_arg_class,
@@ -132,6 +146,8 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) ->
             // Second argument: NativeInvocation instance
             jinstance,
         );
+
+        delete_java_local_ref(jvm.jni_env, class_name_jstring);
 
         inv_arg_instance
     }
@@ -252,7 +268,7 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     }
 }
 
-pub(crate) fn jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result<jobject> {
+pub(crate) fn global_jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
         let obj = (jvm.jni_new_string_utf)(
             jvm.jni_env,

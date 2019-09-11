@@ -1423,14 +1423,13 @@ impl InvocationArg {
     {
         let arg_any = arg as &dyn Any;
         if let Some(string) = arg_any.downcast_ref::<String>() {
-            println!("---------------{}", string);
             Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::jobject_from_str("this is a string", jvm)?, class_name),
+                instance: Instance::new(jni_utils::global_jobject_from_str(string, jvm)?, class_name),
                 class_name: class_name.to_string(),
                 serialized: false,
             })
         } else {
-            let json = serde_json::to_string(arg).unwrap();
+            let json = serde_json::to_string(arg)?;
             Ok(InvocationArg::Rust {
                 json: json,
                 class_name: class_name.to_string(),

@@ -16,7 +16,6 @@ package org.astonbitecode.j4rs.api.dtos;
 
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
-import org.astonbitecode.j4rs.utils.Defs;
 import org.astonbitecode.j4rs.utils.Dummy;
 import org.junit.Test;
 
