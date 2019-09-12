@@ -288,6 +288,28 @@ mod lib_unit_tests {
 
     //    #[test]
 //    #[ignore]
+    fn _memory_leaks_invoke_instances_w_string_invarg() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+            Ok(instance) => {
+                for i in 0..100000000 {
+                    if i % 100000 == 0 {
+                        println!("{}", i);
+                    }
+                    jvm.invoke(&instance, "getMyWithArgs", &[InvocationArg::from("astring")]).unwrap();
+                }
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
+    //    #[test]
+//    #[ignore]
     fn _memory_leaks_create_instances_in_different_threads() {
         for i in 0..100000000 {
             thread::spawn(move || {

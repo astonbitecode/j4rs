@@ -15,13 +15,13 @@
 use std::{fs, mem};
 use std::any::Any;
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::ops::Drop;
 use std::os::raw::c_void;
 use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
-use std::convert::TryFrom;
 
 use fs_extra::dir::get_dir_content;
 use jni_sys::{
@@ -189,6 +189,27 @@ pub struct Jvm {
     native_invocation_class: jclass,
     /// The Java class for the `InvocationArg`.
     invocation_arg_class: jclass,
+    /// The invoke method
+    invoke_method: jmethodID,
+    /// The invoke static method
+    invoke_static_method: jmethodID,
+    // The invoke to channel method
+    invoke_to_channel_method: jmethodID,
+    // The init callback channel method
+    init_callback_channel_method: jmethodID,
+    /// The field method
+    field_method: jmethodID,
+    class_to_invoke_clone_and_cast: jclass,
+    /// The clone method
+    clone_static_method: jmethodID,
+    /// The cast method
+    cast_static_method: jmethodID,
+    /// The get json method
+    get_json_method: jmethodID,
+    /// The invocation argument constructor method for objects created by Java
+    inv_arg_java_constructor_method: jmethodID,
+    /// The invocation argument constructor method for objects created by Rust
+    inv_arg_rust_constructor_method: jmethodID,
     detach_thread_on_drop: bool,
 }
 
@@ -368,6 +389,122 @@ impl Jvm {
                         INVO_IFACE_NAME,
                     );
 
+                    // The invoke method
+                    let invoke_method_signature = format!(
+                        "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                        INVO_IFACE_NAME);
+                    // Get the method ID for the `NativeInvocation.invoke`
+                    let invoke_method = (gmid)(
+                        jni_environment,
+                        native_invocation_class,
+                        utils::to_java_string("invoke"),
+                        utils::to_java_string(invoke_method_signature.as_ref()),
+                    );
+
+                    // The invokeStatic method
+                    let invoke_static_method_signature = format!(
+                        "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                        INVO_IFACE_NAME);
+                    // Get the method ID for the `NativeInvocation.invokeStatic`
+                    let invoke_static_method = (gmid)(
+                        jni_environment,
+                        native_invocation_class,
+                        utils::to_java_string("invokeStatic"),
+                        utils::to_java_string(invoke_static_method_signature.as_ref()),
+                    );
+
+                    // The invoke to channel method
+                    let invoke_to_channel_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
+                    // Get the method ID for the `NativeInvocation.invokeToChannel`
+                    let invoke_to_channel_method = (gmid)(
+                        jni_environment,
+                        native_invocation_class,
+                        utils::to_java_string("invokeToChannel"),
+                        utils::to_java_string(invoke_to_channel_method_signature),
+                    );
+
+                    // The init callback channel method
+                    let init_callback_channel_method_signature = "(J)V";
+                    // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
+                    let init_callback_channel_method = (gmid)(
+                        jni_environment,
+                        native_invocation_class,
+                        utils::to_java_string("initializeCallbackChannel"),
+                        utils::to_java_string(init_callback_channel_method_signature),
+                    );
+
+                    // The field method
+                    let field_method_signature = format!(
+                        "(Ljava/lang/String;)L{};",
+                        INVO_IFACE_NAME);
+                    // Get the method ID for the `NativeInvocation.field`
+                    let field_method = (gmid)(
+                        jni_environment,
+                        native_invocation_class,
+                        utils::to_java_string("field"),
+                        utils::to_java_string(field_method_signature.as_ref()),
+                    );
+
+                    // The clone method
+                    let clone_method_signature = format!(
+                        "(L{};)L{};",
+                        INVO_IFACE_NAME,
+                        INVO_IFACE_NAME);
+
+                    // The class to invoke the cloneInstance into is not the same in Android target os.
+                    // The native_invocation_base_class is checked first because of Java7 compatibility issues in Android.
+                    // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
+                    // and there is a base class created for this reason.
+                    let class_to_invoke_clone_and_cast = optional_class.unwrap_or(native_invocation_class);
+
+                    // Get the method ID for the `NativeInvocation.clone`
+                    let clone_static_method = (gsmid)(
+                        jni_environment,
+                        class_to_invoke_clone_and_cast,
+                        utils::to_java_string("cloneInstance"),
+                        utils::to_java_string(clone_method_signature.as_ref()),
+                    );
+
+                    // The cast method
+                    let cast_method_signature = format!(
+                        "(L{};Ljava/lang/String;)L{};",
+                        INVO_IFACE_NAME,
+                        INVO_IFACE_NAME);
+
+                    // Get the method ID for the `NativeInvocation.cast`
+                    let cast_static_method = (gsmid)(
+                        jni_environment,
+                        class_to_invoke_clone_and_cast,
+                        utils::to_java_string("cast"),
+                        utils::to_java_string(cast_method_signature.as_ref()),
+                    );
+
+                    // The getJson method
+                    let get_json_method_signature = "()Ljava/lang/String;";
+
+                    // Get the method ID for the `NativeInvocation.getJson`
+                    let get_json_method = (gmid)(
+                        jni_environment,
+                        native_invocation_class,
+                        utils::to_java_string("getJson"),
+                        utils::to_java_string(get_json_method_signature.as_ref()),
+                    );
+
+                    // The constructor of `InvocationArg` for Java created args
+                    let inv_arg_java_constructor_method_signature = format!("(Ljava/lang/String;L{};)V", INVO_IFACE_NAME);
+                    let inv_arg_java_constructor_method = (gmid)(
+                        jni_environment,
+                        invocation_arg_class,
+                        utils::to_java_string("<init>"),
+                        utils::to_java_string(&inv_arg_java_constructor_method_signature));
+
+                    // The constructor of `InvocationArg` for Rust created args
+                    let inv_arg_rust_constructor_method = (gmid)(
+                        jni_environment,
+                        invocation_arg_class,
+                        utils::to_java_string("<init>"),
+                        utils::to_java_string("(Ljava/lang/String;Ljava/lang/String;)V"));
+
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);
                         (exclear)(jni_environment);
@@ -399,6 +536,17 @@ impl Jvm {
                             native_invocation_base_class: optional_class,
                             native_invocation_class: native_invocation_class,
                             invocation_arg_class: invocation_arg_class,
+                            invoke_method: invoke_method,
+                            invoke_static_method: invoke_static_method,
+                            invoke_to_channel_method: invoke_to_channel_method,
+                            init_callback_channel_method: init_callback_channel_method,
+                            field_method: field_method,
+                            class_to_invoke_clone_and_cast: class_to_invoke_clone_and_cast,
+                            clone_static_method: clone_static_method,
+                            cast_static_method: cast_static_method,
+                            get_json_method: get_json_method,
+                            inv_arg_java_constructor_method: inv_arg_java_constructor_method,
+                            inv_arg_rust_constructor_method: inv_arg_rust_constructor_method,
                             detach_thread_on_drop: true,
                         };
 
@@ -437,7 +585,7 @@ impl Jvm {
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
                 (self.jni_set_object_array_element)(
                     self.jni_env,
@@ -521,7 +669,7 @@ impl Jvm {
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
                 (self.jni_set_object_array_element)(
                     self.jni_env,
@@ -560,17 +708,6 @@ impl Jvm {
     pub fn invoke(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         debug(&format!("Invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
         unsafe {
-            let invoke_method_signature = format!(
-                "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
-                INVO_IFACE_NAME);
-            // Get the method ID for the `NativeInvocation.invoke`
-            let invoke_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("invoke"),
-                utils::to_java_string(invoke_method_signature.as_ref()),
-            );
-
             // First argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring = (self.jni_new_string_utf)(
                 self.jni_env,
@@ -587,7 +724,7 @@ impl Jvm {
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
                 (self.jni_set_object_array_element)(
                     self.jni_env,
@@ -601,7 +738,7 @@ impl Jvm {
             let native_invocation_instance = (self.jni_call_object_method)(
                 self.jni_env,
                 instance.jinstance,
-                invoke_method,
+                self.invoke_method,
                 method_name_jstring,
                 array_ptr,
             );
@@ -626,17 +763,6 @@ impl Jvm {
     pub fn field(&self, instance: &Instance, field_name: &str) -> errors::Result<Instance> {
         debug(&format!("Retrieving field {} of class {}", field_name, instance.class_name));
         unsafe {
-            let invoke_method_signature = format!(
-                "(Ljava/lang/String;)L{};",
-                INVO_IFACE_NAME);
-            // Get the method ID for the `NativeInvocation.field`
-            let field_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("field"),
-                utils::to_java_string(invoke_method_signature.as_ref()),
-            );
-
             // First argument: create a jstring to pass as argument for the field_name
             let field_name_jstring: jstring = (self.jni_new_string_utf)(
                 self.jni_env,
@@ -647,7 +773,7 @@ impl Jvm {
             let native_invocation_instance = (self.jni_call_object_method)(
                 self.jni_env,
                 instance.jinstance,
-                field_method,
+                self.field_method,
                 field_name_jstring,
             );
 
@@ -671,15 +797,6 @@ impl Jvm {
     pub fn invoke_to_channel(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<InstanceReceiver> {
         debug(&format!("Invoking method {} of class {} using {} arguments. The result of the invocation will come via an InstanceReceiver", method_name, instance.class_name, inv_args.len()));
         unsafe {
-            let invoke_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
-            // Get the method ID for the `NativeInvocation.invokeToChannel`
-            let invoke_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("invokeToChannel"),
-                utils::to_java_string(invoke_method_signature),
-            );
-
             // Create the channel
             let (sender, rx) = channel();
             let tx = Box::new(sender);
@@ -705,7 +822,7 @@ impl Jvm {
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
                 (self.jni_set_object_array_element)(
                     self.jni_env,
@@ -719,7 +836,7 @@ impl Jvm {
             let _ = (self.jni_call_void_method)(
                 self.jni_env,
                 instance.jinstance,
-                invoke_method,
+                self.invoke_to_channel_method,
                 address,
                 method_name_jstring,
                 array_ptr,
@@ -740,15 +857,6 @@ impl Jvm {
     pub fn init_callback_channel(&self, instance: &Instance) -> errors::Result<InstanceReceiver> {
         debug(&format!("Initializing callback channel"));
         unsafe {
-            let invoke_method_signature = "(J)V";
-            // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
-            let invoke_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("initializeCallbackChannel"),
-                utils::to_java_string(invoke_method_signature),
-            );
-
             // Create the channel
             let (sender, rx) = channel();
             let tx = Box::new(sender);
@@ -762,7 +870,7 @@ impl Jvm {
             let _ = (self.jni_call_void_method)(
                 self.jni_env,
                 instance.jinstance,
-                invoke_method,
+                self.init_callback_channel_method,
                 address,
             );
 
@@ -789,18 +897,6 @@ impl Jvm {
                 class_name_jstring,
             );
 
-            // The invokeStatic method signature
-            let invoke_static_method_signature = format!(
-                "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
-                INVO_IFACE_NAME);
-            // Get the method ID for the `NativeInvocation.invokeStatic`
-            let invoke_static_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("invokeStatic"),
-                utils::to_java_string(invoke_static_method_signature.as_ref()),
-            );
-
             // First argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring = (self.jni_new_string_utf)(
                 self.jni_env,
@@ -817,7 +913,7 @@ impl Jvm {
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr(self);
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
                 (self.jni_set_object_array_element)(
                     self.jni_env,
@@ -830,7 +926,7 @@ impl Jvm {
             let native_invocation_instance = (self.jni_call_object_method)(
                 self.jni_env,
                 native_invocation_instance,
-                invoke_static_method,
+                self.invoke_static_method,
                 method_name_jstring,
                 array_ptr,
             );
@@ -852,33 +948,11 @@ impl Jvm {
     /// Creates a clone of the provided Instance
     pub fn clone_instance(&self, instance: &Instance) -> errors::Result<Instance> {
         unsafe {
-            // First argument is the jobject that is inside the instance
-
-            // The clone method signature
-            let clone_method_signature = format!(
-                "(L{};)L{};",
-                INVO_IFACE_NAME,
-                INVO_IFACE_NAME);
-
-            // The class to invoke the cloneInstance into is not the same in Android target os.
-            // The native_invocation_base_class is checked first because of Java7 compatibility issues in Android.
-            // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
-            // and there is a base class created for this reason.
-            let class_to_invoke_clone_instance = self.native_invocation_base_class.unwrap_or(self.native_invocation_class);
-
-            // Get the method ID for the `NativeInvocation.clone`
-            let clone_static_method = (self.jni_get_static_method_id)(
-                self.jni_env,
-                class_to_invoke_clone_instance,
-                utils::to_java_string("cloneInstance"),
-                utils::to_java_string(clone_method_signature.as_ref()),
-            );
-
             // Call the clone method
             let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                class_to_invoke_clone_instance,
-                clone_static_method,
+                self.class_to_invoke_clone_and_cast,
+                self.clone_static_method,
                 instance.jinstance,
             );
 
@@ -898,31 +972,11 @@ impl Jvm {
                 utils::to_java_string(to_class),
             );
 
-            // The cast method signature
-            let cast_method_signature = format!(
-                "(L{};Ljava/lang/String;)L{};",
-                INVO_IFACE_NAME,
-                INVO_IFACE_NAME);
-
-            // The class to invoke the cast into is not the same in Android target os.
-            // The native_invocation_base_class is checked first because of Java7 compatibility issues in Android.
-            // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
-            // and there is a base class created for this reason.
-            let class_to_invoke_cast = self.native_invocation_base_class.unwrap_or(self.native_invocation_class);
-
-            // Get the method ID for the `NativeInvocation.cast`
-            let cast_static_method = (self.jni_get_static_method_id)(
-                self.jni_env,
-                class_to_invoke_cast,
-                utils::to_java_string("cast"),
-                utils::to_java_string(cast_method_signature.as_ref()),
-            );
-
             // Call the cast method
             let native_invocation_instance = (self.jni_call_static_object_method)(
                 self.jni_env,
-                class_to_invoke_cast,
-                cast_static_method,
+                self.class_to_invoke_clone_and_cast,
+                self.cast_static_method,
                 from_instance.jinstance,
                 to_class_jstring,
             );
@@ -941,24 +995,12 @@ impl Jvm {
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned {
         unsafe {
-            debug("to_rust called");
-            // The getJson method signature
-            let get_json_method_signature = "()Ljava/lang/String;";
-
-            // Get the method ID for the `NativeInvocation.getJson`
-            let get_json_method = (self.jni_get_method_id)(
-                self.jni_env,
-                self.native_invocation_class,
-                utils::to_java_string("getJson"),
-                utils::to_java_string(get_json_method_signature.as_ref()),
-            );
-
             debug("Invoking the getJson method");
             // Call the getJson method
             let json_instance = (self.jni_call_object_method)(
                 self.jni_env,
                 instance.jinstance,
-                get_json_method,
+                self.get_json_method,
             );
             let _ = self.do_return("")?;
             debug("Transforming jstring to rust String");
@@ -1429,22 +1471,15 @@ impl InvocationArg {
     }
 
     /// Creates a `jobject` from this InvocationArg.
-    pub fn as_java_ptr(&self, jvm: &Jvm) -> jobject {
+    pub fn as_java_ptr(&self, jvm: &Jvm) -> errors::Result<jobject> {
         match self {
             _s @ &InvocationArg::Java { .. } => self.jobject_from_java(jvm),
             _s @ &InvocationArg::Rust { .. } => self.jobject_from_rust(jvm),
         }
     }
 
-    fn jobject_from_rust(&self, jvm: &Jvm) -> jobject {
+    fn jobject_from_rust(&self, jvm: &Jvm) -> errors::Result<jobject> {
         unsafe {
-            // The constructor of `InvocationArg` for Rust created args
-            let inv_arg_rust_constructor_method = (jvm.jni_get_method_id)(
-                jvm.jni_env,
-                jvm.invocation_arg_class,
-                utils::to_java_string("<init>"),
-                utils::to_java_string("(Ljava/lang/String;Ljava/lang/String;)V"));
-
             let (class_name, json) = match self {
                 _s @ &InvocationArg::Java { .. } => panic!("Called jobject_from_rust for an InvocationArg that is created by Java. Please consider opening a bug to the developers."),
                 &InvocationArg::Rust { ref class_name, ref json, .. } => {
@@ -1453,16 +1488,18 @@ impl InvocationArg {
                 }
             };
 
+            let class_name_jstring = (jvm.jni_new_string_utf)(
+                jvm.jni_env,
+                utils::to_java_string(class_name.as_ref()),
+            );
+
             debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
             let inv_arg_instance = (jvm.jni_new_object)(
                 jvm.jni_env,
                 jvm.invocation_arg_class,
-                inv_arg_rust_constructor_method,
+                jvm.inv_arg_rust_constructor_method,
                 // First argument: class_name
-                (jvm.jni_new_string_utf)(
-                    jvm.jni_env,
-                    utils::to_java_string(class_name.as_ref()),
-                ),
+                class_name_jstring,
                 // Second argument: json
                 (jvm.jni_new_string_utf)(
                     jvm.jni_env,
@@ -1470,20 +1507,16 @@ impl InvocationArg {
                 ),
             );
 
-            inv_arg_instance
+            // Check for exceptions
+            jvm.do_return(())?;
+            delete_java_local_ref(jvm.jni_env, class_name_jstring);
+
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
         }
     }
 
-    fn jobject_from_java(&self, jvm: &Jvm) -> jobject {
+    fn jobject_from_java(&self, jvm: &Jvm) -> errors::Result<jobject> {
         unsafe {
-            let signature = format!("(Ljava/lang/String;L{};)V", INVO_IFACE_NAME);
-            // The constructor of `InvocationArg` for Java created args
-            let inv_arg_java_constructor_method = (jvm.jni_get_method_id)(
-                jvm.jni_env,
-                jvm.invocation_arg_class,
-                utils::to_java_string("<init>"),
-                utils::to_java_string(&signature));
-
             let (class_name, jinstance) = match self {
                 _s @ &InvocationArg::Rust { .. } => panic!("Called jobject_from_java for an InvocationArg that is created by Rust. Please consider opening a bug to the developers."),
                 &InvocationArg::Java { ref class_name, ref instance, .. } => {
@@ -1494,20 +1527,26 @@ impl InvocationArg {
 
             debug(&format!("Calling the InvocationArg constructor for class '{}'", class_name));
 
+            let class_name_jstring = (jvm.jni_new_string_utf)(
+                jvm.jni_env,
+                utils::to_java_string(class_name.as_ref()),
+            );
+
             let inv_arg_instance = (jvm.jni_new_object)(
                 jvm.jni_env,
                 jvm.invocation_arg_class,
-                inv_arg_java_constructor_method,
+                jvm.inv_arg_java_constructor_method,
                 // First argument: class_name
-                (jvm.jni_new_string_utf)(
-                    jvm.jni_env,
-                    utils::to_java_string(class_name.as_ref()),
-                ),
+                class_name_jstring,
                 // Second argument: NativeInvocation instance
                 jinstance,
             );
 
-            inv_arg_instance
+            // Check for exceptions
+            jvm.do_return(())?;
+            delete_java_local_ref(jvm.jni_env, class_name_jstring);
+
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
         }
     }
 }
