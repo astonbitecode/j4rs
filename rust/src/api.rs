@@ -640,10 +640,8 @@ impl Jvm {
 
             delete_java_local_ref(self.jni_env, class_name_jstring);
 
-            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
-
-            // Create and return the Instance
-            self.do_return(Instance::from(native_invocation_global_instance)?)
+            // Create and return the Instance. The Instance::from transforms the passed instance to a global one. No need to transform it here as well.
+            self.do_return(Instance::from(native_invocation_instance)?)
         }
     }
 
@@ -938,10 +936,8 @@ impl Jvm {
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
 
-            let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
-
-            // Create and return the Instance
-            self.do_return(Instance::from(native_invocation_global_instance)?)
+            // Create and return the Instance. The Instance::from transforms the passed instance to a global one. No need to transform it here as well.
+            self.do_return(Instance::from(native_invocation_instance)?)
         }
     }
 
