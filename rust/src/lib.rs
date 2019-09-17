@@ -286,8 +286,8 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-    //    #[test]
-//    #[ignore]
+        #[test]
+    #[ignore]
     fn _memory_leaks_invoke_instances_w_new_invarg() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
@@ -656,9 +656,9 @@ mod lib_unit_tests {
         assert!(vec.len() == 10)
     }
 
-    #[test]
-    #[ignore]
-    fn new2_inv_arg() {
+//    #[test]
+//    #[ignore]
+    fn _new2_inv_arg() {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
         let ia = InvocationArg::new_2(&"astring".to_string(), "java.lang.String", &jvm).unwrap();

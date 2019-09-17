@@ -15,20 +15,12 @@
 use jni_sys::{jint, JNI_TRUE, JNIEnv, jobject, jobjectRefType};
 
 use crate::{InvocationArg, Jvm};
-use crate::api::INVO_IFACE_NAME;
 use crate::errors;
 use crate::logger::{debug, error};
 use crate::utils;
 
-pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jvm: &Jvm) -> jobject {
+pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
-        // The constructor of `InvocationArg` for Rust created args
-        let inv_arg_rust_constructor_method = (jvm.jni_get_method_id)(
-            jvm.jni_env,
-            jvm.invocation_arg_class,
-            utils::to_java_string("<init>"),
-            utils::to_java_string("(Ljava/lang/String;Ljava/lang/String;)V"));
-
         let (class_name, json) = match ia {
             _s @ &InvocationArg::Java { .. } | _s @ &InvocationArg::RustBasic { .. } => {
                 panic!("Called invocation_arg_jobject_from_rust_serialized for an InvocationArg that contains an object. Please consider opening a bug to the developers.")
@@ -47,34 +39,29 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jv
             jvm.jni_env,
             utils::to_java_string(json.as_ref()),
         );
+
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
             jvm.invocation_arg_class,
-            inv_arg_rust_constructor_method,
+            jvm.inv_arg_rust_constructor_method,
             // First argument: class_name
             class_name_jstring,
             // Second argument: json
             json_jstring,
         );
 
+        // Check for exceptions
+        jvm.do_return(())?;
         delete_java_local_ref(jvm.jni_env, class_name_jstring);
         delete_java_local_ref(jvm.jni_env, json_jstring);
 
-        inv_arg_instance
+        Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
     }
 }
 
-pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &Jvm) -> jobject {
+pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
-        let signature = "(Ljava/lang/String;Ljava/lang/Object;)V";
-        // The constructor of `InvocationArg` for Rust-basic created args (Objects created with JNI)
-        let inv_arg_java_constructor_method = (jvm.jni_get_method_id)(
-            jvm.jni_env,
-            jvm.invocation_arg_class,
-            utils::to_java_string("<init>"),
-            utils::to_java_string(&signature));
-
         let (class_name, jinstance) = match ia {
             _s @ &InvocationArg::Java { .. } => {
                 panic!("Called invocation_arg_jobject_from_rust_basic for an InvocationArg that contains an object from Java. Please consider opening a bug to the developers.")
@@ -83,7 +70,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
                 panic!("Called invocation_arg_jobject_from_rust_basic for an InvocationArg that contains a serialized object. Please consider opening a bug to the developers.")
             }
             &InvocationArg::RustBasic { ref class_name, ref instance, .. } => {
-                debug(&format!("Creating jobject from Rust for class {}", class_name));
+                debug(&format!("Creating jobject from Rust basic for class {}", class_name));
                 (class_name.to_owned(), instance.jinstance)
             }
         };
@@ -96,7 +83,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
             jvm.invocation_arg_class,
-            inv_arg_java_constructor_method,
+            jvm.inv_arg_basic_rust_constructor_method,
             // First argument: class_name
             class_name_jstring,
             // Second argument: NativeInvocation instance
@@ -105,20 +92,12 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
 
         delete_java_local_ref(jvm.jni_env, class_name_jstring);
 
-        inv_arg_instance
+        Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
     }
 }
 
-pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) -> jobject {
+pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
-        let signature = format!("(Ljava/lang/String;L{};)V", INVO_IFACE_NAME);
-        // The constructor of `InvocationArg` for Java created args
-        let inv_arg_java_constructor_method = (jvm.jni_get_method_id)(
-            jvm.jni_env,
-            jvm.invocation_arg_class,
-            utils::to_java_string("<init>"),
-            utils::to_java_string(&signature));
-
         let (class_name, jinstance) = match ia {
             _s @ &InvocationArg::Rust { .. } => panic!("Called invocation_arg_jobject_from_java for an InvocationArg that is created by Rust. Please consider opening a bug to the developers."),
             &InvocationArg::Java { ref class_name, ref instance, .. } | &InvocationArg::RustBasic { ref class_name, ref instance, .. } => {
@@ -137,31 +116,29 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) ->
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
             jvm.invocation_arg_class,
-            inv_arg_java_constructor_method,
+            jvm.inv_arg_java_constructor_method,
             // First argument: class_name
-            (jvm.jni_new_string_utf)(
-                jvm.jni_env,
-                utils::to_java_string(class_name.as_ref()),
-            ),
+            class_name_jstring,
             // Second argument: NativeInvocation instance
             jinstance,
         );
 
+        // Check for exceptions
+        jvm.do_return(())?;
         delete_java_local_ref(jvm.jni_env, class_name_jstring);
 
-        inv_arg_instance
+        Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
     }
 }
 
 pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
-               (**jni_env).DeleteLocalRef,
                (**jni_env).ExceptionCheck,
                (**jni_env).ExceptionDescribe,
                (**jni_env).ExceptionClear,
                (**jni_env).GetObjectRefType) {
-            (Some(ngr), Some(dlr), Some(exc), Some(exd), Some(exclear), Some(gort)) => {
+            (Some(ngr), Some(exc), Some(exd), Some(exclear), Some(gort)) => {
                 // Create the global ref
                 let global = ngr(
                     jni_env,
@@ -169,10 +146,7 @@ pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut
                 );
                 // If local ref, delete it
                 if gort(jni_env, local_ref) as jint == jobjectRefType::JNILocalRefType as jint {
-                    dlr(
-                        jni_env,
-                        local_ref,
-                    );
+                    delete_java_local_ref(jni_env, local_ref);
                 }
                 // Exception check
                 if (exc)(jni_env) == JNI_TRUE {
@@ -183,7 +157,7 @@ pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut
                     Ok(global)
                 }
             }
-            (_, _, _, _, _, _) => {
+            (_, _, _, _, _) => {
                 Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a global ref. This may lead to memory leaks".to_string()))
             }
         }
@@ -225,8 +199,8 @@ pub(crate) fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
                (**jni_env).ExceptionCheck,
                (**jni_env).ExceptionDescribe,
                (**jni_env).ExceptionClear) {
-            (Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
-                dlr(
+            (Some(dgr), Some(exc), Some(exd), Some(exclear)) => {
+                dgr(
                     jni_env,
                     jinstance,
                 );

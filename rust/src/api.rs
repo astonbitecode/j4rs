@@ -204,9 +204,11 @@ pub struct Jvm {
     /// The get json method
     get_json_method: jmethodID,
     /// The invocation argument constructor method for objects created by Java
-    inv_arg_java_constructor_method: jmethodID,
+    pub(crate) inv_arg_java_constructor_method: jmethodID,
     /// The invocation argument constructor method for objects created by Rust
-    inv_arg_rust_constructor_method: jmethodID,
+    pub(crate) inv_arg_rust_constructor_method: jmethodID,
+    /// The invocation argument constructor method for objects of Basic type created by Rust
+    pub(crate) inv_arg_basic_rust_constructor_method: jmethodID,
     detach_thread_on_drop: bool,
 }
 
@@ -502,6 +504,14 @@ impl Jvm {
                         utils::to_java_string("<init>"),
                         utils::to_java_string("(Ljava/lang/String;Ljava/lang/String;)V"));
 
+                    // The constructor of `InvocationArg` for basic object type instances created by Rust via JNI
+                    let inv_arg_basic_rust_constructor_method_signature = "(Ljava/lang/String;Ljava/lang/Object;)V";
+                    let inv_arg_basic_rust_constructor_method = (gmid)(
+                        jni_environment,
+                        invocation_arg_class,
+                        utils::to_java_string("<init>"),
+                        utils::to_java_string(&inv_arg_basic_rust_constructor_method_signature));
+
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);
                         (exclear)(jni_environment);
@@ -544,6 +554,7 @@ impl Jvm {
                             get_json_method: get_json_method,
                             inv_arg_java_constructor_method: inv_arg_java_constructor_method,
                             inv_arg_rust_constructor_method: inv_arg_rust_constructor_method,
+                            inv_arg_basic_rust_constructor_method: inv_arg_basic_rust_constructor_method,
                             detach_thread_on_drop: true,
                         };
 
@@ -1127,7 +1138,7 @@ impl Jvm {
         ChainableInstance::new(instance, &self)
     }
 
-    fn do_return<T>(&self, to_return: T) -> errors::Result<T> {
+    pub(crate) fn do_return<T>(&self, to_return: T) -> errors::Result<T> {
         unsafe {
             if (self.jni_exception_check)(self.jni_env) == JNI_TRUE {
                 (self.jni_exception_describe)(self.jni_env);
@@ -1531,9 +1542,11 @@ impl InvocationArg {
 
     /// Creates a `jobject` from this InvocationArg.
     pub fn as_java_ptr(&self, jvm: &Jvm) -> errors::Result<jobject> {
+        match self {
             _s @ &InvocationArg::Java { .. } => jni_utils::invocation_arg_jobject_from_java(&self, jvm),
             _s @ &InvocationArg::Rust { .. } => jni_utils::invocation_arg_jobject_from_rust_serialized(&self, jvm),
             _s @ &InvocationArg::RustBasic { .. } => jni_utils::invocation_arg_jobject_from_rust_basic(&self, jvm),
+        }
     }
 }
 
@@ -1930,117 +1943,6 @@ impl<'a> ChainableInstance<'a> {
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(self) -> errors::Result<T> where T: DeserializeOwned {
         self.jvm.to_rust(self.instance)
-    }
-}
-
-pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-    unsafe {
-        match ((**jni_env).NewGlobalRef,
-               (**jni_env).ExceptionCheck,
-               (**jni_env).ExceptionDescribe,
-               (**jni_env).ExceptionClear,
-               (**jni_env).GetObjectRefType) {
-            (Some(ngr), Some(exc), Some(exd), Some(exclear), Some(gort)) => {
-                // Create the global ref
-                let global = ngr(
-                    jni_env,
-                    local_ref,
-                );
-                // If local ref, delete it
-                if gort(jni_env, local_ref) as jint == jobjectRefType::JNILocalRefType as jint {
-                    delete_java_local_ref(jni_env, local_ref);
-                }
-                // Exception check
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating global ref... Please check the logs or the console.".to_string()))
-                } else {
-                    Ok(global)
-                }
-            }
-            (_, _, _, _, _) => {
-                Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a global ref. This may lead to memory leaks".to_string()))
-            }
-        }
-    }
-}
-
-fn _create_weak_global_ref_from_global_ref(global_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-    unsafe {
-        match ((**jni_env).NewWeakGlobalRef,
-               (**jni_env).ExceptionCheck,
-               (**jni_env).ExceptionDescribe,
-               (**jni_env).ExceptionClear) {
-            (Some(nwgr), Some(exc), Some(exd), Some(exclear)) => {
-                // Create the weak global ref
-                let global = nwgr(
-                    jni_env,
-                    global_ref,
-                );
-                // Exception check
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating a weak global ref... Please check the logs or the console.".to_string()))
-                } else {
-                    Ok(global)
-                }
-            }
-            (_, _, _, _) => {
-                Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a weak global ref.".to_string()))
-            }
-        }
-    }
-}
-
-/// Deletes the java ref from the memory
-fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
-    unsafe {
-        match ((**jni_env).DeleteGlobalRef,
-               (**jni_env).ExceptionCheck,
-               (**jni_env).ExceptionDescribe,
-               (**jni_env).ExceptionClear) {
-            (Some(dgr), Some(exc), Some(exd), Some(exclear)) => {
-                dgr(
-                    jni_env,
-                    jinstance,
-                );
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    error("An Exception was thrown by Java... Please check the logs or the console.");
-                }
-            }
-            (_, _, _, _) => {
-                error("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks");
-            }
-        }
-    }
-}
-
-/// Deletes the java ref from the memory
-fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
-    unsafe {
-        match ((**jni_env).DeleteLocalRef,
-               (**jni_env).ExceptionCheck,
-               (**jni_env).ExceptionDescribe,
-               (**jni_env).ExceptionClear) {
-            (Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
-                dlr(
-                    jni_env,
-                    jinstance,
-                );
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    error("An Exception was thrown by Java... Please check the logs or the console.");
-                }
-            }
-            (_, _, _, _) => {
-                error("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks");
-            }
-        }
     }
 }
 
