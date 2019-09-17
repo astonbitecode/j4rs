@@ -582,6 +582,8 @@ impl Jvm {
                 self.invocation_arg_class,
                 ptr::null_mut(),
             );
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
@@ -593,6 +595,7 @@ impl Jvm {
                     i,
                     inv_arg_java,
                 );
+                inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the factory that instantiates a new class of `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
@@ -609,6 +612,9 @@ impl Jvm {
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
+            for inv_arg_jobject in inv_arg_jobjects {
+                delete_java_local_ref(self.jni_env, inv_arg_jobject);
+            }
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, class_name_jstring);
 
@@ -664,6 +670,8 @@ impl Jvm {
                 self.invocation_arg_class,
                 ptr::null_mut(),
             );
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
@@ -675,6 +683,7 @@ impl Jvm {
                     i,
                     inv_arg_java,
                 );
+                inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the factory that instantiates a new Java Array of `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
@@ -691,6 +700,9 @@ impl Jvm {
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
+            for inv_arg_jobject in inv_arg_jobjects {
+                delete_java_local_ref(self.jni_env, inv_arg_jobject);
+            }
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, class_name_jstring);
 
@@ -719,6 +731,8 @@ impl Jvm {
                 self.invocation_arg_class,
                 ptr::null_mut(),
             );
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
@@ -730,6 +744,7 @@ impl Jvm {
                     i,
                     inv_arg_java,
                 );
+                inv_arg_jobjects.push(inv_arg_java);
             }
 
             // Call the method of the instance
@@ -746,6 +761,9 @@ impl Jvm {
 
             let native_invocation_global_instance = create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
+            for inv_arg_jobject in inv_arg_jobjects {
+                delete_java_local_ref(self.jni_env, inv_arg_jobject);
+            }
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
 
@@ -817,6 +835,8 @@ impl Jvm {
                 self.invocation_arg_class,
                 ptr::null_mut(),
             );
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
@@ -828,6 +848,7 @@ impl Jvm {
                     i,
                     inv_arg_java,
                 );
+                inv_arg_jobjects.push(inv_arg_java);
             }
 
             // Call the method of the instance
@@ -844,6 +865,9 @@ impl Jvm {
             self.do_return(())?;
 
             // Prevent memory leaks from the created local references
+            for inv_arg_jobject in inv_arg_jobjects {
+                delete_java_local_ref(self.jni_env, inv_arg_jobject);
+            }
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
 
@@ -908,6 +932,7 @@ impl Jvm {
                 self.invocation_arg_class,
                 ptr::null_mut(),
             );
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
@@ -919,6 +944,7 @@ impl Jvm {
                     i,
                     inv_arg_java,
                 );
+                inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the instance
             let native_invocation_instance = (self.jni_call_object_method)(
@@ -933,6 +959,9 @@ impl Jvm {
             self.do_return(())?;
 
             // Prevent memory leaks from the created local references
+            for inv_arg_jobject in inv_arg_jobjects {
+                delete_java_local_ref(self.jni_env, inv_arg_jobject);
+            }
             delete_java_local_ref(self.jni_env, array_ptr);
             delete_java_local_ref(self.jni_env, method_name_jstring);
 
@@ -1488,6 +1517,10 @@ impl InvocationArg {
                 jvm.jni_env,
                 utils::to_java_string(class_name.as_ref()),
             );
+            let json_jstring = (jvm.jni_new_string_utf)(
+                jvm.jni_env,
+                utils::to_java_string(json.as_ref()),
+            );
 
             debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
             let inv_arg_instance = (jvm.jni_new_object)(
@@ -1497,15 +1530,13 @@ impl InvocationArg {
                 // First argument: class_name
                 class_name_jstring,
                 // Second argument: json
-                (jvm.jni_new_string_utf)(
-                    jvm.jni_env,
-                    utils::to_java_string(json.as_ref()),
-                ),
+                json_jstring,
             );
 
             // Check for exceptions
             jvm.do_return(())?;
             delete_java_local_ref(jvm.jni_env, class_name_jstring);
+            delete_java_local_ref(jvm.jni_env, json_jstring);
 
             Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
         }
@@ -1955,12 +1986,11 @@ impl<'a> ChainableInstance<'a> {
 pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
-               (**jni_env).DeleteLocalRef,
                (**jni_env).ExceptionCheck,
                (**jni_env).ExceptionDescribe,
                (**jni_env).ExceptionClear,
                (**jni_env).GetObjectRefType) {
-            (Some(ngr), Some(dlr), Some(exc), Some(exd), Some(exclear), Some(gort)) => {
+            (Some(ngr), Some(exc), Some(exd), Some(exclear), Some(gort)) => {
                 // Create the global ref
                 let global = ngr(
                     jni_env,
@@ -1968,10 +1998,7 @@ pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut
                 );
                 // If local ref, delete it
                 if gort(jni_env, local_ref) as jint == jobjectRefType::JNILocalRefType as jint {
-                    dlr(
-                        jni_env,
-                        local_ref,
-                    );
+                    delete_java_local_ref(jni_env, local_ref);
                 }
                 // Exception check
                 if (exc)(jni_env) == JNI_TRUE {
@@ -1982,7 +2009,7 @@ pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut
                     Ok(global)
                 }
             }
-            (_, _, _, _, _, _) => {
+            (_, _, _, _, _) => {
                 Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a global ref. This may lead to memory leaks".to_string()))
             }
         }
@@ -2024,8 +2051,8 @@ fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
                (**jni_env).ExceptionCheck,
                (**jni_env).ExceptionDescribe,
                (**jni_env).ExceptionClear) {
-            (Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
-                dlr(
+            (Some(dgr), Some(exc), Some(exd), Some(exclear)) => {
+                dgr(
                     jni_env,
                     jinstance,
                 );
