@@ -1553,6 +1553,14 @@ impl From<String> for InvocationArg {
     }
 }
 
+impl<'b> TryFrom<(String, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (String, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.String", jvm)
+    }
+}
+
 impl<'a, 'b> TryFrom<(&'a [String], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [String], &'b Jvm)) -> errors::Result<InvocationArg> {
@@ -1567,6 +1575,14 @@ impl<'a, 'b> TryFrom<(&'a [String], &'b Jvm)> for InvocationArg {
 impl<'a> From<&'a str> for InvocationArg {
     fn from(s: &str) -> InvocationArg {
         InvocationArg::new(s, "java.lang.String")
+    }
+}
+
+impl<'a, 'b> TryFrom<(&'a str, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a str, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg.to_string(), "java.lang.String", jvm)
     }
 }
 
@@ -1587,6 +1603,14 @@ impl From<bool> for InvocationArg {
     }
 }
 
+impl<'b> TryFrom<(bool, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (bool, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Boolean", jvm)
+    }
+}
+
 impl<'a, 'b> TryFrom<(&'a [bool], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [bool], &'b Jvm)) -> errors::Result<InvocationArg> {
@@ -1601,6 +1625,14 @@ impl<'a, 'b> TryFrom<(&'a [bool], &'b Jvm)> for InvocationArg {
 impl From<i8> for InvocationArg {
     fn from(b: i8) -> InvocationArg {
         InvocationArg::new(&b, "java.lang.Byte")
+    }
+}
+
+impl<'b> TryFrom<(i8, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (i8, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Byte", jvm)
     }
 }
 
@@ -1621,6 +1653,14 @@ impl From<char> for InvocationArg {
     }
 }
 
+impl<'b> TryFrom<(char, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (char, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Character", jvm)
+    }
+}
+
 impl<'a, 'b> TryFrom<(&'a [char], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [char], &'b Jvm)) -> errors::Result<InvocationArg> {
@@ -1635,6 +1675,14 @@ impl<'a, 'b> TryFrom<(&'a [char], &'b Jvm)> for InvocationArg {
 impl From<i16> for InvocationArg {
     fn from(i: i16) -> InvocationArg {
         InvocationArg::new(&i, "java.lang.Short")
+    }
+}
+
+impl<'b> TryFrom<(i16, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (i16, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Short", jvm)
     }
 }
 
@@ -1655,6 +1703,14 @@ impl From<i32> for InvocationArg {
     }
 }
 
+impl<'b> TryFrom<(i32, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (i32, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Integer", jvm)
+    }
+}
+
 impl<'a, 'b> TryFrom<(&'a [i32], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [i32], &'b Jvm)) -> errors::Result<InvocationArg> {
@@ -1669,6 +1725,14 @@ impl<'a, 'b> TryFrom<(&'a [i32], &'b Jvm)> for InvocationArg {
 impl From<i64> for InvocationArg {
     fn from(l: i64) -> InvocationArg {
         InvocationArg::new(&l, "java.lang.Long")
+    }
+}
+
+impl<'b> TryFrom<(i64, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (i64, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Long", jvm)
     }
 }
 
@@ -1689,6 +1753,14 @@ impl From<f32> for InvocationArg {
     }
 }
 
+impl<'b> TryFrom<(f32, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (f32, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Float", jvm)
+    }
+}
+
 impl<'a, 'b> TryFrom<(&'a [f32], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [f32], &'b Jvm)) -> errors::Result<InvocationArg> {
@@ -1703,6 +1775,14 @@ impl<'a, 'b> TryFrom<(&'a [f32], &'b Jvm)> for InvocationArg {
 impl From<f64> for InvocationArg {
     fn from(f: f64) -> InvocationArg {
         InvocationArg::new(&f, "java.lang.Double")
+    }
+}
+
+impl<'b> TryFrom<(f64, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (f64, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "java.lang.Double", jvm)
     }
 }
 
@@ -1734,9 +1814,25 @@ impl From<()> for InvocationArg {
     }
 }
 
+impl<'b> TryFrom<((), &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: ((), &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(&arg, "void", jvm)
+    }
+}
+
 impl<'a> From<&'a String> for InvocationArg {
     fn from(s: &String) -> InvocationArg {
         InvocationArg::new(s, "java.lang.String")
+    }
+}
+
+impl<'a, 'b> TryFrom<(&'a String, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a String, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.String", jvm)
     }
 }
 
@@ -1746,9 +1842,25 @@ impl<'a> From<&'a bool> for InvocationArg {
     }
 }
 
+impl<'a, 'b> TryFrom<(&'a bool, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a bool, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Boolean", jvm)
+    }
+}
+
 impl<'a> From<&'a i8> for InvocationArg {
     fn from(b: &i8) -> InvocationArg {
         InvocationArg::new(b, "java.lang.Byte")
+    }
+}
+
+impl<'a, 'b> TryFrom<(&'a i8, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a i8, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Byte", jvm)
     }
 }
 
@@ -1758,9 +1870,25 @@ impl<'a> From<&'a char> for InvocationArg {
     }
 }
 
+impl<'a, 'b> TryFrom<(&'a char, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a char, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Character", jvm)
+    }
+}
+
 impl<'a> From<&'a i16> for InvocationArg {
     fn from(i: &i16) -> InvocationArg {
         InvocationArg::new(i, "java.lang.Short")
+    }
+}
+
+impl<'a, 'b> TryFrom<(&'a i16, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a i16, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Short", jvm)
     }
 }
 
@@ -1770,9 +1898,25 @@ impl<'a> From<&'a i32> for InvocationArg {
     }
 }
 
+impl<'a, 'b> TryFrom<(&'a i32, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a i32, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Integer", jvm)
+    }
+}
+
 impl<'a> From<&'a i64> for InvocationArg {
     fn from(l: &i64) -> InvocationArg {
         InvocationArg::new(l, "java.lang.Long")
+    }
+}
+
+impl<'a, 'b> TryFrom<(&'a i64, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a i64, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Long", jvm)
     }
 }
 
@@ -1782,9 +1926,25 @@ impl<'a> From<&'a f32> for InvocationArg {
     }
 }
 
+impl<'a, 'b> TryFrom<(&'a f32, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a f32, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Float", jvm)
+    }
+}
+
 impl<'a> From<&'a f64> for InvocationArg {
     fn from(f: &f64) -> InvocationArg {
         InvocationArg::new(f, "java.lang.Double")
+    }
+}
+
+impl<'a, 'b> TryFrom<(&'a f64, &'b Jvm)> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(tup: (&'a f64, &'b Jvm)) -> errors::Result<InvocationArg> {
+        let (arg, jvm) = tup;
+        InvocationArg::new_2(arg, "java.lang.Double", jvm)
     }
 }
 
@@ -1994,7 +2154,7 @@ mod api_unit_tests {
     }
 
     #[test]
-    fn invocation_arg_from_primitive_types() {
+    fn invocation_arg_from_basic_types() {
         validate_type(InvocationArg::from("str"), "java.lang.String");
         validate_type(InvocationArg::from("str".to_string()), "java.lang.String");
         validate_type(InvocationArg::from(true), "java.lang.Boolean");
@@ -2014,6 +2174,30 @@ mod api_unit_tests {
         validate_type(InvocationArg::from(&1_i64), "java.lang.Long");
         validate_type(InvocationArg::from(&0.1_f32), "java.lang.Float");
         validate_type(InvocationArg::from(&0.1_f64), "java.lang.Double");
+    }
+
+    #[test]
+    fn invocation_arg_try_from_basic_types() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        validate_type(InvocationArg::try_from(("str", &jvm)).unwrap(), "java.lang.String");
+        validate_type(InvocationArg::try_from(("str".to_string(), &jvm)).unwrap(), "java.lang.String");
+        validate_type(InvocationArg::try_from((true, &jvm)).unwrap(), "java.lang.Boolean");
+        validate_type(InvocationArg::try_from((1_i8, &jvm)).unwrap(), "java.lang.Byte");
+        validate_type(InvocationArg::try_from(('c', &jvm)).unwrap(), "java.lang.Character");
+        validate_type(InvocationArg::try_from((1_i16, &jvm)).unwrap(), "java.lang.Short");
+        validate_type(InvocationArg::try_from((1_i64, &jvm)).unwrap(), "java.lang.Long");
+        validate_type(InvocationArg::try_from((0.1_f32, &jvm)).unwrap(), "java.lang.Float");
+        validate_type(InvocationArg::try_from((0.1_f64, &jvm)).unwrap(), "java.lang.Double");
+        validate_type(InvocationArg::try_from(((), &jvm)).unwrap(), "void");
+
+        validate_type(InvocationArg::try_from((&"str".to_string(), &jvm)).unwrap(), "java.lang.String");
+        validate_type(InvocationArg::try_from((&true, &jvm)).unwrap(), "java.lang.Boolean");
+        validate_type(InvocationArg::try_from((&1_i8, &jvm)).unwrap(), "java.lang.Byte");
+        validate_type(InvocationArg::try_from((&'c', &jvm)).unwrap(), "java.lang.Character");
+        validate_type(InvocationArg::try_from((&1_i16, &jvm)).unwrap(), "java.lang.Short");
+        validate_type(InvocationArg::try_from((&1_i64, &jvm)).unwrap(), "java.lang.Long");
+        validate_type(InvocationArg::try_from((&0.1_f32, &jvm)).unwrap(), "java.lang.Float");
+        validate_type(InvocationArg::try_from((&0.1_f64, &jvm)).unwrap(), "java.lang.Double");
     }
 
     #[test]
@@ -2040,8 +2224,11 @@ mod api_unit_tests {
 
     fn validate_type(ia: InvocationArg, class: &str) {
         let b = match ia {
-            _s @ InvocationArg::Java { .. } | _s @ InvocationArg::RustBasic { .. } => false,
+            _s @ InvocationArg::Java { .. } => false,
             InvocationArg::Rust { class_name, json: _, .. } => {
+                class == class_name
+            }
+            InvocationArg::RustBasic { instance: _, class_name, serialized: _ } => {
                 class == class_name
             }
         };
