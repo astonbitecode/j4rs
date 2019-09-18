@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jni_sys::{jint, JNI_TRUE, JNIEnv, jobject, jobjectRefType};
+use std::ptr;
+
+use jni_sys::{jint, JNI_TRUE, JNIEnv, jobject, jobjectRefType, jstring};
 
 use crate::{InvocationArg, Jvm};
 use crate::errors;
@@ -31,14 +33,8 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jv
             }
         };
 
-        let class_name_jstring = (jvm.jni_new_string_utf)(
-            jvm.jni_env,
-            utils::to_java_string(class_name.as_ref()),
-        );
-        let json_jstring = (jvm.jni_new_string_utf)(
-            jvm.jni_env,
-            utils::to_java_string(json.as_ref()),
-        );
+        let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
+        let json_jstring = global_jobject_from_str(&json, jvm)?;
 
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
         let inv_arg_instance = (jvm.jni_new_object)(
@@ -53,8 +49,8 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jv
 
         // Check for exceptions
         jvm.do_return(())?;
-        delete_java_local_ref(jvm.jni_env, class_name_jstring);
-        delete_java_local_ref(jvm.jni_env, json_jstring);
+        delete_java_ref(jvm.jni_env, class_name_jstring);
+        delete_java_ref(jvm.jni_env, json_jstring);
 
         Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
     }
@@ -75,10 +71,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
             }
         };
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
-        let class_name_jstring = (jvm.jni_new_string_utf)(
-            jvm.jni_env,
-            utils::to_java_string(class_name.as_ref()),
-        );
+        let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
 
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
@@ -90,7 +83,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
             jinstance,
         );
 
-        delete_java_local_ref(jvm.jni_env, class_name_jstring);
+        delete_java_ref(jvm.jni_env, class_name_jstring);
 
         Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
     }
@@ -108,10 +101,7 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) ->
 
         debug(&format!("Calling the InvocationArg constructor for class '{}'", class_name));
 
-        let class_name_jstring = (jvm.jni_new_string_utf)(
-            jvm.jni_env,
-            utils::to_java_string(class_name.as_ref()),
-        );
+        let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
 
         let inv_arg_instance = (jvm.jni_new_object)(
             jvm.jni_env,
@@ -125,7 +115,7 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) ->
 
         // Check for exceptions
         jvm.do_return(())?;
-        delete_java_local_ref(jvm.jni_env, class_name_jstring);
+        delete_java_ref(jvm.jni_env, class_name_jstring);
 
         Ok(create_global_ref_from_local_ref(inv_arg_instance, jvm.jni_env)?)
     }
@@ -249,5 +239,17 @@ pub(crate) fn global_jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result
             utils::to_java_string(string),
         );
         create_global_ref_from_local_ref(obj, jvm.jni_env)
+    }
+}
+
+pub(crate) fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
+    unsafe {
+        let s = (jvm.jni_get_string_utf_chars)(
+            jvm.jni_env,
+            java_string,
+            ptr::null_mut(),
+        );
+        let rust_string = utils::to_rust_string(s);
+        jvm.do_return(rust_string)
     }
 }

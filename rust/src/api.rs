@@ -156,11 +156,11 @@ pub struct Jvm {
     jni_get_static_method_id: JniGetStaticMethodId,
     pub(crate) jni_new_object: JniNewObject,
     pub(crate) jni_new_string_utf: JniNewStringUTF,
-    jni_get_string_utf_chars: JniGetStringUTFChars,
+    pub(crate) jni_get_string_utf_chars: JniGetStringUTFChars,
     jni_call_object_method: JniCallObjectMethod,
     jni_call_void_method: JniCallVoidMethod,
     jni_call_static_object_method: JniCallStaticObjectMethod,
-    jni_new_onject_array: JniNewObjectArray,
+    jni_new_object_array: JniNewObjectArray,
     jni_set_object_array_element: JniSetObjectArrayElement,
     jni_exception_check: JniExceptionCheck,
     jni_exception_describe: JniExceptionDescribe,
@@ -527,7 +527,7 @@ impl Jvm {
                             jni_call_object_method: com,
                             jni_call_void_method: cvm,
                             jni_call_static_object_method: csom,
-                            jni_new_onject_array: noa,
+                            jni_new_object_array: noa,
                             jni_set_object_array_element: soae,
                             jni_exception_check: ec,
                             jni_exception_describe: ed,
@@ -578,18 +578,19 @@ impl Jvm {
         debug(&format!("Instantiating class {} using {} arguments", class_name, inv_args.len()));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(class_name),
-            );
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
-            let array_ptr = (self.jni_new_onject_array)(
-                self.jni_env,
-                size,
-                self.invocation_arg_class,
-                ptr::null_mut(),
-            );
+            let array_ptr = {
+                let j = (self.jni_new_object_array)(
+                    self.jni_env,
+                    size,
+                    self.invocation_arg_class,
+                    ptr::null_mut(),
+                );
+                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
+            };
             let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
 
             // Factory invocation - rest of the arguments: populate the array
@@ -620,10 +621,10 @@ impl Jvm {
 
             let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
-            jni_utils::delete_java_local_ref(self.jni_env, array_ptr);
-            jni_utils::delete_java_local_ref(self.jni_env, class_name_jstring);
+            jni_utils::delete_java_ref(self.jni_env, array_ptr);
+            jni_utils::delete_java_ref(self.jni_env, class_name_jstring);
             for inv_arg_jobject in inv_arg_jobjects {
-                jni_utils::delete_java_local_ref(self.jni_env, inv_arg_jobject);
+                jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
             }
 
             // Create and return the Instance
@@ -639,10 +640,8 @@ impl Jvm {
         debug(&format!("Retrieving static class {}", class_name));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(class_name),
-            );
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
             let native_invocation_instance = (self.jni_call_static_object_method)(
@@ -652,7 +651,7 @@ impl Jvm {
                 class_name_jstring,
             );
 
-            jni_utils::delete_java_local_ref(self.jni_env, class_name_jstring);
+            jni_utils::delete_java_ref(self.jni_env, class_name_jstring);
 
             // Create and return the Instance. The Instance::from transforms the passed instance to a global one. No need to transform it here as well.
             self.do_return(Instance::from(native_invocation_instance)?)
@@ -666,18 +665,19 @@ impl Jvm {
         debug(&format!("Creating a java array of class {} with {} elements", class_name, inv_args.len()));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(class_name),
-            );
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
-            let array_ptr = (self.jni_new_onject_array)(
-                self.jni_env,
-                size,
-                self.invocation_arg_class,
-                ptr::null_mut(),
-            );
+            let array_ptr = {
+                let j = (self.jni_new_object_array)(
+                    self.jni_env,
+                    size,
+                    self.invocation_arg_class,
+                    ptr::null_mut(),
+                );
+                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
+            };
             let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
 
             // Factory invocation - rest of the arguments: populate the array
@@ -709,10 +709,10 @@ impl Jvm {
             let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
-                jni_utils::delete_java_local_ref(self.jni_env, inv_arg_jobject);
+                jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
             }
-            jni_utils::delete_java_local_ref(self.jni_env, array_ptr);
-            jni_utils::delete_java_local_ref(self.jni_env, class_name_jstring);
+            jni_utils::delete_java_ref(self.jni_env, array_ptr);
+            jni_utils::delete_java_ref(self.jni_env, class_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -727,18 +727,19 @@ impl Jvm {
         debug(&format!("Invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
         unsafe {
             // First argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(method_name),
-            );
+            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, &self)?;
+
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
-            let array_ptr = (self.jni_new_onject_array)(
-                self.jni_env,
-                size,
-                self.invocation_arg_class,
-                ptr::null_mut(),
-            );
+            let array_ptr = {
+                let j = (self.jni_new_object_array)(
+                    self.jni_env,
+                    size,
+                    self.invocation_arg_class,
+                    ptr::null_mut(),
+                );
+                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
+            };
             let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
 
             // Rest of the arguments: populate the array
@@ -770,10 +771,10 @@ impl Jvm {
             let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
-                jni_utils::delete_java_local_ref(self.jni_env, inv_arg_jobject);
+                jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
             }
-            jni_utils::delete_java_local_ref(self.jni_env, array_ptr);
-            jni_utils::delete_java_local_ref(self.jni_env, method_name_jstring);
+            jni_utils::delete_java_ref(self.jni_env, array_ptr);
+            jni_utils::delete_java_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -788,10 +789,7 @@ impl Jvm {
         debug(&format!("Retrieving field {} of class {}", field_name, instance.class_name));
         unsafe {
             // First argument: create a jstring to pass as argument for the field_name
-            let field_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(field_name),
-            );
+            let field_name_jstring: jstring = jni_utils::global_jobject_from_str(&field_name, &self)?;
 
             // Call the method of the instance
             let native_invocation_instance = (self.jni_call_object_method)(
@@ -806,7 +804,7 @@ impl Jvm {
 
             let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
-            jni_utils::delete_java_local_ref(self.jni_env, field_name_jstring);
+            jni_utils::delete_java_ref(self.jni_env, field_name_jstring);
 
             // Create and return the Instance
             self.do_return(Instance {
@@ -831,18 +829,19 @@ impl Jvm {
             let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
 
             // Second argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(method_name),
-            );
+            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, &self)?;
+
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
-            let array_ptr = (self.jni_new_onject_array)(
-                self.jni_env,
-                size,
-                self.invocation_arg_class,
-                ptr::null_mut(),
-            );
+            let array_ptr = {
+                let j = (self.jni_new_object_array)(
+                    self.jni_env,
+                    size,
+                    self.invocation_arg_class,
+                    ptr::null_mut(),
+                );
+                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
+            };
             let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
 
             // Rest of the arguments: populate the array
@@ -874,10 +873,10 @@ impl Jvm {
 
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
-                jni_utils::delete_java_local_ref(self.jni_env, inv_arg_jobject);
+                jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
             }
-            jni_utils::delete_java_local_ref(self.jni_env, array_ptr);
-            jni_utils::delete_java_local_ref(self.jni_env, method_name_jstring);
+            jni_utils::delete_java_ref(self.jni_env, array_ptr);
+            jni_utils::delete_java_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance
             self.do_return(InstanceReceiver::new(rx, address))
@@ -914,10 +913,8 @@ impl Jvm {
         debug(&format!("Invoking static method {} of class {} using {} arguments", method_name, class_name, inv_args.len()));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(class_name),
-            );
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
             let native_invocation_instance = (self.jni_call_static_object_method)(
@@ -928,18 +925,19 @@ impl Jvm {
             );
 
             // First argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(method_name),
-            );
+            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, &self)?;
+
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
-            let array_ptr = (self.jni_new_onject_array)(
-                self.jni_env,
-                size,
-                self.invocation_arg_class,
-                ptr::null_mut(),
-            );
+            let array_ptr = {
+                let j = (self.jni_new_object_array)(
+                    self.jni_env,
+                    size,
+                    self.invocation_arg_class,
+                    ptr::null_mut(),
+                );
+                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
+            };
             let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
             // Rest of the arguments: populate the array
             for i in 0..size {
@@ -968,10 +966,10 @@ impl Jvm {
 
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
-                jni_utils::delete_java_local_ref(self.jni_env, inv_arg_jobject);
+                jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
             }
-            jni_utils::delete_java_local_ref(self.jni_env, array_ptr);
-            jni_utils::delete_java_local_ref(self.jni_env, method_name_jstring);
+            jni_utils::delete_java_ref(self.jni_env, array_ptr);
+            jni_utils::delete_java_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance. The Instance::from transforms the passed instance to a global one. No need to transform it here as well.
             self.do_return(Instance::from(native_invocation_instance)?)
@@ -1000,10 +998,7 @@ impl Jvm {
         unsafe {
             // First argument is the jobject that is inside the from_instance
             // Second argument: create a jstring to pass as argument for the to_class
-            let to_class_jstring: jstring = (self.jni_new_string_utf)(
-                self.jni_env,
-                utils::to_java_string(to_class),
-            );
+            let to_class_jstring: jstring = jni_utils::global_jobject_from_str(&to_class, &self)?;
 
             // Call the cast method
             let native_invocation_instance = (self.jni_call_static_object_method)(
@@ -1018,7 +1013,7 @@ impl Jvm {
             self.do_return(())?;
 
             // Prevent memory leaks from the created local references
-            jni_utils::delete_java_local_ref(self.jni_env, to_class_jstring);
+            jni_utils::delete_java_ref(self.jni_env, to_class_jstring);
 
             // Create and return the Instance
             self.do_return(Instance::from(native_invocation_instance)?)
@@ -1029,7 +1024,7 @@ impl Jvm {
     pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned {
         unsafe {
             debug("Invoking the getJson method");
-            // Call the getJson method
+            // Call the getJson method. This returns a localref
             let json_instance = (self.jni_call_object_method)(
                 self.jni_env,
                 instance.jinstance,
@@ -1037,7 +1032,9 @@ impl Jvm {
             );
             let _ = self.do_return("")?;
             debug("Transforming jstring to rust String");
-            let json = self.to_rust_string(json_instance as jstring)?;
+            let global_json_instance = jni_utils::create_global_ref_from_local_ref(json_instance, self.jni_env)?;
+            let json = jni_utils::jstring_to_rust_string(&self, global_json_instance as jstring)?;
+            jni_utils::delete_java_ref(self.jni_env, global_json_instance);
             self.do_return(serde_json::from_str(&json)?)
         }
     }
@@ -1215,18 +1212,6 @@ impl Jvm {
                     warn(&format!("Error while retrieving the created JVMs: {}", retjint));
                 }
             }
-        }
-    }
-
-    pub fn to_rust_string(&self, java_string: jstring) -> errors::Result<String> {
-        unsafe {
-            let s = (self.jni_get_string_utf_chars)(
-                self.jni_env,
-                java_string,
-                ptr::null_mut(),
-            );
-            let rust_string = utils::to_rust_string(s);
-            self.do_return(rust_string)
         }
     }
 }
