@@ -71,10 +71,13 @@ pub(crate) fn create_java_vm(
 
 pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
     unsafe {
+        let cstr = utils::to_c_string(classname);
         let fc = ((**env).FindClass).expect("Could not dereference the JNIEnv to get the FindClass");
-        (fc)(
+        let jc = (fc)(
             env,
-            utils::to_java_string(classname),
-        )
+            cstr,
+        );
+        utils::drop_c_string(cstr);
+        jc
     }
 }

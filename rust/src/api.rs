@@ -260,10 +260,13 @@ impl Jvm {
                 let mut jvm_options_vec: Vec<JavaVMOption> = jvm_options
                     .iter()
                     .map(|opt| {
-                        JavaVMOption {
-                            optionString: utils::to_java_string(opt),
+                        let cstr = utils::to_c_string(opt);
+                        let jo = JavaVMOption {
+                            optionString: utils::to_c_string(opt),
                             extraInfo: ptr::null_mut() as *mut c_void,
-                        }
+                        };
+                        utils::drop_c_string(cstr);
+                        jo
                     })
                     .collect();
 
@@ -331,12 +334,17 @@ impl Jvm {
                 (Some(gmid), Some(gsmid), Some(no), Some(nsu), Some(gsuc), Some(com), Some(cvm), Some(csom), Some(noa), Some(soae), Some(ec), Some(ed), Some(exclear), Some(dlr), Some(dgr), Some(ngr)) => {
                     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`
                     let factory_class = tweaks::find_class(jni_environment, INST_CLASS_NAME);
+                    let mut cstr1 = utils::to_c_string("<init>");
+                    let mut cstr2 = utils::to_c_string("()V");
                     // The constructor of `NativeInstantiationImpl`
                     let factory_constructor_method = (gmid)(
                         jni_environment,
                         factory_class,
-                        utils::to_java_string("<init>"),
-                        utils::to_java_string("()V"));
+                        cstr1,
+                        cstr2);
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
+
                     // The class of the `InvocationArg`
                     let invocation_arg_class = tweaks::find_class(
                         jni_environment,
@@ -351,27 +359,43 @@ impl Jvm {
                     let create_java_array_method_signature = format!(
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
                         INVO_IFACE_NAME);
+
                     // The method id of the `instantiate` method of the `NativeInstantiation`
+                    cstr1 = utils::to_c_string("instantiate");
+                    cstr2 = utils::to_c_string(&instantiate_method_signature);
                     let factory_instantiate_method = (gsmid)(
                         jni_environment,
                         factory_class,
-                        utils::to_java_string("instantiate"),
-                        utils::to_java_string(&instantiate_method_signature),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
+
                     // The method id of the `createForStatic` method of the `NativeInstantiation`
+                    cstr1 = utils::to_c_string("createForStatic");
+                    cstr2 = utils::to_c_string(&create_for_static_method_signature);
                     let factory_create_for_static_method = (gsmid)(
                         jni_environment,
                         factory_class,
-                        utils::to_java_string("createForStatic"),
-                        utils::to_java_string(&create_for_static_method_signature),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
+
                     // The method id of the `createJavaArray` method of the `NativeInstantiation`
+                    cstr1 = utils::to_c_string("createJavaArray");
+                    cstr2 = utils::to_c_string(&create_java_array_method_signature);
                     let factory_create_java_array_method = (gsmid)(
                         jni_environment,
                         factory_class,
-                        utils::to_java_string("createJavaArray"),
-                        utils::to_java_string(&create_java_array_method_signature),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
+
                     // The `NativeInvocationBase class`
                     let optional_class = if cfg!(target_os = "android") {
                         let native_invocation_base_class: jclass = tweaks::find_class(
@@ -393,62 +417,84 @@ impl Jvm {
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
                         INVO_IFACE_NAME);
                     // Get the method ID for the `NativeInvocation.invoke`
+                    cstr1 = utils::to_c_string("invoke");
+                    cstr2 = utils::to_c_string(invoke_method_signature.as_ref());
                     let invoke_method = (gmid)(
                         jni_environment,
                         native_invocation_class,
-                        utils::to_java_string("invoke"),
-                        utils::to_java_string(invoke_method_signature.as_ref()),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The invokeStatic method
                     let invoke_static_method_signature = format!(
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
                         INVO_IFACE_NAME);
+                    cstr1 = utils::to_c_string("invokeStatic");
+                    cstr2 = utils::to_c_string(invoke_static_method_signature.as_ref());
                     // Get the method ID for the `NativeInvocation.invokeStatic`
                     let invoke_static_method = (gmid)(
                         jni_environment,
                         native_invocation_class,
-                        utils::to_java_string("invokeStatic"),
-                        utils::to_java_string(invoke_static_method_signature.as_ref()),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The invoke to channel method
                     let invoke_to_channel_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
+                    cstr1 = utils::to_c_string("invokeToChannel");
+                    cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
                     // Get the method ID for the `NativeInvocation.invokeToChannel`
                     let invoke_to_channel_method = (gmid)(
                         jni_environment,
                         native_invocation_class,
-                        utils::to_java_string("invokeToChannel"),
-                        utils::to_java_string(invoke_to_channel_method_signature),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The init callback channel method
                     let init_callback_channel_method_signature = "(J)V";
+                    cstr1 = utils::to_c_string("initializeCallbackChannel");
+                    cstr2 = utils::to_c_string(&init_callback_channel_method_signature);
                     // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
                     let init_callback_channel_method = (gmid)(
                         jni_environment,
                         native_invocation_class,
-                        utils::to_java_string("initializeCallbackChannel"),
-                        utils::to_java_string(init_callback_channel_method_signature),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The field method
                     let field_method_signature = format!(
                         "(Ljava/lang/String;)L{};",
                         INVO_IFACE_NAME);
+                    cstr1 = utils::to_c_string("field");
+                    cstr2 = utils::to_c_string(field_method_signature.as_ref());
                     // Get the method ID for the `NativeInvocation.field`
                     let field_method = (gmid)(
                         jni_environment,
                         native_invocation_class,
-                        utils::to_java_string("field"),
-                        utils::to_java_string(field_method_signature.as_ref()),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The clone method
                     let clone_method_signature = format!(
                         "(L{};)L{};",
                         INVO_IFACE_NAME,
                         INVO_IFACE_NAME);
+                    cstr1 = utils::to_c_string("cloneInstance");
+                    cstr2 = utils::to_c_string(clone_method_signature.as_ref());
 
                     // The class to invoke the cloneInstance into is not the same in Android target os.
                     // The native_invocation_base_class is checked first because of Java7 compatibility issues in Android.
@@ -460,57 +506,79 @@ impl Jvm {
                     let clone_static_method = (gsmid)(
                         jni_environment,
                         class_to_invoke_clone_and_cast,
-                        utils::to_java_string("cloneInstance"),
-                        utils::to_java_string(clone_method_signature.as_ref()),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The cast method
                     let cast_method_signature = format!(
                         "(L{};Ljava/lang/String;)L{};",
                         INVO_IFACE_NAME,
                         INVO_IFACE_NAME);
+                    cstr1 = utils::to_c_string("cast");
+                    cstr2 = utils::to_c_string(cast_method_signature.as_ref());
 
                     // Get the method ID for the `NativeInvocation.cast`
                     let cast_static_method = (gsmid)(
                         jni_environment,
                         class_to_invoke_clone_and_cast,
-                        utils::to_java_string("cast"),
-                        utils::to_java_string(cast_method_signature.as_ref()),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The getJson method
                     let get_json_method_signature = "()Ljava/lang/String;";
+                    cstr1 = utils::to_c_string("getJson");
+                    cstr2 = utils::to_c_string(get_json_method_signature.as_ref());
 
                     // Get the method ID for the `NativeInvocation.getJson`
                     let get_json_method = (gmid)(
                         jni_environment,
                         native_invocation_class,
-                        utils::to_java_string("getJson"),
-                        utils::to_java_string(get_json_method_signature.as_ref()),
+                        cstr1,
+                        cstr2,
                     );
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The constructor of `InvocationArg` for Java created args
                     let inv_arg_java_constructor_method_signature = format!("(Ljava/lang/String;L{};)V", INVO_IFACE_NAME);
+                    cstr1 = utils::to_c_string("<init>");
+                    cstr2 = utils::to_c_string(&inv_arg_java_constructor_method_signature);
                     let inv_arg_java_constructor_method = (gmid)(
                         jni_environment,
                         invocation_arg_class,
-                        utils::to_java_string("<init>"),
-                        utils::to_java_string(&inv_arg_java_constructor_method_signature));
+                        cstr1,
+                        cstr2);
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The constructor of `InvocationArg` for Rust created args
+                    cstr1 = utils::to_c_string("<init>");
+                    cstr2 = utils::to_c_string("(Ljava/lang/String;Ljava/lang/String;)V");
                     let inv_arg_rust_constructor_method = (gmid)(
                         jni_environment,
                         invocation_arg_class,
-                        utils::to_java_string("<init>"),
-                        utils::to_java_string("(Ljava/lang/String;Ljava/lang/String;)V"));
+                        cstr1,
+                        cstr2);
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     // The constructor of `InvocationArg` for basic object type instances created by Rust via JNI
                     let inv_arg_basic_rust_constructor_method_signature = "(Ljava/lang/String;Ljava/lang/Object;)V";
+                    cstr1 = utils::to_c_string("<init>");
+                    cstr2 = utils::to_c_string(&inv_arg_basic_rust_constructor_method_signature);
                     let inv_arg_basic_rust_constructor_method = (gmid)(
                         jni_environment,
                         invocation_arg_class,
-                        utils::to_java_string("<init>"),
-                        utils::to_java_string(&inv_arg_basic_rust_constructor_method_signature));
+                        cstr1,
+                        cstr2);
+                    utils::drop_c_string(cstr1);
+                    utils::drop_c_string(cstr2);
 
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);

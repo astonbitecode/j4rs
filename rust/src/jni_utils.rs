@@ -20,6 +20,7 @@ use crate::{InvocationArg, Jvm};
 use crate::errors;
 use crate::logger::{debug, error};
 use crate::utils;
+use std::os::raw::c_char;
 
 pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
@@ -234,11 +235,14 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
 
 pub(crate) fn global_jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
+        let tmp = utils::to_c_string(string);
         let obj = (jvm.jni_new_string_utf)(
             jvm.jni_env,
-            utils::to_java_string(string),
+            tmp,
         );
-        create_global_ref_from_local_ref(obj, jvm.jni_env)
+        let gr = create_global_ref_from_local_ref(obj, jvm.jni_env)?;
+        utils::drop_c_string(tmp);
+        Ok(gr)
     }
 }
 
@@ -248,8 +252,9 @@ pub(crate) fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors:
             jvm.jni_env,
             java_string,
             ptr::null_mut(),
-        );
+        ) as *mut c_char;
         let rust_string = utils::to_rust_string(s);
+        utils::drop_c_string(s);
         jvm.do_return(rust_string)
     }
 }

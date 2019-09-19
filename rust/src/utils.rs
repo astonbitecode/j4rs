@@ -26,9 +26,13 @@ pub fn to_rust_string(pointer: *const c_char) -> String {
     str::from_utf8(slice).unwrap().to_string()
 }
 
-pub fn to_java_string(string: &str) -> *mut c_char {
+pub fn to_c_string(string: &str) -> *mut c_char {
     let cs = CString::new(string.as_bytes()).unwrap();
     cs.into_raw()
+}
+
+pub fn drop_c_string(ptr: *mut c_char) {
+    let _ = unsafe { CString::from_raw(ptr) };
 }
 
 #[cfg(not(target_os = "windows"))]
