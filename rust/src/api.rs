@@ -2194,6 +2194,7 @@ impl<'a> ToString for JavaOpt<'a> {
 #[cfg(test)]
 mod api_unit_tests {
     use serde_json;
+    use serde::Deserialize;
 
     use super::*;
 
