@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use java_locator;
 use sha2::{Digest, Sha256};
 
-const VERSION: &'static str = "0.8.0-java7";
+const VERSION: &'static str = "0.10.0-SNAPSHOT-java7";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
@@ -86,7 +86,7 @@ fn copy_jars_from_java(jar_source_path: &str) -> Result<(), J4rsBuildError> {
         // Copy only if the files are not the same
         let do_copy = if destination_jar_file_res.is_ok() {
             let mut destination_jar_file = destination_jar_file_res.unwrap();
-            are_same_files(&mut source_jar_file, &mut destination_jar_file).unwrap_or(true)
+            !are_same_files(&mut source_jar_file, &mut destination_jar_file).unwrap_or(true)
         } else { true };
 
         if do_copy {

@@ -19,8 +19,6 @@ extern crate libc;
 #[macro_use]
 extern crate log;
 extern crate serde;
-#[macro_use]
-extern crate serde_derive;
 extern crate serde_json;
 
 use std::mem;
@@ -37,16 +35,19 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
-pub use self::api::LocalJarArtifact as LocalJarArtifact;
-pub use self::api::MavenArtifact as MavenArtifact;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
+pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
+pub use self::provisioning::MavenArtifact as MavenArtifact;
+pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
+pub use self::provisioning::MavenSettings as MavenSettings;
 
 mod api;
 pub(crate) mod api_tweaks;
-mod utils;
-mod logger;
-
 pub mod errors;
+mod jni_utils;
+mod logger;
+mod provisioning;
+mod utils;
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
@@ -78,13 +79,14 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
+    use std::convert::TryFrom;
     use std::path::MAIN_SEPARATOR;
     use std::thread::JoinHandle;
 
     use fs_extra::remove_items;
 
-    use crate::api::JavaArtifact;
-    use crate::LocalJarArtifact;
+    use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings};
+    use crate::provisioning::JavaArtifact;
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
     use super::utils::jassets_path;
@@ -284,6 +286,33 @@ mod lib_unit_tests {
 
     //    #[test]
 //    #[ignore]
+    fn _memory_leaks_invoke_instances_w_new_invarg() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let mut string_arg_rust = "".to_string();
+        for _ in 0..100 {
+            string_arg_rust = format!("{}{}", string_arg_rust, "astring")
+        }
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+            Ok(instance) => {
+                for i in 0..100000000 {
+                    if i % 100000 == 0 {
+                        println!("{}", i);
+                    }
+                    let _ia = InvocationArg::try_from((&string_arg_rust, &jvm)).unwrap();
+                    jvm.invoke(&instance, "getMyWithArgs", &[_ia]).unwrap();
+                }
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
+    //    #[test]
+//    #[ignore]
     fn _memory_leaks_create_instances_in_different_threads() {
         for i in 0..100000000 {
             thread::spawn(move || {
@@ -320,7 +349,7 @@ mod lib_unit_tests {
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let invocation_args = vec![InvocationArg::from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm))];
+                let invocation_args = vec![InvocationArg::try_from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm)).unwrap()];
                 let _ = jvm.invoke(&i, "list", &invocation_args);
             }
             Err(error) => {
@@ -419,6 +448,20 @@ mod lib_unit_tests {
         let _ = remove_items(&vec![to_remove]);
 
         assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
+    }
+
+    #[test]
+    fn deploy_maven_artifact_from_more_artifactories() {
+        let jvm: Jvm = JvmBuilder::new()
+            .with_maven_settings(MavenSettings::new(vec![
+                MavenArtifactRepo::from("myrepo1::https://my.repo.io/artifacts"),
+                MavenArtifactRepo::from("myrepo2::https://my.other.repo.io/artifacts")])
+            )
+            .build()
+            .unwrap();
+        assert!(jvm.deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1")).is_ok());
+        let to_remove = format!("{}{}j4rs-0.5.1.jar", jassets_path().unwrap().to_str().unwrap(), MAIN_SEPARATOR);
+        let _ = remove_items(&vec![to_remove]);
     }
 
     #[test]
@@ -549,4 +592,80 @@ mod lib_unit_tests {
             .collect();
     }
 
+    #[test]
+    fn parent_interface_method() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let size: isize = jvm.chain(instance)
+            .invoke("getMap", &[]).unwrap()
+            .cast("java.util.Map").unwrap()
+            .invoke("size", &[]).unwrap()
+            .to_rust().unwrap();
+
+        assert!(size == 2);
+    }
+
+    #[test]
+    fn invoke_generic_method() {
+        let jvm: Jvm = JvmBuilder::new()
+            .build()
+            .unwrap();
+
+        // Create the MyTest instance
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        // Retrieve the annotated Map
+        let dummy_map = jvm.invoke(&instance, "getMap", &[]).unwrap();
+
+        // Put a new Map entry
+        let _ = jvm.invoke(&dummy_map, "put", &vec![InvocationArg::from("three"), InvocationArg::from(3)]).unwrap();
+
+        // Get the size of the new map and assert
+        let size: isize = jvm.chain(dummy_map)
+            .invoke("size", &[]).unwrap()
+            .to_rust().unwrap();
+
+        assert!(size == 3);
+    }
+
+    #[test]
+    fn invoke_method_with_primitive_args() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+
+        // Test the primitives in constructors.
+        // The constructor of Integer takes a primitive int as an argument.
+        let ia = InvocationArg::from(1_i32).into_primitive().unwrap();
+        let res1 = jvm.create_instance("java.lang.Integer", &[ia]);
+        assert!(res1.is_ok());
+
+        // Test the primitives in invocations.
+        let ia1 = InvocationArg::from(1_i32);
+        let ia2 = InvocationArg::from(1_i32);
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let res2 = jvm.invoke(&test_instance, "addInts", &[ia1.into_primitive().unwrap(), ia2.into_primitive().unwrap()]);
+        assert!(res2.is_ok());
+    }
+
+    #[test]
+    fn to_tust_returns_list() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(10_i32)]).unwrap();
+        let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
+        assert!(vec.len() == 10)
+    }
+
+    //    #[test]
+//    #[ignore]
+    fn _new2_inv_arg() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let ia = InvocationArg::new_2(&"astring".to_string(), "java.lang.String", &jvm).unwrap();
+        let ret_instance = jvm.invoke(&test_instance, "getMyWithArgs", &[ia]).unwrap();
+        let ret: String = jvm.to_rust(ret_instance).unwrap();
+        println!("---------------{}", ret);
+    }
 }

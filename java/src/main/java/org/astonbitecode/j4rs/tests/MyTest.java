@@ -14,11 +14,14 @@
  */
 package org.astonbitecode.j4rs.tests;
 
-import java8.util.stream.Collectors;
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 
 import java8.util.J8Arrays;
+
+import java.util.LinkedList;
 import java.util.List;
+import java8.util.stream.Collectors;
+import java8.util.stream.IntStream;
 
 public class MyTest extends NativeCallbackSupport {
     private String string;
@@ -64,6 +67,14 @@ public class MyTest extends NativeCallbackSupport {
         return str;
     }
 
+    public List<Integer> getNumbersUntil(Integer until) {
+        List<Integer> ints = new LinkedList<>();
+        for (int i = 0; i < until; i++) {
+            ints.add(i);
+        }
+        return ints;
+    }
+
     public Integer addInts(Integer... args) {
         int result = J8Arrays.stream(args)
                 .reduce(
@@ -73,6 +84,10 @@ public class MyTest extends NativeCallbackSupport {
                         }
                 );
         return result;
+    }
+
+    public Integer addInts(int a, int b) {
+        return a + b;
     }
 
     public void list(List<String> l) {
@@ -97,6 +112,10 @@ public class MyTest extends NativeCallbackSupport {
         new Thread(() -> {
             doCallback("THIS IS FROM CALLBACK!");
         }).start();
+    }
+
+    public DummyMapInterface<String, Object> getMap() {
+        return new DummyMapImpl();
     }
 
 }

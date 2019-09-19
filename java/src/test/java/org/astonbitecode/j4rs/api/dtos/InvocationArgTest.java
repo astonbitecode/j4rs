@@ -16,7 +16,6 @@ package org.astonbitecode.j4rs.api.dtos;
 
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
-import org.astonbitecode.j4rs.utils.Defs;
 import org.astonbitecode.j4rs.utils.Dummy;
 import org.junit.Test;
 
@@ -38,12 +37,11 @@ public class InvocationArgTest {
     @Test
     public void getArgFrom() {
         InvocationArg ia1 = new InvocationArg(CLASS_NAME, "{\"a\":\"b\"}");
-        assert ia1.getArgFrom().equals(Defs.RUST);
+        assert ia1.isSerialized();
         assert ia1.getClassName().equals(CLASS_NAME);
 
         InvocationArg ia2 = new InvocationArg(CLASS_NAME, new JsonInvocationImpl(new Dummy(), Dummy.class));
-        assert ia2.getArgFrom().equals(Defs.JAVA);
+        assert !ia2.isSerialized();
         assert ia2.getClassName().equals(CLASS_NAME);
-
     }
 }

@@ -75,11 +75,13 @@ pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
                     None => {
                         ((**env).FindClass)
                             .map(|fc| {
+                                let cstr = utils::to_c_string(classname);
                                 let found: jclass = (fc)(
                                     env,
-                                    utils::to_java_string(classname),
+                                    cstr,
                                 );
                                 add_to_cache = true;
+                                utils::drop_c_string(cstr);
                                 found
                             })
                     }

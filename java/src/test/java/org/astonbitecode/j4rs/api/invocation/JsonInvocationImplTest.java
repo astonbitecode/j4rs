@@ -16,11 +16,67 @@ package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
+import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.utils.*;
 import org.junit.Test;
 
 public class JsonInvocationImplTest {
+
+    @Test
+    public void genericMethodMatches() {
+        JsonInvocationImpl toTest = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
+
+        NativeInvocation invocation1 = toTest.invoke("invokeGeneric", new InvocationArg(new JsonInvocationImpl("astring", String.class)));
+        assert (invocation1.getObject().equals(String.class));
+    }
+
+    @Test
+    public void methodOfGenericInterfaceMatches() {
+        NativeInvocation childDummy = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.utils.ChildDummy");
+
+        NativeInvocation toTest = childDummy.invoke("getMap");
+
+        toTest.invoke("put",
+                new InvocationArg(new JsonInvocationImpl("three", String.class)),
+                new InvocationArg(new JsonInvocationImpl(3, Integer.class)));
+
+        NativeInvocation invocation = toTest.invoke("size");
+        assert (invocation.getObject().getClass().equals(Integer.class));
+        assert (((Integer) invocation.getObject()) == 3);
+    }
+
+    // TODO: Is there a way to make this test fail? It should fail theoretically because the Map is defined with generics
+    // TODO: <String, Object> and here we put to the Map <Object, String>
+    @Test
+    public void methodOfGenericInterfaceShouldNotMatch() {
+        NativeInvocation childDummy = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.utils.ChildDummy");
+
+        NativeInvocation toTest = childDummy.invoke("getMap");
+
+        toTest.invoke("put",
+                new InvocationArg(new JsonInvocationImpl(3, Integer.class)),
+                new InvocationArg(new JsonInvocationImpl("three", String.class)));
+    }
+
+    @Test
+    public void interfaceMethodMatches() {
+        JsonInvocationImpl toTest = new JsonInvocationImpl(new DummyMapImpl(), DummyMapInterface.class);
+
+        NativeInvocation invocation = toTest.invoke("keysLength");
+        assert (invocation.getObject().getClass().equals(Long.class));
+        assert (((Long) invocation.getObject()) == 6L);
+    }
+
+    @Test
+    public void parentInterfaceMethodMatches() {
+        JsonInvocationImpl toTest = new JsonInvocationImpl(new DummyMapImpl(), DummyMapInterface.class);
+
+        NativeInvocation invocation = toTest.invoke("size");
+        assert (invocation.getObject().getClass().equals(Integer.class));
+        assert (((Integer) invocation.getObject()) == 2);
+    }
+
     @Test
     public void methodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(new Dummy(33), Dummy.class);

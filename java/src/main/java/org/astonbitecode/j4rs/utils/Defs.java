@@ -15,6 +15,4 @@
 package org.astonbitecode.j4rs.utils;
 
 public class Defs {
-    public static final String JAVA = "java";
-    public static final String RUST = "rust";
 }

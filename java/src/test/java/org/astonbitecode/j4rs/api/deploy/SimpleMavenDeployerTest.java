@@ -17,7 +17,7 @@ package org.astonbitecode.j4rs.api.deploy;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 
 import static org.mockito.Mockito.*;
 
@@ -62,7 +62,7 @@ public class SimpleMavenDeployerTest {
         f.delete();
     }
 
-    @Test(expected = FileNotFoundException.class)
+    @Test(expected = IOException.class)
     public void deployFailure() throws Exception {
         SimpleMavenDeployer md = new SimpleMavenDeployer();
 

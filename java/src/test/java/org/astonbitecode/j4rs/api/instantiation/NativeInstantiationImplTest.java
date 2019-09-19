@@ -26,9 +26,13 @@ public class NativeInstantiationImplTest {
     public void constructorMatches() throws Exception {
         String className = Dummy.class.getName();
 
-        GeneratedArg[] generatedArgs = {new GeneratedArg(Integer.class, new Integer(11))};
-        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createInstance(className, generatedArgs);
-        assert (createdInstance.getObject() instanceof Dummy);
+        GeneratedArg[] generatedArgs1 = {new GeneratedArg(Integer.class, new Integer(11))};
+        NativeInstantiationImpl.CreatedInstance createdInstance1 = NativeInstantiationImpl.createInstance(className, generatedArgs1);
+        assert (createdInstance1.getObject() instanceof Dummy);
+
+        GeneratedArg[] generatedArgs2 = {new GeneratedArg(int.class, 11)};
+        NativeInstantiationImpl.CreatedInstance createdInstance2 = NativeInstantiationImpl.createInstance(className, generatedArgs2);
+        assert (createdInstance2.getObject() instanceof Dummy);
 
         GeneratedArg[] noGeneratedArgs = {};
         NativeInstantiationImpl.CreatedInstance createdInstanceNoArgs = NativeInstantiationImpl.createInstance(className, noGeneratedArgs);
@@ -62,6 +66,17 @@ public class NativeInstantiationImplTest {
         GeneratedArg[] generated = NativeInstantiationImpl.generateArgObjects(args);
         assert (generated.length == 1);
         assert (generated[0].getClazz().equals(Dummy.class));
+    }
+
+    @Test
+    public void generatePrimitiveArgObjectsFromRust() throws Exception {
+        String json = "0";
+        InvocationArg arg = new InvocationArg("int", json);
+        InvocationArg[] args = {arg};
+
+        GeneratedArg[] generated = NativeInstantiationImpl.generateArgObjects(args);
+        assert (generated.length == 1);
+        assert (generated[0].getClazz().equals(int.class));
     }
 
     @Test
