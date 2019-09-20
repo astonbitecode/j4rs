@@ -29,6 +29,7 @@ install:
 
 build_script:
   - mvn -f java/pom.xml clean install
+  - cargo clean --manifest-path=rust/Cargo.toml --target %TARGET%
   - cargo build --manifest-path=rust/Cargo.toml --target %TARGET%
 
 test_script:
@@ -38,8 +39,8 @@ test_script:
     )
 
 cache:
-  - C:\Users\appveyor\.cargo\registry
-  - target
+#  - C:\Users\appveyor\.cargo\registry
+#  - target
 
 branches:
   only:
