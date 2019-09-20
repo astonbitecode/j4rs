@@ -246,7 +246,7 @@ pub(crate) fn global_jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result
     }
 }
 
-pub(crate) fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
+pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
     unsafe {
         let s = (jvm.jni_get_string_utf_chars)(
             jvm.jni_env,

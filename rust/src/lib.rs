@@ -40,6 +40,7 @@ pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
 pub use self::provisioning::MavenArtifact as MavenArtifact;
 pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
 pub use self::provisioning::MavenSettings as MavenSettings;
+pub use self::jni_utils::jstring_to_rust_string as jstring_to_rust_string;
 
 mod api;
 pub(crate) mod api_tweaks;
