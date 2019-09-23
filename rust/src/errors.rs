@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde_json;
 use std::{fmt, result};
 use std::error::Error;
 use std::ffi::NulError;
 use std::io;
+use std::sync::{PoisonError, TryLockError};
+
 use fs_extra;
-use std::sync::{TryLockError, PoisonError};
+use serde_json;
 
 pub type Result<T> = result::Result<T, J4RsError>;
 
@@ -79,14 +80,14 @@ impl From<fs_extra::error::Error> for J4RsError {
     }
 }
 
-impl <T> From<TryLockError<T>> for J4RsError {
-    fn from(err:TryLockError<T>) -> J4RsError {
+impl<T> From<TryLockError<T>> for J4RsError {
+    fn from(err: TryLockError<T>) -> J4RsError {
         J4RsError::GeneralError(format!("{:?}", err))
     }
 }
 
-impl <T> From<PoisonError<T>> for J4RsError {
-    fn from(err:PoisonError<T>) -> J4RsError {
+impl<T> From<PoisonError<T>> for J4RsError {
+    fn from(err: PoisonError<T>) -> J4RsError {
         J4RsError::GeneralError(format!("{:?}", err))
     }
 }

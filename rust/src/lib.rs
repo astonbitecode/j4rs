@@ -49,6 +49,7 @@ mod jni_utils;
 mod logger;
 mod provisioning;
 mod utils;
+mod cache;
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {

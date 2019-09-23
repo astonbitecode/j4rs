@@ -20,6 +20,7 @@ use crate::{InvocationArg, Jvm};
 use crate::errors;
 use crate::logger::{debug, error};
 use crate::utils;
+use crate::cache;
 use std::os::raw::c_char;
 
 pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jvm: &Jvm) -> errors::Result<jobject> {
@@ -38,10 +39,10 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jv
         let json_jstring = global_jobject_from_str(&json, jvm)?;
 
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
-        let inv_arg_instance = (jvm.jni_new_object)(
+        let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jvm.jni_env,
-            jvm.invocation_arg_class,
-            jvm.inv_arg_rust_constructor_method,
+            cache::get_invocation_arg_class().unwrap(),
+            cache::get_inv_arg_rust_constructor_method().unwrap(),
             // First argument: class_name
             class_name_jstring,
             // Second argument: json
@@ -74,10 +75,10 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
         let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
 
-        let inv_arg_instance = (jvm.jni_new_object)(
+        let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jvm.jni_env,
-            jvm.invocation_arg_class,
-            jvm.inv_arg_basic_rust_constructor_method,
+            cache::get_invocation_arg_class().unwrap(),
+            cache::get_inv_arg_basic_rust_constructor_method().unwrap(),
             // First argument: class_name
             class_name_jstring,
             // Second argument: NativeInvocation instance
@@ -104,10 +105,10 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) ->
 
         let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
 
-        let inv_arg_instance = (jvm.jni_new_object)(
+        let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jvm.jni_env,
-            jvm.invocation_arg_class,
-            jvm.inv_arg_java_constructor_method,
+            cache::get_invocation_arg_class().unwrap(),
+            cache::get_inv_arg_java_constructor_method().unwrap(),
             // First argument: class_name
             class_name_jstring,
             // Second argument: NativeInvocation instance
@@ -236,7 +237,7 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
 pub(crate) fn global_jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
         let tmp = utils::to_c_string(string);
-        let obj = (jvm.jni_new_string_utf)(
+        let obj = (cache::get_jni_new_string_utf().unwrap())(
             jvm.jni_env,
             tmp,
         );
@@ -248,7 +249,7 @@ pub(crate) fn global_jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result
 
 pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
     unsafe {
-        let s = (jvm.jni_get_string_utf_chars)(
+        let s = (cache::get_jni_get_string_utf_chars().unwrap())(
             jvm.jni_env,
             java_string,
             ptr::null_mut(),

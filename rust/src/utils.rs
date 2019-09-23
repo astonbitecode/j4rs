@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use fs_extra::dir::get_dir_content;
 use libc::c_char;
 
-use crate::{api, errors, InvocationArg};
+use crate::{errors, InvocationArg, cache};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -65,7 +65,7 @@ pub(crate) fn deps_dir() -> errors::Result<String> {
 
 pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
     let pb_opt = {
-        let guard = api::JASSETS_PATH.lock()?;
+        let guard = cache::JASSETS_PATH.lock()?;
         guard.clone()
     };
     match pb_opt {

@@ -14,14 +14,12 @@
 
 use std::{fs, mem};
 use std::any::Any;
-use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::ops::Drop;
 use std::os::raw::c_void;
 use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::Mutex;
 
 use fs_extra::dir::get_dir_content;
 use jni_sys::{
@@ -29,9 +27,6 @@ use jni_sys::{
     JavaVM,
     JavaVMInitArgs,
     JavaVMOption,
-    jboolean,
-    jclass,
-    jmethodID,
     JNI_EDETACHED,
     JNI_EEXIST,
     JNI_EINVAL,
@@ -44,16 +39,15 @@ use jni_sys::{
     JNI_VERSION_1_8,
     JNIEnv,
     jobject,
-    jobjectArray,
     jsize,
     jstring,
 };
-use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
 
 use crate::{api_tweaks as tweaks, MavenSettings};
+use crate::cache;
 use crate::errors;
 use crate::errors::J4RsError;
 use crate::jni_utils;
@@ -66,149 +60,12 @@ use super::logger::{debug, error, info, warn};
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
-type JniGetMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
-type JniGetStaticMethodId = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, *const c_char, *const c_char) -> *mut jni_sys::_jmethodID;
-#[allow(non_snake_case)]
-type JniNewObject = unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject;
-type JniNewStringUTF = unsafe extern "system" fn(env: *mut JNIEnv, utf: *const c_char) -> jstring;
-#[allow(non_snake_case)]
-type JniGetStringUTFChars = unsafe extern "system" fn(env: *mut JNIEnv, str: jstring, isCopy: *mut jboolean) -> *const c_char;
-#[allow(non_snake_case)]
-type JniCallObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
-#[allow(non_snake_case)]
-type JniCallVoidMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...);
-type JniCallStaticObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
-type JniNewObjectArray = unsafe extern "system" fn(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray;
-type JniSetObjectArrayElement = unsafe extern "system" fn(*mut *const jni_sys::JNINativeInterface_, *mut jni_sys::_jobject, i32, *mut jni_sys::_jobject);
-type JniExceptionCheck = unsafe extern "system" fn(_: *mut JNIEnv) -> jboolean;
-type JniExceptionDescribe = unsafe extern "system" fn(_: *mut JNIEnv);
-type JniExceptionClear = unsafe extern "system" fn(_: *mut JNIEnv);
-type JniDeleteLocalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
-type JniDeleteGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
-type JniNewGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> jobject;
 pub type Callback = fn(Jvm, Instance) -> ();
-
-const INST_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
-const INVO_BASE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocationBase";
-pub(crate) const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocation";
-const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
-const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
-
-lazy_static! {
-    // Synchronize the creation of Jvm
-    static ref MUTEX: Mutex<bool> = Mutex::new(false);
-    // If a Jvm is created with defining a jassets_path other than the default, this is set here
-    pub(crate) static ref JASSETS_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
-}
-
-thread_local! {
-    static JNI_ENV: RefCell<Option<*mut JNIEnv>> = RefCell::new(None);
-    static JVM: RefCell<Option<Jvm>> = RefCell::new(None);
-    static ACTIVE_JVMS: RefCell<i32> = RefCell::new(0);
-}
-
-fn add_active_jvm() {
-    ACTIVE_JVMS.with(|active_jvms| {
-        let active_number = {
-            *active_jvms.borrow() + 1
-        };
-        *active_jvms.borrow_mut() = active_number;
-    });
-}
-
-fn remove_active_jvm() -> i32 {
-    ACTIVE_JVMS.with(|active_jvms| {
-        let active_number = {
-            *active_jvms.borrow() - 1
-        };
-        *active_jvms.borrow_mut() = active_number;
-        active_number
-    })
-}
-
-fn set_thread_local_env(jni_env_opt: Option<*mut JNIEnv>) {
-    JNI_ENV.with(|existing_jni_env_opt| {
-        *existing_jni_env_opt.borrow_mut() = jni_env_opt;
-    });
-}
-
-fn get_thread_local_env_opt() -> Option<*mut JNIEnv> {
-    JNI_ENV.with(|existing_jni_env_opt| {
-        match *existing_jni_env_opt.borrow() {
-            Some(env) => Some(env.clone()),
-            None => None,
-        }
-    })
-}
-
-fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
-    match get_thread_local_env_opt() {
-        Some(env) => Ok(env.clone()),
-        None => Err(errors::J4RsError::JavaError(format!("Could not find the JNIEnv in the thread local"))),
-    }
-}
 
 /// Holds the assets for the JVM
 #[derive(Clone)]
 pub struct Jvm {
     pub(crate) jni_env: *mut JNIEnv,
-    pub(crate) jni_get_method_id: JniGetMethodId,
-    jni_get_static_method_id: JniGetStaticMethodId,
-    pub(crate) jni_new_object: JniNewObject,
-    pub(crate) jni_new_string_utf: JniNewStringUTF,
-    pub(crate) jni_get_string_utf_chars: JniGetStringUTFChars,
-    jni_call_object_method: JniCallObjectMethod,
-    jni_call_void_method: JniCallVoidMethod,
-    jni_call_static_object_method: JniCallStaticObjectMethod,
-    jni_new_object_array: JniNewObjectArray,
-    jni_set_object_array_element: JniSetObjectArrayElement,
-    jni_exception_check: JniExceptionCheck,
-    jni_exception_describe: JniExceptionDescribe,
-    jni_exception_clear: JniExceptionClear,
-    jni_delete_local_ref: JniDeleteLocalRef,
-    jni_delete_global_ref: JniDeleteGlobalRef,
-    jni_new_global_ref: JniNewGlobalRef,
-    /// This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`.
-    factory_class: jclass,
-    /// The constructor method of the `NativeInstantiationImpl`.
-    factory_constructor_method: jmethodID,
-    /// The method id of the `instantiate` method of the `NativeInstantiation`.
-    factory_instantiate_method: jmethodID,
-    /// The method id of the `createForStatic` method of the `NativeInstantiation`.
-    factory_create_for_static_method: jmethodID,
-    /// The method id of the `createJavaArray` method of the `NativeInstantiation`.
-    factory_create_java_array_method: jmethodID,
-    /// The `NativeInvocationBase` class.
-    /// This is optional because it exists only in Android for Java7 compatibility
-    /// because Java7 does not support static method implementations in interfaces.
-    native_invocation_base_class: Option<jclass>,
-    /// The `NativeInvocation` class.
-    native_invocation_class: jclass,
-    /// The Java class for the `InvocationArg`.
-    pub(crate) invocation_arg_class: jclass,
-    /// The invoke method
-    invoke_method: jmethodID,
-    /// The invoke static method
-    invoke_static_method: jmethodID,
-    // The invoke to channel method
-    invoke_to_channel_method: jmethodID,
-    // The init callback channel method
-    init_callback_channel_method: jmethodID,
-    /// The field method
-    field_method: jmethodID,
-    class_to_invoke_clone_and_cast: jclass,
-    /// The clone method
-    clone_static_method: jmethodID,
-    /// The cast method
-    cast_static_method: jmethodID,
-    /// The get json method
-    get_json_method: jmethodID,
-    /// The invocation argument constructor method for objects created by Java
-    pub(crate) inv_arg_java_constructor_method: jmethodID,
-    /// The invocation argument constructor method for objects created by Rust
-    pub(crate) inv_arg_rust_constructor_method: jmethodID,
-    /// The invocation argument constructor method for objects of Basic type created by Rust
-    pub(crate) inv_arg_basic_rust_constructor_method: jmethodID,
     detach_thread_on_drop: bool,
 }
 
@@ -240,9 +97,9 @@ impl Jvm {
         let mut jni_environment: *mut JNIEnv = ptr::null_mut();
 
         // Create the Jvm atomically
-        let _g = MUTEX.lock()?;
+        let _g = cache::MUTEX.lock()?;
 
-        let result = if let Some(env) = get_thread_local_env_opt() {
+        let result = if let Some(env) = cache::get_thread_local_env_opt() {
             info("A JVM is already created for this thread. Retrieving it...");
             jni_environment = env;
 
@@ -315,270 +172,350 @@ impl Jvm {
 
     pub fn try_from(jni_environment: *mut JNIEnv) -> errors::Result<Jvm> {
         unsafe {
-            match ((**jni_environment).GetMethodID,
-                   (**jni_environment).GetStaticMethodID,
-                   (**jni_environment).NewObject,
-                   (**jni_environment).NewStringUTF,
-                   (**jni_environment).GetStringUTFChars,
-                   (**jni_environment).CallObjectMethod,
-                   (**jni_environment).CallVoidMethod,
-                   (**jni_environment).CallStaticObjectMethod,
-                   (**jni_environment).NewObjectArray,
-                   (**jni_environment).SetObjectArrayElement,
-                   (**jni_environment).ExceptionCheck,
-                   (**jni_environment).ExceptionDescribe,
-                   (**jni_environment).ExceptionClear,
-                   (**jni_environment).DeleteLocalRef,
-                   (**jni_environment).DeleteGlobalRef,
-                   (**jni_environment).NewGlobalRef) {
-                (Some(gmid), Some(gsmid), Some(no), Some(nsu), Some(gsuc), Some(com), Some(cvm), Some(csom), Some(noa), Some(soae), Some(ec), Some(ed), Some(exclear), Some(dlr), Some(dgr), Some(ngr)) => {
+            let gmid = cache::get_jni_get_method_id().or_else(|| cache::set_jni_get_method_id((**jni_environment).GetMethodID));
+            let gsmid = cache::get_jni_get_static_method_id().or_else(|| cache::set_jni_get_static_method_id((**jni_environment).GetStaticMethodID));
+            let _ = cache::get_jni_new_object().or_else(|| cache::set_jni_new_object((**jni_environment).NewObject));
+            let _ = cache::get_jni_new_string_utf().or_else(|| cache::set_jni_new_string_utf((**jni_environment).NewStringUTF));
+            let _ = cache::get_jni_get_string_utf_chars().or_else(|| cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars));
+            let _ = cache::get_jni_call_object_method().or_else(|| cache::set_jni_call_object_method((**jni_environment).CallObjectMethod));
+            let _ = cache::get_jni_call_void_method().or_else(|| cache::set_jni_call_void_method((**jni_environment).CallVoidMethod));
+            let _ = cache::get_jni_call_static_object_method().or_else(|| cache::set_jni_call_static_object_method((**jni_environment).CallStaticObjectMethod));
+            let _ = cache::get_jni_new_object_array().or_else(|| cache::set_jni_new_object_array((**jni_environment).NewObjectArray));
+            let _ = cache::get_jni_set_object_array_element().or_else(|| cache::set_jni_set_object_array_element((**jni_environment).SetObjectArrayElement));
+            let ec = cache::get_jni_exception_check().or_else(|| cache::set_jni_exception_check((**jni_environment).ExceptionCheck));
+            let ed = cache::get_jni_exception_describe().or_else(|| cache::set_jni_exception_describe((**jni_environment).ExceptionDescribe));
+            let exclear = cache::get_jni_exception_clear().or_else(|| cache::set_jni_exception_clear((**jni_environment).ExceptionClear));
+            let _ = cache::get_jni_delete_local_ref().or_else(|| cache::set_jni_delete_local_ref((**jni_environment).DeleteLocalRef));
+            let _ = cache::get_jni_delete_global_ref().or_else(|| cache::set_jni_delete_global_ref((**jni_environment).DeleteGlobalRef));
+            let _ = cache::get_jni_new_global_ref().or_else(|| cache::set_jni_new_global_ref((**jni_environment).NewGlobalRef));
+
+            match (gmid, gsmid, ec, ed, exclear) {
+                (Some(gmid), Some(gsmid), Some(ec), Some(ed), Some(exclear)) => {
                     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`
-                    let factory_class = tweaks::find_class(jni_environment, INST_CLASS_NAME);
-                    let mut cstr1 = utils::to_c_string("<init>");
-                    let mut cstr2 = utils::to_c_string("()V");
+                    let factory_class = if let Some(j) = cache::get_factory_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(jni_environment, cache::INST_CLASS_NAME);
+                        cache::set_factory_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+
                     // The constructor of `NativeInstantiationImpl`
-                    let factory_constructor_method = (gmid)(
-                        jni_environment,
-                        factory_class,
-                        cstr1,
-                        cstr2);
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    let _ = if let Some(j) = cache::get_factory_constructor_method() {
+                        j
+                    } else {
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string("()V");
+                        // The constructor of `NativeInstantiationImpl`
+                        let j = (gmid)(
+                            jni_environment,
+                            factory_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_factory_constructor_method(j)
+                    };
 
                     // The class of the `InvocationArg`
-                    let invocation_arg_class = tweaks::find_class(
-                        jni_environment,
-                        "org/astonbitecode/j4rs/api/dtos/InvocationArg",
-                    );
+                    let invocation_arg_class = if let Some(j) = cache::get_invocation_arg_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            "org/astonbitecode/j4rs/api/dtos/InvocationArg",
+                        );
+                        cache::set_invocation_arg_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+
                     let instantiate_method_signature = format!(
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
-                        INVO_IFACE_NAME);
+                        cache::INVO_IFACE_NAME);
                     let create_for_static_method_signature = format!(
                         "(Ljava/lang/String;)L{};",
-                        INVO_IFACE_NAME);
+                        cache::INVO_IFACE_NAME);
                     let create_java_array_method_signature = format!(
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
-                        INVO_IFACE_NAME);
+                        cache::INVO_IFACE_NAME);
 
                     // The method id of the `instantiate` method of the `NativeInstantiation`
-                    cstr1 = utils::to_c_string("instantiate");
-                    cstr2 = utils::to_c_string(&instantiate_method_signature);
-                    let factory_instantiate_method = (gsmid)(
-                        jni_environment,
-                        factory_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    let _ = if let Some(j) = cache::get_factory_instantiate_method() {
+                        j
+                    } else {
+                        let cstr1 = utils::to_c_string("instantiate");
+                        let cstr2 = utils::to_c_string(&instantiate_method_signature);
+                        let j = (gsmid)(
+                            jni_environment,
+                            factory_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_factory_instantiate_method(j)
+                    };
 
                     // The method id of the `createForStatic` method of the `NativeInstantiation`
-                    cstr1 = utils::to_c_string("createForStatic");
-                    cstr2 = utils::to_c_string(&create_for_static_method_signature);
-                    let factory_create_for_static_method = (gsmid)(
-                        jni_environment,
-                        factory_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_factory_create_for_static_method().is_none() {
+                        let cstr1 = utils::to_c_string("createForStatic");
+                        let cstr2 = utils::to_c_string(&create_for_static_method_signature);
+                        let j = (gsmid)(
+                            jni_environment,
+                            factory_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_factory_create_for_static_method(j)
+                    }
 
                     // The method id of the `createJavaArray` method of the `NativeInstantiation`
-                    cstr1 = utils::to_c_string("createJavaArray");
-                    cstr2 = utils::to_c_string(&create_java_array_method_signature);
-                    let factory_create_java_array_method = (gsmid)(
-                        jni_environment,
-                        factory_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_factory_create_java_array_method().is_none() {
+                        let cstr1 = utils::to_c_string("createJavaArray");
+                        let cstr2 = utils::to_c_string(&create_java_array_method_signature);
+                        let j = (gsmid)(
+                            jni_environment,
+                            factory_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_factory_create_java_array_method(j)
+                    }
 
                     // The `NativeInvocationBase class`
                     let optional_class = if cfg!(target_os = "android") {
-                        let native_invocation_base_class: jclass = tweaks::find_class(
-                            jni_environment,
-                            INVO_BASE_NAME,
-                        );
+                        let native_invocation_base_class = if let Some(j) = cache::get_native_invocation_base_class() {
+                            j
+                        } else {
+                            let j = tweaks::find_class(
+                                jni_environment,
+                                cache::INVO_BASE_NAME,
+                            );
+                            cache::set_native_invocation_base_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                        };
                         Some(native_invocation_base_class)
                     } else {
                         None
                     };
+
                     // The `NativeInvocation class`
-                    let native_invocation_class: jclass = tweaks::find_class(
-                        jni_environment,
-                        INVO_IFACE_NAME,
-                    );
+                    let native_invocation_class = if let Some(j) = cache::get_native_invocation_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            cache::INVO_IFACE_NAME,
+                        );
+                        cache::set_native_invocation_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
 
                     // The invoke method
-                    let invoke_method_signature = format!(
-                        "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
-                        INVO_IFACE_NAME);
-                    // Get the method ID for the `NativeInvocation.invoke`
-                    cstr1 = utils::to_c_string("invoke");
-                    cstr2 = utils::to_c_string(invoke_method_signature.as_ref());
-                    let invoke_method = (gmid)(
-                        jni_environment,
-                        native_invocation_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_invoke_method().is_none() {
+                        let invoke_method_signature = format!(
+                            "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                            cache::INVO_IFACE_NAME);
+                        // Get the method ID for the `NativeInvocation.invoke`
+                        let cstr1 = utils::to_c_string("invoke");
+                        let cstr2 = utils::to_c_string(invoke_method_signature.as_ref());
+                        let j = (gmid)(
+                            jni_environment,
+                            native_invocation_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_invoke_method(j)
+                    }
 
                     // The invokeStatic method
-                    let invoke_static_method_signature = format!(
-                        "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
-                        INVO_IFACE_NAME);
-                    cstr1 = utils::to_c_string("invokeStatic");
-                    cstr2 = utils::to_c_string(invoke_static_method_signature.as_ref());
-                    // Get the method ID for the `NativeInvocation.invokeStatic`
-                    let invoke_static_method = (gmid)(
-                        jni_environment,
-                        native_invocation_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_invoke_static_method().is_none() {
+                        let invoke_static_method_signature = format!(
+                            "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                            cache::INVO_IFACE_NAME);
+                        let cstr1 = utils::to_c_string("invokeStatic");
+                        let cstr2 = utils::to_c_string(invoke_static_method_signature.as_ref());
+                        // Get the method ID for the `NativeInvocation.invokeStatic`
+                        let j = (gmid)(
+                            jni_environment,
+                            native_invocation_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_invoke_static_method(j)
+                    }
 
                     // The invoke to channel method
-                    let invoke_to_channel_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
-                    cstr1 = utils::to_c_string("invokeToChannel");
-                    cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
-                    // Get the method ID for the `NativeInvocation.invokeToChannel`
-                    let invoke_to_channel_method = (gmid)(
-                        jni_environment,
-                        native_invocation_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_invoke_to_channel_method().is_none() {
+                        let invoke_to_channel_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
+                        let cstr1 = utils::to_c_string("invokeToChannel");
+                        let cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
+                        // Get the method ID for the `NativeInvocation.invokeToChannel`
+                        let j = (gmid)(
+                            jni_environment,
+                            native_invocation_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_invoke_to_channel_method(j)
+                    };
 
                     // The init callback channel method
-                    let init_callback_channel_method_signature = "(J)V";
-                    cstr1 = utils::to_c_string("initializeCallbackChannel");
-                    cstr2 = utils::to_c_string(&init_callback_channel_method_signature);
-                    // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
-                    let init_callback_channel_method = (gmid)(
-                        jni_environment,
-                        native_invocation_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_init_callback_channel_method().is_none() {
+                        let init_callback_channel_method_signature = "(J)V";
+                        let cstr1 = utils::to_c_string("initializeCallbackChannel");
+                        let cstr2 = utils::to_c_string(&init_callback_channel_method_signature);
+                        // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
+                        let j = (gmid)(
+                            jni_environment,
+                            native_invocation_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_init_callback_channel_method(j)
+                    };
 
                     // The field method
-                    let field_method_signature = format!(
-                        "(Ljava/lang/String;)L{};",
-                        INVO_IFACE_NAME);
-                    cstr1 = utils::to_c_string("field");
-                    cstr2 = utils::to_c_string(field_method_signature.as_ref());
-                    // Get the method ID for the `NativeInvocation.field`
-                    let field_method = (gmid)(
-                        jni_environment,
-                        native_invocation_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
-
-                    // The clone method
-                    let clone_method_signature = format!(
-                        "(L{};)L{};",
-                        INVO_IFACE_NAME,
-                        INVO_IFACE_NAME);
-                    cstr1 = utils::to_c_string("cloneInstance");
-                    cstr2 = utils::to_c_string(clone_method_signature.as_ref());
+                    if cache::get_field_method().is_none() {
+                        let field_method_signature = format!(
+                            "(Ljava/lang/String;)L{};",
+                            cache::INVO_IFACE_NAME);
+                        let cstr1 = utils::to_c_string("field");
+                        let cstr2 = utils::to_c_string(field_method_signature.as_ref());
+                        // Get the method ID for the `NativeInvocation.field`
+                        let j = (gmid)(
+                            jni_environment,
+                            native_invocation_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_field_method(j)
+                    };
 
                     // The class to invoke the cloneInstance into is not the same in Android target os.
                     // The native_invocation_base_class is checked first because of Java7 compatibility issues in Android.
                     // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
                     // and there is a base class created for this reason.
-                    let class_to_invoke_clone_and_cast = optional_class.unwrap_or(native_invocation_class);
+                    let class_to_invoke_clone_and_cast = if let Some(j) = cache::get_class_to_invoke_clone_and_cast() {
+                        j
+                    } else {
+                        let j = optional_class.unwrap_or(native_invocation_class);
+                        cache::set_class_to_invoke_clone_and_cast(j);
+                        j
+                    };
 
-                    // Get the method ID for the `NativeInvocation.clone`
-                    let clone_static_method = (gsmid)(
-                        jni_environment,
-                        class_to_invoke_clone_and_cast,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    // The clone method
+                    if cache::get_clone_static_method().is_none() {
+                        let clone_method_signature = format!(
+                            "(L{};)L{};",
+                            cache::INVO_IFACE_NAME,
+                            cache::INVO_IFACE_NAME);
+                        let cstr1 = utils::to_c_string("cloneInstance");
+                        let cstr2 = utils::to_c_string(clone_method_signature.as_ref());
+                        // Get the method ID for the `NativeInvocation.clone`
+                        let j = (gsmid)(
+                            jni_environment,
+                            class_to_invoke_clone_and_cast,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_clone_static_method(j)
+                    };
 
                     // The cast method
-                    let cast_method_signature = format!(
-                        "(L{};Ljava/lang/String;)L{};",
-                        INVO_IFACE_NAME,
-                        INVO_IFACE_NAME);
-                    cstr1 = utils::to_c_string("cast");
-                    cstr2 = utils::to_c_string(cast_method_signature.as_ref());
+                    if cache::get_cast_static_method().is_none() {
+                        let cast_method_signature = format!(
+                            "(L{};Ljava/lang/String;)L{};",
+                            cache::INVO_IFACE_NAME,
+                            cache::INVO_IFACE_NAME);
+                        let cstr1 = utils::to_c_string("cast");
+                        let cstr2 = utils::to_c_string(cast_method_signature.as_ref());
 
-                    // Get the method ID for the `NativeInvocation.cast`
-                    let cast_static_method = (gsmid)(
-                        jni_environment,
-                        class_to_invoke_clone_and_cast,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                        // Get the method ID for the `NativeInvocation.cast`
+                        let j = (gsmid)(
+                            jni_environment,
+                            class_to_invoke_clone_and_cast,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_cast_static_method(j)
+                    };
 
                     // The getJson method
-                    let get_json_method_signature = "()Ljava/lang/String;";
-                    cstr1 = utils::to_c_string("getJson");
-                    cstr2 = utils::to_c_string(get_json_method_signature.as_ref());
+                    if cache::get_get_json_method().is_none() {
+                        let get_json_method_signature = "()Ljava/lang/String;";
+                        let cstr1 = utils::to_c_string("getJson");
+                        let cstr2 = utils::to_c_string(get_json_method_signature.as_ref());
 
-                    // Get the method ID for the `NativeInvocation.getJson`
-                    let get_json_method = (gmid)(
-                        jni_environment,
-                        native_invocation_class,
-                        cstr1,
-                        cstr2,
-                    );
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                        // Get the method ID for the `NativeInvocation.getJson`
+                        let j = (gmid)(
+                            jni_environment,
+                            native_invocation_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_get_json_method(j)
+                    };
 
                     // The constructor of `InvocationArg` for Java created args
-                    let inv_arg_java_constructor_method_signature = format!("(Ljava/lang/String;L{};)V", INVO_IFACE_NAME);
-                    cstr1 = utils::to_c_string("<init>");
-                    cstr2 = utils::to_c_string(&inv_arg_java_constructor_method_signature);
-                    let inv_arg_java_constructor_method = (gmid)(
-                        jni_environment,
-                        invocation_arg_class,
-                        cstr1,
-                        cstr2);
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_inv_arg_java_constructor_method().is_none() {
+                        let inv_arg_java_constructor_method_signature = format!("(Ljava/lang/String;L{};)V", cache::INVO_IFACE_NAME);
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&inv_arg_java_constructor_method_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            invocation_arg_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_inv_arg_java_constructor_method(j)
+                    };
 
                     // The constructor of `InvocationArg` for Rust created args
-                    cstr1 = utils::to_c_string("<init>");
-                    cstr2 = utils::to_c_string("(Ljava/lang/String;Ljava/lang/String;)V");
-                    let inv_arg_rust_constructor_method = (gmid)(
-                        jni_environment,
-                        invocation_arg_class,
-                        cstr1,
-                        cstr2);
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_inv_arg_rust_constructor_method().is_none() {
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string("(Ljava/lang/String;Ljava/lang/String;)V");
+                        let j = (gmid)(
+                            jni_environment,
+                            invocation_arg_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_inv_arg_rust_constructor_method(j)
+                    };
 
                     // The constructor of `InvocationArg` for basic object type instances created by Rust via JNI
-                    let inv_arg_basic_rust_constructor_method_signature = "(Ljava/lang/String;Ljava/lang/Object;)V";
-                    cstr1 = utils::to_c_string("<init>");
-                    cstr2 = utils::to_c_string(&inv_arg_basic_rust_constructor_method_signature);
-                    let inv_arg_basic_rust_constructor_method = (gmid)(
-                        jni_environment,
-                        invocation_arg_class,
-                        cstr1,
-                        cstr2);
-                    utils::drop_c_string(cstr1);
-                    utils::drop_c_string(cstr2);
+                    if cache::get_inv_arg_basic_rust_constructor_method().is_none() {
+                        let inv_arg_basic_rust_constructor_method_signature = "(Ljava/lang/String;Ljava/lang/Object;)V";
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&inv_arg_basic_rust_constructor_method_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            invocation_arg_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_inv_arg_basic_rust_constructor_method(j)
+                    };
 
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);
@@ -587,54 +524,18 @@ impl Jvm {
                     } else {
                         let jvm = Jvm {
                             jni_env: jni_environment,
-                            jni_get_method_id: gmid,
-                            jni_get_static_method_id: gsmid,
-                            jni_new_object: no,
-                            jni_new_string_utf: nsu,
-                            jni_get_string_utf_chars: gsuc,
-                            jni_call_object_method: com,
-                            jni_call_void_method: cvm,
-                            jni_call_static_object_method: csom,
-                            jni_new_object_array: noa,
-                            jni_set_object_array_element: soae,
-                            jni_exception_check: ec,
-                            jni_exception_describe: ed,
-                            jni_exception_clear: exclear,
-                            jni_delete_local_ref: dlr,
-                            jni_delete_global_ref: dgr,
-                            jni_new_global_ref: ngr,
-                            factory_class: factory_class,
-                            factory_constructor_method: factory_constructor_method,
-                            factory_instantiate_method: factory_instantiate_method,
-                            factory_create_for_static_method: factory_create_for_static_method,
-                            factory_create_java_array_method: factory_create_java_array_method,
-                            native_invocation_base_class: optional_class,
-                            native_invocation_class: native_invocation_class,
-                            invocation_arg_class: invocation_arg_class,
-                            invoke_method: invoke_method,
-                            invoke_static_method: invoke_static_method,
-                            invoke_to_channel_method: invoke_to_channel_method,
-                            init_callback_channel_method: init_callback_channel_method,
-                            field_method: field_method,
-                            class_to_invoke_clone_and_cast: class_to_invoke_clone_and_cast,
-                            clone_static_method: clone_static_method,
-                            cast_static_method: cast_static_method,
-                            get_json_method: get_json_method,
-                            inv_arg_java_constructor_method: inv_arg_java_constructor_method,
-                            inv_arg_rust_constructor_method: inv_arg_rust_constructor_method,
-                            inv_arg_basic_rust_constructor_method: inv_arg_basic_rust_constructor_method,
                             detach_thread_on_drop: true,
                         };
 
-                        if get_thread_local_env_opt().is_none() {
-                            set_thread_local_env(Some(jni_environment));
+                        if cache::get_thread_local_env_opt().is_none() {
+                            cache::set_thread_local_env(Some(jni_environment));
                         }
-                        add_active_jvm();
+                        cache::add_active_jvm();
 
                         Ok(jvm)
                     }
                 }
-                (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) => {
+                (_, _, _, _, _) => {
                     Err(errors::J4RsError::JniError(format!("Could not initialize the JVM: Error while trying to retrieve JNI functions.")))
                 }
             }
@@ -651,10 +552,10 @@ impl Jvm {
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (self.jni_new_object_array)(
+                let j = (cache::get_jni_new_object_array().unwrap())(
                     self.jni_env,
                     size,
-                    self.invocation_arg_class,
+                    cache::get_invocation_arg_class().unwrap(),
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -666,7 +567,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (self.jni_set_object_array_element)(
+                (cache::get_jni_set_object_array_element().unwrap())(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -676,10 +577,10 @@ impl Jvm {
             }
             // Call the method of the factory that instantiates a new class of `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (self.jni_call_static_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
                 self.jni_env,
-                self.factory_class,
-                self.factory_instantiate_method,
+                cache::get_factory_class().unwrap(),
+                cache::get_factory_instantiate_method().unwrap(),
                 class_name_jstring,
                 array_ptr,
             );
@@ -712,10 +613,10 @@ impl Jvm {
 
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (self.jni_call_static_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
                 self.jni_env,
-                self.factory_class,
-                self.factory_create_for_static_method,
+                cache::get_factory_class().unwrap(),
+                cache::get_factory_create_for_static_method().unwrap(),
                 class_name_jstring,
             );
 
@@ -738,10 +639,10 @@ impl Jvm {
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (self.jni_new_object_array)(
+                let j = (cache::get_jni_new_object_array().unwrap())(
                     self.jni_env,
                     size,
-                    self.invocation_arg_class,
+                    cache::get_invocation_arg_class().unwrap(),
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -753,7 +654,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (self.jni_set_object_array_element)(
+                (cache::get_jni_set_object_array_element().unwrap())(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -763,10 +664,10 @@ impl Jvm {
             }
             // Call the method of the factory that instantiates a new Java Array of `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (self.jni_call_static_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
                 self.jni_env,
-                self.factory_class,
-                self.factory_create_java_array_method,
+                cache::get_factory_class().unwrap(),
+                cache::get_factory_create_java_array_method().unwrap(),
                 class_name_jstring,
                 array_ptr,
             );
@@ -800,10 +701,10 @@ impl Jvm {
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (self.jni_new_object_array)(
+                let j = (cache::get_jni_new_object_array().unwrap())(
                     self.jni_env,
                     size,
-                    self.invocation_arg_class,
+                    cache::get_invocation_arg_class().unwrap(),
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -815,7 +716,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (self.jni_set_object_array_element)(
+                (cache::get_jni_set_object_array_element().unwrap())(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -825,10 +726,10 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let native_invocation_instance = (self.jni_call_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_object_method().unwrap())(
                 self.jni_env,
                 instance.jinstance,
-                self.invoke_method,
+                cache::get_invoke_method().unwrap(),
                 method_name_jstring,
                 array_ptr,
             );
@@ -847,7 +748,7 @@ impl Jvm {
             // Create and return the Instance
             self.do_return(Instance {
                 jinstance: native_invocation_global_instance,
-                class_name: UNKNOWN_FOR_RUST.to_string(),
+                class_name: cache::UNKNOWN_FOR_RUST.to_string(),
             })
         }
     }
@@ -860,10 +761,10 @@ impl Jvm {
             let field_name_jstring: jstring = jni_utils::global_jobject_from_str(&field_name, &self)?;
 
             // Call the method of the instance
-            let native_invocation_instance = (self.jni_call_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_object_method().unwrap())(
                 self.jni_env,
                 instance.jinstance,
-                self.field_method,
+                cache::get_field_method().unwrap(),
                 field_name_jstring,
             );
 
@@ -877,7 +778,7 @@ impl Jvm {
             // Create and return the Instance
             self.do_return(Instance {
                 jinstance: native_invocation_global_instance,
-                class_name: UNKNOWN_FOR_RUST.to_string(),
+                class_name: cache::UNKNOWN_FOR_RUST.to_string(),
             })
         }
     }
@@ -902,10 +803,10 @@ impl Jvm {
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (self.jni_new_object_array)(
+                let j = (cache::get_jni_new_object_array().unwrap())(
                     self.jni_env,
                     size,
-                    self.invocation_arg_class,
+                    cache::get_invocation_arg_class().unwrap(),
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -917,7 +818,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (self.jni_set_object_array_element)(
+                (cache::get_jni_set_object_array_element().unwrap())(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -927,10 +828,10 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let _ = (self.jni_call_void_method)(
+            let _ = (cache::get_jni_call_void_method().unwrap())(
                 self.jni_env,
                 instance.jinstance,
-                self.invoke_to_channel_method,
+                cache::get_invoke_to_channel_method().unwrap(),
                 address,
                 method_name_jstring,
                 array_ptr,
@@ -964,10 +865,10 @@ impl Jvm {
             let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
 
             // Call the method of the instance
-            let _ = (self.jni_call_void_method)(
+            let _ = (cache::get_jni_call_void_method().unwrap())(
                 self.jni_env,
                 instance.jinstance,
-                self.init_callback_channel_method,
+                cache::get_init_callback_channel_method().unwrap(),
                 address,
             );
 
@@ -985,10 +886,10 @@ impl Jvm {
 
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (self.jni_call_static_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
                 self.jni_env,
-                self.factory_class,
-                self.factory_create_for_static_method,
+                cache::get_factory_class().unwrap(),
+                cache::get_factory_create_for_static_method().unwrap(),
                 class_name_jstring,
             );
 
@@ -998,10 +899,10 @@ impl Jvm {
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (self.jni_new_object_array)(
+                let j = (cache::get_jni_new_object_array().unwrap())(
                     self.jni_env,
                     size,
-                    self.invocation_arg_class,
+                    cache::get_invocation_arg_class().unwrap(),
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -1012,7 +913,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (self.jni_set_object_array_element)(
+                (cache::get_jni_set_object_array_element().unwrap())(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -1021,10 +922,10 @@ impl Jvm {
                 inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the instance
-            let native_invocation_instance = (self.jni_call_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_object_method().unwrap())(
                 self.jni_env,
                 native_invocation_instance,
-                self.invoke_static_method,
+                cache::get_invoke_static_method().unwrap(),
                 method_name_jstring,
                 array_ptr,
             );
@@ -1048,10 +949,10 @@ impl Jvm {
     pub fn clone_instance(&self, instance: &Instance) -> errors::Result<Instance> {
         unsafe {
             // Call the clone method
-            let native_invocation_instance = (self.jni_call_static_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
                 self.jni_env,
-                self.class_to_invoke_clone_and_cast,
-                self.clone_static_method,
+                cache::get_class_to_invoke_clone_and_cast().unwrap(),
+                cache::get_clone_static_method().unwrap(),
                 instance.jinstance,
             );
 
@@ -1069,10 +970,10 @@ impl Jvm {
             let to_class_jstring: jstring = jni_utils::global_jobject_from_str(&to_class, &self)?;
 
             // Call the cast method
-            let native_invocation_instance = (self.jni_call_static_object_method)(
+            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
                 self.jni_env,
-                self.class_to_invoke_clone_and_cast,
-                self.cast_static_method,
+                cache::get_class_to_invoke_clone_and_cast().unwrap(),
+                cache::get_cast_static_method().unwrap(),
                 from_instance.jinstance,
                 to_class_jstring,
             );
@@ -1093,10 +994,10 @@ impl Jvm {
         unsafe {
             debug("Invoking the getJson method");
             // Call the getJson method. This returns a localref
-            let json_instance = (self.jni_call_object_method)(
+            let json_instance = (cache::get_jni_call_object_method().unwrap())(
                 self.jni_env,
                 instance.jinstance,
-                self.get_json_method,
+                cache::get_get_json_method().unwrap(),
             );
             let _ = self.do_return("")?;
             debug("Transforming jstring to rust String");
@@ -1205,9 +1106,9 @@ impl Jvm {
 
     pub(crate) fn do_return<T>(&self, to_return: T) -> errors::Result<T> {
         unsafe {
-            if (self.jni_exception_check)(self.jni_env) == JNI_TRUE {
-                (self.jni_exception_describe)(self.jni_env);
-                (self.jni_exception_clear)(self.jni_env);
+            if (cache::get_jni_exception_check().unwrap())(self.jni_env) == JNI_TRUE {
+                (cache::get_jni_exception_describe().unwrap())(self.jni_env);
+                (cache::get_jni_exception_clear().unwrap())(self.jni_env);
                 Err(errors::J4RsError::JavaError("An Exception was thrown by Java... Please check the logs or the console.".to_string()))
             } else {
                 Ok(to_return)
@@ -1286,11 +1187,11 @@ impl Jvm {
 
 impl Drop for Jvm {
     fn drop(&mut self) {
-        if remove_active_jvm() <= 0 {
+        if cache::remove_active_jvm() <= 0 {
             if self.detach_thread_on_drop {
                 self.detach_current_thread();
             }
-            set_thread_local_env(None);
+            cache::set_thread_local_env(None);
         }
     }
 }
@@ -1412,7 +1313,7 @@ impl<'a> JvmBuilder<'a> {
                 Some(base_path_string) => {
                     let mut pb = PathBuf::from(base_path_string);
                     pb.push("jassets");
-                    let mut global_jassets_path_opt = JASSETS_PATH.lock()?;
+                    let mut global_jassets_path_opt = cache::JASSETS_PATH.lock()?;
                     *global_jassets_path_opt = Some(pb.clone());
                     pb
                 }
@@ -1634,7 +1535,7 @@ impl<'a, 'b> TryFrom<(&'a [String], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [String], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1659,7 +1560,7 @@ impl<'a, 'b> TryFrom<(&'a [&'a str], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [&'a str], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1684,7 +1585,7 @@ impl<'a, 'b> TryFrom<(&'a [bool], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [bool], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1709,7 +1610,7 @@ impl<'a, 'b> TryFrom<(&'a [i8], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [i8], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1734,7 +1635,7 @@ impl<'a, 'b> TryFrom<(&'a [char], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [char], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1759,7 +1660,7 @@ impl<'a, 'b> TryFrom<(&'a [i16], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [i16], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1784,7 +1685,7 @@ impl<'a, 'b> TryFrom<(&'a [i32], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [i32], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1809,7 +1710,7 @@ impl<'a, 'b> TryFrom<(&'a [i64], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [i64], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1834,7 +1735,7 @@ impl<'a, 'b> TryFrom<(&'a [f32], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [f32], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1859,7 +1760,7 @@ impl<'a, 'b> TryFrom<(&'a [f64], &'b Jvm)> for InvocationArg {
     fn try_from(vec_t_tup: (&'a [f64], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -1870,7 +1771,7 @@ impl<'a, 'b, T> TryFrom<(&'a [T], &'a str, &'b Jvm)> for InvocationArg where T: 
     fn try_from(vec_t_tup: (&'a [T], &'a str, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, elements_class_name, jvm) = vec_t_tup;
         let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::new(elem, elements_class_name)).collect();
-        let wrapper_arg = InvocationArg::new(&args, J4RS_ARRAY);
+        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
         let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
         Ok(InvocationArg::from(res?))
     }
@@ -2083,14 +1984,14 @@ impl Instance {
     }
 
     pub fn from(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = get_thread_local_env().map_err(|_| {
+        let _jvm = cache::get_thread_local_env().map_err(|_| {
             Jvm::attach_thread()
         });
 
-        let global = jni_utils::create_global_ref_from_local_ref(obj, get_thread_local_env()?)?;
+        let global = jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
         Ok(Instance {
             jinstance: global,
-            class_name: UNKNOWN_FOR_RUST.to_string(),
+            class_name: cache::UNKNOWN_FOR_RUST.to_string(),
         })
     }
 
@@ -2098,7 +1999,7 @@ impl Instance {
     fn _weak_ref(&self) -> errors::Result<Instance> {
         Ok(Instance {
             class_name: self.class_name.clone(),
-            jinstance: jni_utils::_create_weak_global_ref_from_global_ref(self.jinstance.clone(), get_thread_local_env()?)?,
+            jinstance: jni_utils::_create_weak_global_ref_from_global_ref(self.jinstance.clone(), cache::get_thread_local_env()?)?,
         })
     }
 }
@@ -2106,7 +2007,7 @@ impl Instance {
 impl Drop for Instance {
     fn drop(&mut self) {
         debug(&format!("Dropping an instance of {}", self.class_name));
-        if let Some(j_env) = get_thread_local_env_opt() {
+        if let Some(j_env) = cache::get_thread_local_env_opt() {
             jni_utils::delete_java_ref(j_env, self.jinstance);
         }
     }
@@ -2193,8 +2094,8 @@ impl<'a> ToString for JavaOpt<'a> {
 
 #[cfg(test)]
 mod api_unit_tests {
-    use serde_json;
     use serde::Deserialize;
+    use serde_json;
 
     use super::*;
 
