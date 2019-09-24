@@ -624,3 +624,4 @@ pub(crate) fn get_class_to_invoke_clone_and_cast() -> Option<jclass> {
         *opt.borrow()
     })
 }
+

@@ -23,6 +23,10 @@ use serde_json;
 
 pub type Result<T> = result::Result<T, J4RsError>;
 
+pub(crate) fn opt_to_res<T>(opt: Option<T>) -> Result<T> {
+    opt.ok_or(J4RsError::RustError(format!("Option was found None while converting to result")))
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum J4RsError {
     GeneralError(String),

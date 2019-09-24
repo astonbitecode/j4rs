@@ -49,7 +49,7 @@ use serde_json;
 use crate::{api_tweaks as tweaks, MavenSettings};
 use crate::cache;
 use crate::errors;
-use crate::errors::J4RsError;
+use crate::errors::{J4RsError, opt_to_res};
 use crate::jni_utils;
 use crate::provisioning::{get_maven_settings, JavaArtifact, LocalJarArtifact, MavenArtifact};
 use crate::provisioning;
@@ -552,10 +552,10 @@ impl Jvm {
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (cache::get_jni_new_object_array().unwrap())(
+                let j = (opt_to_res(cache::get_jni_new_object_array())?)(
                     self.jni_env,
                     size,
-                    cache::get_invocation_arg_class().unwrap(),
+                    opt_to_res(cache::get_invocation_arg_class())?,
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -567,7 +567,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (cache::get_jni_set_object_array_element().unwrap())(
+                (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -577,10 +577,10 @@ impl Jvm {
             }
             // Call the method of the factory that instantiates a new class of `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
-                cache::get_factory_class().unwrap(),
-                cache::get_factory_instantiate_method().unwrap(),
+                opt_to_res(cache::get_factory_class())?,
+                opt_to_res(cache::get_factory_instantiate_method())?,
                 class_name_jstring,
                 array_ptr,
             );
@@ -613,10 +613,10 @@ impl Jvm {
 
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
-                cache::get_factory_class().unwrap(),
-                cache::get_factory_create_for_static_method().unwrap(),
+                opt_to_res(cache::get_factory_class())?,
+                opt_to_res(cache::get_factory_create_for_static_method())?,
                 class_name_jstring,
             );
 
@@ -639,10 +639,10 @@ impl Jvm {
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (cache::get_jni_new_object_array().unwrap())(
+                let j = (opt_to_res(cache::get_jni_new_object_array())?)(
                     self.jni_env,
                     size,
-                    cache::get_invocation_arg_class().unwrap(),
+                    opt_to_res(cache::get_invocation_arg_class())?,
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -654,7 +654,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (cache::get_jni_set_object_array_element().unwrap())(
+                (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -664,10 +664,10 @@ impl Jvm {
             }
             // Call the method of the factory that instantiates a new Java Array of `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
-                cache::get_factory_class().unwrap(),
-                cache::get_factory_create_java_array_method().unwrap(),
+                opt_to_res(cache::get_factory_class())?,
+                opt_to_res(cache::get_factory_create_java_array_method())?,
                 class_name_jstring,
                 array_ptr,
             );
@@ -701,10 +701,10 @@ impl Jvm {
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (cache::get_jni_new_object_array().unwrap())(
+                let j = (opt_to_res(cache::get_jni_new_object_array())?)(
                     self.jni_env,
                     size,
-                    cache::get_invocation_arg_class().unwrap(),
+                    opt_to_res(cache::get_invocation_arg_class())?,
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -716,7 +716,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (cache::get_jni_set_object_array_element().unwrap())(
+                (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -726,10 +726,10 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let native_invocation_instance = (cache::get_jni_call_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
-                cache::get_invoke_method().unwrap(),
+                opt_to_res(cache::get_invoke_method())?,
                 method_name_jstring,
                 array_ptr,
             );
@@ -761,10 +761,10 @@ impl Jvm {
             let field_name_jstring: jstring = jni_utils::global_jobject_from_str(&field_name, &self)?;
 
             // Call the method of the instance
-            let native_invocation_instance = (cache::get_jni_call_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
-                cache::get_field_method().unwrap(),
+                opt_to_res(cache::get_field_method())?,
                 field_name_jstring,
             );
 
@@ -803,10 +803,10 @@ impl Jvm {
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (cache::get_jni_new_object_array().unwrap())(
+                let j = (opt_to_res(cache::get_jni_new_object_array())?)(
                     self.jni_env,
                     size,
-                    cache::get_invocation_arg_class().unwrap(),
+                    opt_to_res(cache::get_invocation_arg_class())?,
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -818,7 +818,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (cache::get_jni_set_object_array_element().unwrap())(
+                (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -828,10 +828,10 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let _ = (cache::get_jni_call_void_method().unwrap())(
+            let _ = (opt_to_res(cache::get_jni_call_void_method())?)(
                 self.jni_env,
                 instance.jinstance,
-                cache::get_invoke_to_channel_method().unwrap(),
+                opt_to_res(cache::get_invoke_to_channel_method())?,
                 address,
                 method_name_jstring,
                 array_ptr,
@@ -865,10 +865,10 @@ impl Jvm {
             let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
 
             // Call the method of the instance
-            let _ = (cache::get_jni_call_void_method().unwrap())(
+            let _ = (opt_to_res(cache::get_jni_call_void_method())?)(
                 self.jni_env,
                 instance.jinstance,
-                cache::get_init_callback_channel_method().unwrap(),
+                opt_to_res(cache::get_init_callback_channel_method())?,
                 address,
             );
 
@@ -886,10 +886,10 @@ impl Jvm {
 
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
-                cache::get_factory_class().unwrap(),
-                cache::get_factory_create_for_static_method().unwrap(),
+                opt_to_res(cache::get_factory_class())?,
+                opt_to_res(cache::get_factory_create_for_static_method())?,
                 class_name_jstring,
             );
 
@@ -899,10 +899,10 @@ impl Jvm {
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
-                let j = (cache::get_jni_new_object_array().unwrap())(
+                let j = (opt_to_res(cache::get_jni_new_object_array())?)(
                     self.jni_env,
                     size,
-                    cache::get_invocation_arg_class().unwrap(),
+                    opt_to_res(cache::get_invocation_arg_class())?,
                     ptr::null_mut(),
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
@@ -913,7 +913,7 @@ impl Jvm {
                 // Create an InvocationArg Java Object
                 let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
                 // Set it in the array
-                (cache::get_jni_set_object_array_element().unwrap())(
+                (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
                     array_ptr,
                     i,
@@ -922,10 +922,10 @@ impl Jvm {
                 inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the instance
-            let native_invocation_instance = (cache::get_jni_call_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 native_invocation_instance,
-                cache::get_invoke_static_method().unwrap(),
+                opt_to_res(cache::get_invoke_static_method())?,
                 method_name_jstring,
                 array_ptr,
             );
@@ -949,10 +949,10 @@ impl Jvm {
     pub fn clone_instance(&self, instance: &Instance) -> errors::Result<Instance> {
         unsafe {
             // Call the clone method
-            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
-                cache::get_class_to_invoke_clone_and_cast().unwrap(),
-                cache::get_clone_static_method().unwrap(),
+                opt_to_res(cache::get_class_to_invoke_clone_and_cast())?,
+                opt_to_res(cache::get_clone_static_method())?,
                 instance.jinstance,
             );
 
@@ -970,10 +970,10 @@ impl Jvm {
             let to_class_jstring: jstring = jni_utils::global_jobject_from_str(&to_class, &self)?;
 
             // Call the cast method
-            let native_invocation_instance = (cache::get_jni_call_static_object_method().unwrap())(
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
-                cache::get_class_to_invoke_clone_and_cast().unwrap(),
-                cache::get_cast_static_method().unwrap(),
+                opt_to_res(cache::get_class_to_invoke_clone_and_cast())?,
+                opt_to_res(cache::get_cast_static_method())?,
                 from_instance.jinstance,
                 to_class_jstring,
             );
@@ -994,10 +994,10 @@ impl Jvm {
         unsafe {
             debug("Invoking the getJson method");
             // Call the getJson method. This returns a localref
-            let json_instance = (cache::get_jni_call_object_method().unwrap())(
+            let json_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
-                cache::get_get_json_method().unwrap(),
+                opt_to_res(cache::get_get_json_method())?,
             );
             let _ = self.do_return("")?;
             debug("Transforming jstring to rust String");
@@ -1106,9 +1106,9 @@ impl Jvm {
 
     pub(crate) fn do_return<T>(&self, to_return: T) -> errors::Result<T> {
         unsafe {
-            if (cache::get_jni_exception_check().unwrap())(self.jni_env) == JNI_TRUE {
-                (cache::get_jni_exception_describe().unwrap())(self.jni_env);
-                (cache::get_jni_exception_clear().unwrap())(self.jni_env);
+            if (opt_to_res(cache::get_jni_exception_check())?)(self.jni_env) == JNI_TRUE {
+                (opt_to_res(cache::get_jni_exception_describe())?)(self.jni_env);
+                (opt_to_res(cache::get_jni_exception_clear())?)(self.jni_env);
                 Err(errors::J4RsError::JavaError("An Exception was thrown by Java... Please check the logs or the console.".to_string()))
             } else {
                 Ok(to_return)
