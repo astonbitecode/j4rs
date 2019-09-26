@@ -25,6 +25,7 @@ import org.astonbitecode.j4rs.utils.Utils;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
+import java.util.List;
 
 public class NativeInstantiationImpl {
     static InvocationArgGenerator gen = new InvocationArgGenerator();
@@ -49,10 +50,19 @@ public class NativeInstantiationImpl {
 
     public static NativeInvocation createJavaArray(String className, InvocationArg... args) {
         try {
-            CreatedInstance createdInstance = doCreateJavaArray(className, generateArgObjects(args));
+            CreatedInstance createdInstance = createCollection(className, generateArgObjects(args), J4rsCollectionType.Array);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
-            throw new InstantiationException("Cannot create instance of " + className, error);
+            throw new InstantiationException("Cannot create Java Array of " + className, error);
+        }
+    }
+
+    public static NativeInvocation createJavaList(String className, InvocationArg... args) {
+        try {
+            CreatedInstance createdInstance = createCollection(className, generateArgObjects(args), J4rsCollectionType.List);
+            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
+        } catch (Exception error) {
+            throw new InstantiationException("Cannot create Java List of " + className, error);
         }
     }
 
@@ -71,14 +81,15 @@ public class NativeInstantiationImpl {
         return new CreatedInstance(clazz, instance);
     }
 
-    static CreatedInstance doCreateJavaArray(String className, GeneratedArg[] params) throws Exception {
-        Class<?> clazz = Utils.forNameEnhanced(className);
+    static CreatedInstance createCollection(String className, GeneratedArg[] params, J4rsCollectionType collectionType) throws Exception {
+        boolean isJ4rsArray = className.equals(InvocationArg.CONTENTS_ARRAY);
+        Class<?> clazz = isJ4rsArray ? Utils.forNameBasedOnArgs(params) : Utils.forNameEnhanced(className);
         Object arrayObj = Array.newInstance(clazz, params.length);
 
         Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
 
-        if (!Arrays.stream(paramTypes).allMatch(type -> type.getName().equals(className))) {
+        if (!isJ4rsArray && !Arrays.stream(paramTypes).allMatch(type -> type.getName().equals(className))) {
             throw new IllegalArgumentException("Could not create Java array. All the arguments should be of class " + className);
         }
 
@@ -90,7 +101,18 @@ public class NativeInstantiationImpl {
         }
 
         Object[] oo = (Object[]) arrayObj;
-        return new CreatedInstance(oo.getClass(), oo);
+
+        switch (collectionType) {
+            case Array:
+                return new CreatedInstance(oo.getClass(), oo);
+            case List: {
+                List<?> l = Arrays.asList(oo);
+                return new CreatedInstance(l.getClass(), l);
+            }
+            default:
+                return new CreatedInstance(oo.getClass(), oo);
+        }
+
     }
 
     static class CreatedInstance {
@@ -109,5 +131,10 @@ public class NativeInstantiationImpl {
         public Object getObject() {
             return object;
         }
+    }
+
+    enum J4rsCollectionType {
+        Array,
+        List
     }
 }

@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fmt, result};
+use std::convert::Infallible;
 use std::error::Error;
 use std::ffi::NulError;
 use std::io;
 use std::sync::{PoisonError, TryLockError};
+use std::{fmt, result};
 
 use fs_extra;
 use serde_json;
@@ -24,7 +25,9 @@ use serde_json;
 pub type Result<T> = result::Result<T, J4RsError>;
 
 pub(crate) fn opt_to_res<T>(opt: Option<T>) -> Result<T> {
-    opt.ok_or(J4RsError::RustError(format!("Option was found None while converting to result")))
+    opt.ok_or(J4RsError::RustError(format!(
+        "Option was found None while converting to result"
+    )))
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -93,5 +96,11 @@ impl<T> From<TryLockError<T>> for J4RsError {
 impl<T> From<PoisonError<T>> for J4RsError {
     fn from(err: PoisonError<T>) -> J4RsError {
         J4RsError::GeneralError(format!("{:?}", err))
+    }
+}
+
+impl From<Infallible> for J4RsError {
+    fn from(err: Infallible) -> J4RsError {
+        J4RsError::RustError(format!("{:?}", err))
     }
 }

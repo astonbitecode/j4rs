@@ -163,7 +163,7 @@ impl Jvm {
                 debug(&format!("Initializing NativeCallbackSupport with libname {}", libname));
                 jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport",
                                   "initialize",
-                                  &vec![InvocationArg::from(libname)])?;
+                                  &vec![InvocationArg::try_from(libname)?])?;
             }
 
             Ok(jvm)
@@ -236,6 +236,9 @@ impl Jvm {
                     let create_java_array_method_signature = format!(
                         "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
                         cache::INVO_IFACE_NAME);
+                    let create_java_list_method_signature = format!(
+                        "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                        cache::INVO_IFACE_NAME);
 
                     // The method id of the `instantiate` method of the `NativeInstantiation`
                     let _ = if let Some(j) = cache::get_factory_instantiate_method() {
@@ -282,6 +285,21 @@ impl Jvm {
                         utils::drop_c_string(cstr1);
                         utils::drop_c_string(cstr2);
                         cache::set_factory_create_java_array_method(j)
+                    }
+
+                    // The method id of the `createJavaList` method of the `NativeInstantiation`
+                    if cache::get_factory_create_java_list_method().is_none() {
+                        let cstr1 = utils::to_c_string("createJavaList");
+                        let cstr2 = utils::to_c_string(&create_java_list_method_signature);
+                        let j = (gsmid)(
+                            jni_environment,
+                            factory_class,
+                            cstr1,
+                            cstr2,
+                        );
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_factory_create_java_list_method(j)
                     }
 
                     // The `NativeInvocationBase class`
@@ -547,7 +565,7 @@ impl Jvm {
         debug(&format!("Instantiating class {} using {} arguments", class_name, inv_args.len()));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
 
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -609,7 +627,7 @@ impl Jvm {
         debug(&format!("Retrieving static class {}", class_name));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
 
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
@@ -634,7 +652,7 @@ impl Jvm {
         debug(&format!("Creating a java array of class {} with {} elements", class_name, inv_args.len()));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
 
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -691,12 +709,80 @@ impl Jvm {
         }
     }
 
+    /// Creates a new Java List with elements of the class `class_name`.
+    /// The array will have the `InvocationArg`s populated.
+    /// The `InvocationArg`s __must__ be of type _class_name_.
+//    pub fn create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+//        Jvm::do_create_java_list(self.jni_env, class_name, inv_args)
+//    }
+
+    pub fn do_create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+        debug(&format!("Creating a java list of class {} with {} elements", class_name, inv_args.len()));
+        unsafe {
+            // Factory invocation - first argument: create a jstring to pass as argument for the class_name
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
+
+            // Factory invocation - rest of the arguments: Create a new object list of class InvocationArg
+            let size = inv_args.len() as i32;
+            let array_ptr = {
+                let j = (opt_to_res(cache::get_jni_new_object_array())?)(
+                    self.jni_env,
+                    size,
+                    opt_to_res(cache::get_invocation_arg_class())?,
+                    ptr::null_mut(),
+                );
+                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
+            };
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+
+            // Factory invocation - rest of the arguments: populate the array
+            for i in 0..size {
+                // Create an InvocationArg Java Object
+                let inv_arg_java = inv_args[i as usize].as_java_ptr(self)?;
+                // Set it in the array
+                (opt_to_res(cache::get_jni_set_object_array_element())?)(
+                    self.jni_env,
+                    array_ptr,
+                    i,
+                    inv_arg_java,
+                );
+                inv_arg_jobjects.push(inv_arg_java);
+            }
+            // Call the method of the factory that instantiates a new Java Array of `class_name`.
+            // This returns a NativeInvocation that acts like a proxy to the Java world.
+            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+                self.jni_env,
+                opt_to_res(cache::get_factory_class())?,
+                opt_to_res(cache::get_factory_create_java_list_method())?,
+                class_name_jstring,
+                array_ptr,
+            );
+
+            // Check for exceptions before creating the globalref
+            self.do_return(())?;
+
+            let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            // Prevent memory leaks from the created local references
+            for inv_arg_jobject in inv_arg_jobjects {
+                jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
+            }
+            jni_utils::delete_java_ref(self.jni_env, array_ptr);
+            jni_utils::delete_java_ref(self.jni_env, class_name_jstring);
+
+            // Create and return the Instance
+            self.do_return(Instance {
+                jinstance: native_invocation_global_instance,
+                class_name: class_name.to_string(),
+            })
+        }
+    }
+
     /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
     pub fn invoke(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         debug(&format!("Invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
         unsafe {
             // First argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, &self)?;
+            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -758,7 +844,7 @@ impl Jvm {
         debug(&format!("Retrieving field {} of class {}", field_name, instance.class_name));
         unsafe {
             // First argument: create a jstring to pass as argument for the field_name
-            let field_name_jstring: jstring = jni_utils::global_jobject_from_str(&field_name, &self)?;
+            let field_name_jstring: jstring = jni_utils::global_jobject_from_str(&field_name, self.jni_env)?;
 
             // Call the method of the instance
             let native_invocation_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
@@ -798,7 +884,7 @@ impl Jvm {
             let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
 
             // Second argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, &self)?;
+            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -882,7 +968,7 @@ impl Jvm {
         debug(&format!("Invoking static method {} of class {} using {} arguments", method_name, class_name, inv_args.len()));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
-            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, &self)?;
+            let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
 
             // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
             // This returns a NativeInvocation that acts like a proxy to the Java world.
@@ -894,7 +980,7 @@ impl Jvm {
             );
 
             // First argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, &self)?;
+            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -967,7 +1053,7 @@ impl Jvm {
         unsafe {
             // First argument is the jobject that is inside the from_instance
             // Second argument: create a jstring to pass as argument for the to_class
-            let to_class_jstring: jstring = jni_utils::global_jobject_from_str(&to_class, &self)?;
+            let to_class_jstring: jstring = jni_utils::global_jobject_from_str(&to_class, self.jni_env)?;
 
             // Call the cast method
             let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
@@ -1017,16 +1103,16 @@ impl Jvm {
     pub fn deploy_maven(&self, artifact: MavenArtifact) -> errors::Result<()> {
         let instance = self.create_instance(
             "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
-            &vec![InvocationArg::from(artifact.base)])?;
+            &vec![InvocationArg::try_from(artifact.base)?])?;
 
         let _ = self.invoke(
             &instance,
             "deploy",
             &vec![
-                InvocationArg::from(artifact.group),
-                InvocationArg::from(artifact.id),
-                InvocationArg::from(artifact.version),
-                InvocationArg::from(artifact.qualifier)])?;
+                InvocationArg::try_from(artifact.group)?,
+                InvocationArg::try_from(artifact.id)?,
+                InvocationArg::try_from(artifact.version)?,
+                InvocationArg::try_from(artifact.qualifier)?])?;
         Ok(())
     }
 
@@ -1042,17 +1128,17 @@ impl Jvm {
                 let instance = self.create_instance(
                     "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
                     &vec![
-                        InvocationArg::from(repo.uri),
-                        InvocationArg::from(&maven_artifact.base)])?;
+                        InvocationArg::try_from(repo.uri)?,
+                        InvocationArg::try_from(&maven_artifact.base)?])?;
 
                 let res = self.invoke(
                     &instance,
                     "deploy",
                     &vec![
-                        InvocationArg::from(&maven_artifact.group),
-                        InvocationArg::from(&maven_artifact.id),
-                        InvocationArg::from(&maven_artifact.version),
-                        InvocationArg::from(&maven_artifact.qualifier)]);
+                        InvocationArg::try_from(&maven_artifact.group)?,
+                        InvocationArg::try_from(&maven_artifact.id)?,
+                        InvocationArg::try_from(&maven_artifact.version)?,
+                        InvocationArg::try_from(&maven_artifact.qualifier)?]);
 
                 if res.is_ok() {
                     break;
@@ -1063,12 +1149,12 @@ impl Jvm {
         } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
             let instance = self.create_instance(
                 "org.astonbitecode.j4rs.api.deploy.FileSystemDeployer",
-                &vec![InvocationArg::from(&local_jar_artifact.base)])?;
+                &vec![InvocationArg::try_from(&local_jar_artifact.base)?])?;
 
             let _ = self.invoke(
                 &instance,
                 "deploy",
-                &vec![InvocationArg::from(&local_jar_artifact.path)])?;
+                &vec![InvocationArg::try_from(&local_jar_artifact.path)?])?;
             Ok(())
         } else {
             Err(J4RsError::GeneralError(format!("Don't know how to deploy artifacts of {:?}", artifact.type_id())))
@@ -1450,13 +1536,13 @@ impl InvocationArg {
         }
     }
 
-    pub fn new_2<T>(arg: &T, class_name: &str, jvm: &Jvm) -> errors::Result<InvocationArg>
+    pub fn new_2<T>(arg: &T, class_name: &str, jni_env: *mut JNIEnv) -> errors::Result<InvocationArg>
         where T: Serialize + Any
     {
         let arg_any = arg as &dyn Any;
         if let Some(string) = arg_any.downcast_ref::<String>() {
             Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_str(string, jvm)?, class_name),
+                instance: Instance::new(jni_utils::global_jobject_from_str(string, jni_env)?, class_name),
                 class_name: class_name.to_string(),
                 serialized: false,
             })
@@ -1516,17 +1602,10 @@ impl From<Instance> for InvocationArg {
     }
 }
 
-impl From<String> for InvocationArg {
-    fn from(s: String) -> InvocationArg {
-        InvocationArg::new(&s, "java.lang.String")
-    }
-}
-
-impl<'b> TryFrom<(String, &'b Jvm)> for InvocationArg {
+impl TryFrom<String> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (String, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.String", jvm)
+    fn try_from(arg: String) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.String", cache::get_thread_local_env()?)
     }
 }
 
@@ -1534,24 +1613,16 @@ impl<'a, 'b> TryFrom<(&'a [String], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [String], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl<'a> From<&'a str> for InvocationArg {
-    fn from(s: &str) -> InvocationArg {
-        InvocationArg::new(s, "java.lang.String")
-    }
-}
-
-impl<'a, 'b> TryFrom<(&'a str, &'b Jvm)> for InvocationArg {
+impl<'a> TryFrom<&'a str> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (&'a str, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg.to_string(), "java.lang.String", jvm)
+    fn try_from(arg: &'a str) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg.to_string(), "java.lang.String", cache::get_thread_local_env()?)
     }
 }
 
@@ -1559,24 +1630,16 @@ impl<'a, 'b> TryFrom<(&'a [&'a str], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [&'a str], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|&elem| InvocationArg::try_from(elem)).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<bool> for InvocationArg {
-    fn from(b: bool) -> InvocationArg {
-        InvocationArg::new(&b, "java.lang.Boolean")
-    }
-}
-
-impl<'b> TryFrom<(bool, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<bool> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (bool, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Boolean", jvm)
+    fn try_from(arg: bool) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Boolean", cache::get_thread_local_env()?)
     }
 }
 
@@ -1584,24 +1647,16 @@ impl<'a, 'b> TryFrom<(&'a [bool], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [bool], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<i8> for InvocationArg {
-    fn from(b: i8) -> InvocationArg {
-        InvocationArg::new(&b, "java.lang.Byte")
-    }
-}
-
-impl<'b> TryFrom<(i8, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<i8> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (i8, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Byte", jvm)
+    fn try_from(arg: i8) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Byte", cache::get_thread_local_env()?)
     }
 }
 
@@ -1609,24 +1664,16 @@ impl<'a, 'b> TryFrom<(&'a [i8], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [i8], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<char> for InvocationArg {
-    fn from(c: char) -> InvocationArg {
-        InvocationArg::new(&c, "java.lang.Character")
-    }
-}
-
-impl<'b> TryFrom<(char, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<char> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (char, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Character", jvm)
+    fn try_from(arg: char) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Character", cache::get_thread_local_env()?)
     }
 }
 
@@ -1634,24 +1681,16 @@ impl<'a, 'b> TryFrom<(&'a [char], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [char], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<i16> for InvocationArg {
-    fn from(i: i16) -> InvocationArg {
-        InvocationArg::new(&i, "java.lang.Short")
-    }
-}
-
-impl<'b> TryFrom<(i16, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<i16> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (i16, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Short", jvm)
+    fn try_from(arg: i16) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Short", cache::get_thread_local_env()?)
     }
 }
 
@@ -1659,24 +1698,16 @@ impl<'a, 'b> TryFrom<(&'a [i16], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [i16], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<i32> for InvocationArg {
-    fn from(i: i32) -> InvocationArg {
-        InvocationArg::new(&i, "java.lang.Integer")
-    }
-}
-
-impl<'b> TryFrom<(i32, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<i32> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (i32, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Integer", jvm)
+    fn try_from(arg: i32) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Integer", cache::get_thread_local_env()?)
     }
 }
 
@@ -1684,24 +1715,16 @@ impl<'a, 'b> TryFrom<(&'a [i32], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [i32], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<i64> for InvocationArg {
-    fn from(l: i64) -> InvocationArg {
-        InvocationArg::new(&l, "java.lang.Long")
-    }
-}
-
-impl<'b> TryFrom<(i64, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<i64> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (i64, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Long", jvm)
+    fn try_from(arg: i64) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Long", cache::get_thread_local_env()?)
     }
 }
 
@@ -1709,24 +1732,16 @@ impl<'a, 'b> TryFrom<(&'a [i64], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [i64], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<f32> for InvocationArg {
-    fn from(f: f32) -> InvocationArg {
-        InvocationArg::new(&f, "java.lang.Float")
-    }
-}
-
-impl<'b> TryFrom<(f32, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<f32> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (f32, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Float", jvm)
+    fn try_from(arg: f32) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Float", cache::get_thread_local_env()?)
     }
 }
 
@@ -1734,24 +1749,16 @@ impl<'a, 'b> TryFrom<(&'a [f32], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [f32], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl From<f64> for InvocationArg {
-    fn from(f: f64) -> InvocationArg {
-        InvocationArg::new(&f, "java.lang.Double")
-    }
-}
-
-impl<'b> TryFrom<(f64, &'b Jvm)> for InvocationArg {
+impl<'b> TryFrom<f64> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: (f64, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "java.lang.Double", jvm)
+    fn try_from(arg: f64) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "java.lang.Double", cache::get_thread_local_env()?)
     }
 }
 
@@ -1759,49 +1766,34 @@ impl<'a, 'b> TryFrom<(&'a [f64], &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec_t_tup: (&'a [f64], &'b Jvm)) -> errors::Result<InvocationArg> {
         let (vec, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|&elem| InvocationArg::from(elem)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let res = jvm.do_create_java_list(cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
 }
 
-impl<'a, 'b, T> TryFrom<(&'a [T], &'a str, &'b Jvm)> for InvocationArg where T: Serialize {
+//impl<'a, 'b, T> TryFrom<(&'a [T], &'a str, &'b Jvm)> for InvocationArg where T: Serialize {
+//    type Error = errors::J4RsError;
+//    fn try_from(vec_t_tup: (&'a [T], &'a str, &'b Jvm)) -> errors::Result<InvocationArg> {
+//        let (vec, elements_class_name, jvm) = vec_t_tup;
+//        let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::new(elem, elements_class_name)).collect();
+//        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
+//        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
+//        Ok(InvocationArg::from(res?))
+//    }
+//}
+
+impl<'b> TryFrom<()> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(vec_t_tup: (&'a [T], &'a str, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (vec, elements_class_name, jvm) = vec_t_tup;
-        let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::new(elem, elements_class_name)).collect();
-        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-        Ok(InvocationArg::from(res?))
+    fn try_from(arg: ()) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(&arg, "void", cache::get_thread_local_env()?)
     }
 }
 
-impl From<()> for InvocationArg {
-    fn from(_: ()) -> InvocationArg {
-        InvocationArg::new(&(), "void")
-    }
-}
-
-impl<'b> TryFrom<((), &'b Jvm)> for InvocationArg {
+impl<'a> TryFrom<&'a String> for InvocationArg {
     type Error = errors::J4RsError;
-    fn try_from(tup: ((), &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(&arg, "void", jvm)
-    }
-}
-
-impl<'a> From<&'a String> for InvocationArg {
-    fn from(s: &String) -> InvocationArg {
-        InvocationArg::new(s, "java.lang.String")
-    }
-}
-
-impl<'a, 'b> TryFrom<(&'a String, &'b Jvm)> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(tup: (&'a String, &'b Jvm)) -> errors::Result<InvocationArg> {
-        let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.String", jvm)
+    fn try_from(arg: &'a String) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(arg, "java.lang.String", cache::get_thread_local_env()?)
     }
 }
 
@@ -1815,7 +1807,7 @@ impl<'a, 'b> TryFrom<(&'a bool, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a bool, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Boolean", jvm)
+        InvocationArg::new_2(arg, "java.lang.Boolean", jvm.jni_env)
     }
 }
 
@@ -1829,7 +1821,7 @@ impl<'a, 'b> TryFrom<(&'a i8, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a i8, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Byte", jvm)
+        InvocationArg::new_2(arg, "java.lang.Byte", jvm.jni_env)
     }
 }
 
@@ -1843,7 +1835,7 @@ impl<'a, 'b> TryFrom<(&'a char, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a char, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Character", jvm)
+        InvocationArg::new_2(arg, "java.lang.Character", jvm.jni_env)
     }
 }
 
@@ -1857,7 +1849,7 @@ impl<'a, 'b> TryFrom<(&'a i16, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a i16, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Short", jvm)
+        InvocationArg::new_2(arg, "java.lang.Short", jvm.jni_env)
     }
 }
 
@@ -1871,7 +1863,7 @@ impl<'a, 'b> TryFrom<(&'a i32, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a i32, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Integer", jvm)
+        InvocationArg::new_2(arg, "java.lang.Integer", jvm.jni_env)
     }
 }
 
@@ -1885,7 +1877,7 @@ impl<'a, 'b> TryFrom<(&'a i64, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a i64, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Long", jvm)
+        InvocationArg::new_2(arg, "java.lang.Long", jvm.jni_env)
     }
 }
 
@@ -1899,7 +1891,7 @@ impl<'a, 'b> TryFrom<(&'a f32, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a f32, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Float", jvm)
+        InvocationArg::new_2(arg, "java.lang.Float", jvm.jni_env)
     }
 }
 
@@ -1913,7 +1905,7 @@ impl<'a, 'b> TryFrom<(&'a f64, &'b Jvm)> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(tup: (&'a f64, &'b Jvm)) -> errors::Result<InvocationArg> {
         let (arg, jvm) = tup;
-        InvocationArg::new_2(arg, "java.lang.Double", jvm)
+        InvocationArg::new_2(arg, "java.lang.Double", jvm.jni_env)
     }
 }
 
@@ -2124,64 +2116,42 @@ mod api_unit_tests {
     }
 
     #[test]
-    fn invocation_arg_from_basic_types() {
-        validate_type(InvocationArg::from("str"), "java.lang.String");
-        validate_type(InvocationArg::from("str".to_string()), "java.lang.String");
-        validate_type(InvocationArg::from(true), "java.lang.Boolean");
-        validate_type(InvocationArg::from(1_i8), "java.lang.Byte");
-        validate_type(InvocationArg::from('c'), "java.lang.Character");
-        validate_type(InvocationArg::from(1_i16), "java.lang.Short");
-        validate_type(InvocationArg::from(1_i64), "java.lang.Long");
-        validate_type(InvocationArg::from(0.1_f32), "java.lang.Float");
-        validate_type(InvocationArg::from(0.1_f64), "java.lang.Double");
-        validate_type(InvocationArg::from(()), "void");
-
-        validate_type(InvocationArg::from(&"str".to_string()), "java.lang.String");
-        validate_type(InvocationArg::from(&true), "java.lang.Boolean");
-        validate_type(InvocationArg::from(&1_i8), "java.lang.Byte");
-        validate_type(InvocationArg::from(&'c'), "java.lang.Character");
-        validate_type(InvocationArg::from(&1_i16), "java.lang.Short");
-        validate_type(InvocationArg::from(&1_i64), "java.lang.Long");
-        validate_type(InvocationArg::from(&0.1_f32), "java.lang.Float");
-        validate_type(InvocationArg::from(&0.1_f64), "java.lang.Double");
-    }
-
-    #[test]
     fn invocation_arg_try_from_basic_types() {
-        let jvm = JvmBuilder::new().build().unwrap();
-        validate_type(InvocationArg::try_from(("str", &jvm)).unwrap(), "java.lang.String");
-        validate_type(InvocationArg::try_from(("str".to_string(), &jvm)).unwrap(), "java.lang.String");
-        validate_type(InvocationArg::try_from((true, &jvm)).unwrap(), "java.lang.Boolean");
-        validate_type(InvocationArg::try_from((1_i8, &jvm)).unwrap(), "java.lang.Byte");
-        validate_type(InvocationArg::try_from(('c', &jvm)).unwrap(), "java.lang.Character");
-        validate_type(InvocationArg::try_from((1_i16, &jvm)).unwrap(), "java.lang.Short");
-        validate_type(InvocationArg::try_from((1_i64, &jvm)).unwrap(), "java.lang.Long");
-        validate_type(InvocationArg::try_from((0.1_f32, &jvm)).unwrap(), "java.lang.Float");
-        validate_type(InvocationArg::try_from((0.1_f64, &jvm)).unwrap(), "java.lang.Double");
-        validate_type(InvocationArg::try_from(((), &jvm)).unwrap(), "void");
+        let _jvm = JvmBuilder::new().build().unwrap();
+        validate_type(InvocationArg::try_from("str").unwrap(), "java.lang.String");
+        validate_type(InvocationArg::try_from("str".to_string()).unwrap(), "java.lang.String");
+        validate_type(InvocationArg::try_from(true).unwrap(), "java.lang.Boolean");
+        validate_type(InvocationArg::try_from(1_i8).unwrap(), "java.lang.Byte");
+        validate_type(InvocationArg::try_from('c').unwrap(), "java.lang.Character");
+        validate_type(InvocationArg::try_from(1_i16).unwrap(), "java.lang.Short");
+        validate_type(InvocationArg::try_from(1_i64).unwrap(), "java.lang.Long");
+        validate_type(InvocationArg::try_from(0.1_f32).unwrap(), "java.lang.Float");
+        validate_type(InvocationArg::try_from(0.1_f64).unwrap(), "java.lang.Double");
+        validate_type(InvocationArg::try_from(()).unwrap(), "void");
 
-        validate_type(InvocationArg::try_from((&"str".to_string(), &jvm)).unwrap(), "java.lang.String");
-        validate_type(InvocationArg::try_from((&true, &jvm)).unwrap(), "java.lang.Boolean");
-        validate_type(InvocationArg::try_from((&1_i8, &jvm)).unwrap(), "java.lang.Byte");
-        validate_type(InvocationArg::try_from((&'c', &jvm)).unwrap(), "java.lang.Character");
-        validate_type(InvocationArg::try_from((&1_i16, &jvm)).unwrap(), "java.lang.Short");
-        validate_type(InvocationArg::try_from((&1_i64, &jvm)).unwrap(), "java.lang.Long");
-        validate_type(InvocationArg::try_from((&0.1_f32, &jvm)).unwrap(), "java.lang.Float");
-        validate_type(InvocationArg::try_from((&0.1_f64, &jvm)).unwrap(), "java.lang.Double");
+        validate_type(InvocationArg::try_from(&"str".to_string()).unwrap(), "java.lang.String");
+        validate_type(InvocationArg::try_from(&true).unwrap(), "java.lang.Boolean");
+        validate_type(InvocationArg::try_from(&1_i8).unwrap(), "java.lang.Byte");
+        validate_type(InvocationArg::try_from(&'c').unwrap(), "java.lang.Character");
+        validate_type(InvocationArg::try_from(&1_i16).unwrap(), "java.lang.Short");
+        validate_type(InvocationArg::try_from(&1_i64).unwrap(), "java.lang.Long");
+        validate_type(InvocationArg::try_from(&0.1_f32).unwrap(), "java.lang.Float");
+        validate_type(InvocationArg::try_from(&0.1_f64).unwrap(), "java.lang.Double");
     }
 
     #[test]
     fn invocation_into_primitive() {
-        assert!(InvocationArg::from(false).into_primitive().is_ok());
-        assert!(InvocationArg::from(1_i8).into_primitive().is_ok());
-        assert!(InvocationArg::from(1_i16).into_primitive().is_ok());
-        assert!(InvocationArg::from(1_32).into_primitive().is_ok());
-        assert!(InvocationArg::from(1_i64).into_primitive().is_ok());
-        assert!(InvocationArg::from(0.1_f32).into_primitive().is_ok());
-        assert!(InvocationArg::from(0.1_f64).into_primitive().is_ok());
-        assert!(InvocationArg::from('c').into_primitive().is_ok());
-        assert!(InvocationArg::from(()).into_primitive().is_ok());
-        assert!(InvocationArg::from("string").into_primitive().is_err());
+        let _jvm: Jvm = JvmBuilder::new().build().unwrap();
+        assert!(InvocationArg::try_from(false).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from(1_i8).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from(1_i16).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from(1_32).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from(1_i64).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from(0.1_f32).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from(0.1_f64).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from('c').unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from(()).unwrap().into_primitive().is_ok());
+        assert!(InvocationArg::try_from("string").unwrap().into_primitive().is_err());
     }
 
     #[test]

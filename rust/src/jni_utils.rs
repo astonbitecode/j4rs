@@ -35,8 +35,8 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jv
             }
         };
 
-        let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
-        let json_jstring = global_jobject_from_str(&json, jvm)?;
+        let class_name_jstring = global_jobject_from_str(&class_name, jvm.jni_env)?;
+        let json_jstring = global_jobject_from_str(&json, jvm.jni_env)?;
 
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
         let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
@@ -73,7 +73,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jvm: &J
             }
         };
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
-        let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
+        let class_name_jstring = global_jobject_from_str(&class_name, jvm.jni_env)?;
 
         let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jvm.jni_env,
@@ -103,7 +103,7 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jvm: &Jvm) ->
 
         debug(&format!("Calling the InvocationArg constructor for class '{}'", class_name));
 
-        let class_name_jstring = global_jobject_from_str(&class_name, jvm)?;
+        let class_name_jstring = global_jobject_from_str(&class_name, jvm.jni_env)?;
 
         let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jvm.jni_env,
@@ -234,14 +234,14 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     }
 }
 
-pub(crate) fn global_jobject_from_str(string: &str, jvm: &Jvm) -> errors::Result<jobject> {
+pub(crate) fn global_jobject_from_str(string: &str, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         let tmp = utils::to_c_string(string);
         let obj = (cache::get_jni_new_string_utf().unwrap())(
-            jvm.jni_env,
+            jni_env,
             tmp,
         );
-        let gr = create_global_ref_from_local_ref(obj, jvm.jni_env)?;
+        let gr = create_global_ref_from_local_ref(obj, jni_env)?;
         utils::drop_c_string(tmp);
         Ok(gr)
     }

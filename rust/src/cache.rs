@@ -96,6 +96,8 @@ thread_local! {
     pub(crate) static FACTORY_CREATE_FOR_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The method id of the `createJavaArray` method of the `NativeInstantiation`.
     pub(crate) static FACTORY_CREATE_JAVA_ARRAY_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    // The method id of the `createJavaList` method of the `NativeInstantiation`.
+    pub(crate) static FACTORY_CREATE_JAVA_LIST_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The `NativeInvocationBase` class.
     // This is optional because it exists only in Android for Java7 compatibility
     // because Java7 does not support static method implementations in interfaces.
@@ -450,6 +452,18 @@ pub(crate) fn set_factory_create_java_array_method(j: jmethodID) {
 
 pub(crate) fn get_factory_create_java_array_method() -> Option<jmethodID> {
     FACTORY_CREATE_JAVA_ARRAY_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_factory_create_java_list_method(j: jmethodID) {
+    FACTORY_CREATE_JAVA_LIST_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_factory_create_java_list_method() -> Option<jmethodID> {
+    FACTORY_CREATE_JAVA_LIST_METHOD.with(|opt| {
         *opt.borrow()
     })
 }

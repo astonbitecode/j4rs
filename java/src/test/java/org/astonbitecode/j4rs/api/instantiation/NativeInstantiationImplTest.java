@@ -20,6 +20,8 @@ import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.utils.Dummy;
 import org.junit.Test;
 
+import java.util.List;
+
 public class NativeInstantiationImplTest {
 
     @Test
@@ -83,8 +85,16 @@ public class NativeInstantiationImplTest {
     public void createJavaArraySuccess() throws Exception {
         String className = Integer.class.getName();
         GeneratedArg[] generatedArgs = {new GeneratedArg(Integer.class, new Integer(11))};
-        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.doCreateJavaArray(className, generatedArgs);
+        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className, generatedArgs, NativeInstantiationImpl.J4rsCollectionType.Array);
         assert (createdInstance.getClazz().getName().equals("[Ljava.lang.Integer;"));
+    }
+
+    @Test
+    public void createJavaListSuccess() throws Exception {
+        String className = Integer.class.getName();
+        GeneratedArg[] generatedArgs = {new GeneratedArg(Integer.class, new Integer(11))};
+        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className, generatedArgs, NativeInstantiationImpl.J4rsCollectionType.List);
+        assert (List.class.isAssignableFrom(createdInstance.getClazz()));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -94,6 +104,6 @@ public class NativeInstantiationImplTest {
                 new GeneratedArg(Integer.class, new Integer(11)),
                 new GeneratedArg(String.class, "this is a string")
         };
-        NativeInstantiationImpl.doCreateJavaArray(className, generatedArgs);
+        NativeInstantiationImpl.createCollection(className, generatedArgs, NativeInstantiationImpl.J4rsCollectionType.Array);
     }
 }

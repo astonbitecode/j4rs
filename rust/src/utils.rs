@@ -159,22 +159,26 @@ pub(crate) fn get_class_name(inv_arg: &InvocationArg) -> &str {
 #[cfg(test)]
 mod utils_unit_tests {
     use super::*;
+    use crate::JvmBuilder;
+    use std::convert::TryFrom;
 
     #[test]
     fn get_class_name_test() {
-        assert!(get_class_name(&InvocationArg::from(false)) == "java.lang.Boolean");
+        let _jvm = JvmBuilder::new().build().unwrap();
+        assert!(get_class_name(&InvocationArg::try_from(false).unwrap()) == "java.lang.Boolean");
     }
 
     #[test]
     fn primitive_of_test() {
-        assert!(primitive_of(&InvocationArg::from(false)) == Some("bool".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_i8)) == Some("byte".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_i16)) == Some("short".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_32)) == Some("int".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_i64)) == Some("long".to_string()));
-        assert!(primitive_of(&InvocationArg::from(0.1_f32)) == Some("float".to_string()));
-        assert!(primitive_of(&InvocationArg::from(0.1_f64)) == Some("double".to_string()));
-        assert!(primitive_of(&InvocationArg::from('c')) == Some("char".to_string()));
-        assert!(primitive_of(&InvocationArg::from(())) == Some("void".to_string()));
+        let _jvm = JvmBuilder::new().build().unwrap();
+        assert!(primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("bool".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_i8).unwrap()) == Some("byte".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_32).unwrap()) == Some("int".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_i64).unwrap()) == Some("long".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(0.1_f32).unwrap()) == Some("float".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(0.1_f64).unwrap()) == Some("double".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from('c').unwrap()) == Some("char".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(()).unwrap()) == Some("void".to_string()));
     }
 }
