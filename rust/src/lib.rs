@@ -660,14 +660,22 @@ mod lib_unit_tests {
         assert!(vec.len() == 10)
     }
 
-    //    #[test]
-//    #[ignore]
-    fn _new2_inv_arg() {
+    #[test]
+    fn basic_types() {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
-        let ia = InvocationArg::new_2(&"astring".to_string(), "java.lang.String", jvm.jni_env).unwrap();
-        let ret_instance = jvm.invoke(&test_instance, "getMyWithArgs", &[ia]).unwrap();
-        let ret: String = jvm.to_rust(ret_instance).unwrap();
-        println!("---------------{}", ret);
+
+//        for i in 0..1000000000 {
+//            if i % 100000 == 0 {
+//                println!("{}", i);
+//            }
+//            let arg = InvocationArg::try_from(1_i32).unwrap();
+//            let _ = jvm.invoke(&test_instance, "getNumbersUntil", &[arg]).unwrap();
+//        }
+        let arg = InvocationArg::try_from(33_i32).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret1: i32 = jvm.to_rust(i).unwrap();
+        assert!(ret1 == 33);
+//        println!("-------{}", ret1);
     }
 }

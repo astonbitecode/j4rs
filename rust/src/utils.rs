@@ -20,6 +20,7 @@ use fs_extra::dir::get_dir_content;
 use libc::c_char;
 
 use crate::{errors, InvocationArg, cache};
+use std::os::raw::c_int;
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -29,6 +30,10 @@ pub fn to_rust_string(pointer: *const c_char) -> String {
 pub fn to_c_string(string: &str) -> *mut c_char {
     let cs = CString::new(string.as_bytes()).unwrap();
     cs.into_raw()
+}
+
+pub fn to_c_int(i: &i32) -> *mut c_int {
+    i.clone() as *mut c_int
 }
 
 pub fn drop_c_string(ptr: *mut c_char) {

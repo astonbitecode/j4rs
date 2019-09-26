@@ -22,6 +22,7 @@ use crate::logger::{debug, error};
 use crate::utils;
 use crate::cache;
 use std::os::raw::c_char;
+use crate::errors::opt_to_res;
 
 pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
@@ -237,13 +238,25 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
 pub(crate) fn global_jobject_from_str(string: &str, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         let tmp = utils::to_c_string(string);
-        let obj = (cache::get_jni_new_string_utf().unwrap())(
+        let obj = (opt_to_res(cache::get_jni_new_string_utf())?)(
             jni_env,
             tmp,
         );
         let gr = create_global_ref_from_local_ref(obj, jni_env)?;
         utils::drop_c_string(tmp);
         Ok(gr)
+    }
+}
+
+pub(crate) fn global_jobject_from_i32(a: &i32, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            opt_to_res(cache::get_integer_class())?,
+            opt_to_res(cache::get_integer_constructor_method())?,
+            utils::to_c_int(a),
+        );
+        create_global_ref_from_local_ref(o, jni_env)
     }
 }
 

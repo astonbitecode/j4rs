@@ -108,6 +108,10 @@ public class MyTest extends NativeCallbackSupport {
         }).start();
     }
 
+    public <T> T echo(T o) {
+        return o;
+    }
+
     public DummyMapInterface<String, Object> getMap() {
         return new DummyMapImpl();
     }

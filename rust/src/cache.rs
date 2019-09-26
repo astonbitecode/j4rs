@@ -129,6 +129,9 @@ thread_local! {
     pub(crate) static INV_ARG_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The invstatic ocation argument constructor method for objects of Basic type created by Rust
     pub(crate) static INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+
+    pub(crate) static INTEGER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INTEGER_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
 }
 
 pub(crate) fn add_active_jvm() {
@@ -639,3 +642,27 @@ pub(crate) fn get_class_to_invoke_clone_and_cast() -> Option<jclass> {
     })
 }
 
+pub(crate) fn set_integer_class(j: jclass) -> jclass {
+    INTEGER_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+    get_integer_class().unwrap()
+}
+
+pub(crate) fn get_integer_class() -> Option<jclass> {
+    INTEGER_CLASS.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_integer_constructor_method(j: jmethodID) {
+    INTEGER_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_integer_constructor_method() -> Option<jmethodID> {
+    INTEGER_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}

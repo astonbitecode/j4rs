@@ -535,6 +535,31 @@ impl Jvm {
                         cache::set_inv_arg_basic_rust_constructor_method(j)
                     };
 
+                    // The `Integer class`
+                    let integer_class = if let Some(j) = cache::get_integer_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            "java/lang/Integer",
+                        );
+                        cache::set_integer_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+                    // The constructor used for the creation of Integers
+                    if cache::get_integer_constructor_method().is_none() {
+                        let constructor_signature = "(I)V";
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&constructor_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            integer_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_integer_constructor_method(j)
+                    };
+
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);
                         (exclear)(jni_environment);
@@ -1540,9 +1565,15 @@ impl InvocationArg {
         where T: Serialize + Any
     {
         let arg_any = arg as &dyn Any;
-        if let Some(string) = arg_any.downcast_ref::<String>() {
+        if let Some(a) = arg_any.downcast_ref::<String>() {
             Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_str(string, jni_env)?, class_name),
+                instance: Instance::new(jni_utils::global_jobject_from_str(a, jni_env)?, class_name),
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
+        } else if let Some(a) = arg_any.downcast_ref::<i32>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_i32(a, jni_env)?, class_name),
                 class_name: class_name.to_string(),
                 serialized: false,
             })
@@ -1586,6 +1617,15 @@ impl InvocationArg {
             _s @ &InvocationArg::Java { .. } => jni_utils::invocation_arg_jobject_from_java(&self, jvm),
             _s @ &InvocationArg::Rust { .. } => jni_utils::invocation_arg_jobject_from_rust_serialized(&self, jvm),
             _s @ &InvocationArg::RustBasic { .. } => jni_utils::invocation_arg_jobject_from_rust_basic(&self, jvm),
+        }
+    }
+
+    /// Consumes this invocation arg and returns its Instance
+    pub fn instance(self) -> errors::Result<Instance> {
+        match self {
+            InvocationArg::Java { instance: i, .. } => Ok(i),
+            InvocationArg::RustBasic { .. } => Err(errors::J4RsError::RustError(format!("Invalid operation: Cannot get the instance of an InvocationArg::RustBasic"))),
+            InvocationArg::Rust { .. } => Err(errors::J4RsError::RustError(format!("Cannot get the instance from an InvocationArg::Rust"))),
         }
     }
 }
