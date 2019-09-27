@@ -129,7 +129,7 @@ thread_local! {
     pub(crate) static INV_ARG_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The invstatic ocation argument constructor method for objects of Basic type created by Rust
     pub(crate) static INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-
+    // Basic types definitions
     pub(crate) static INTEGER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static INTEGER_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static LONG_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);

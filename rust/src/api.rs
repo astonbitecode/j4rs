@@ -862,11 +862,11 @@ impl Jvm {
     /// Creates a new Java List with elements of the class `class_name`.
     /// The array will have the `InvocationArg`s populated.
     /// The `InvocationArg`s __must__ be of type _class_name_.
-//    pub fn create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
-//        Jvm::do_create_java_list(self.jni_env, class_name, inv_args)
-//    }
+    pub fn create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+        Jvm::do_create_java_list(self, class_name, inv_args)
+    }
 
-    pub fn do_create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+    fn do_create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         debug(&format!("Creating a java list of class {} with {} elements", class_name, inv_args.len()));
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name

@@ -353,6 +353,12 @@ mod lib_unit_tests {
             Ok(i) => {
                 let invocation_args = vec![InvocationArg::try_from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm)).unwrap()];
                 let _ = jvm.invoke(&i, "list", &invocation_args);
+
+                let list = jvm.create_java_list(
+                    "java.lang.String",
+                    &[InvocationArg::try_from("arg1").unwrap(), InvocationArg::try_from("arg2").unwrap(), InvocationArg::try_from("arg3").unwrap()])
+                    .unwrap();
+                let _ = jvm.invoke(&i, "list", &[InvocationArg::from(list)]);
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
