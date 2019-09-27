@@ -351,7 +351,7 @@ mod lib_unit_tests {
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let invocation_args = vec![InvocationArg::try_from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm)).unwrap()];
+                let invocation_args = vec![InvocationArg::try_from(vec!["arg1", "arg2", "arg3", "arg33"].as_slice()).unwrap()];
                 let _ = jvm.invoke(&i, "list", &invocation_args);
 
                 let list = jvm.create_java_list(
