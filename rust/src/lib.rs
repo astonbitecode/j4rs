@@ -665,17 +665,34 @@ mod lib_unit_tests {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
 
-//        for i in 0..1000000000 {
-//            if i % 100000 == 0 {
-//                println!("{}", i);
-//            }
-//            let arg = InvocationArg::try_from(1_i32).unwrap();
-//            let _ = jvm.invoke(&test_instance, "getNumbersUntil", &[arg]).unwrap();
-//        }
+        let arg = InvocationArg::try_from(33_i8).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i8 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i8);
+
+        let arg = InvocationArg::try_from(33_i16).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i16 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i16);
+
         let arg = InvocationArg::try_from(33_i32).unwrap();
         let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
-        let ret1: i32 = jvm.to_rust(i).unwrap();
-        assert!(ret1 == 33);
-//        println!("-------{}", ret1);
+        let ret: i32 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i32);
+
+        let arg = InvocationArg::try_from(33_i64).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i64 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i64);
+
+        let arg = InvocationArg::try_from(33.33_f32).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: f32 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33.33_f32);
+
+        let arg = InvocationArg::try_from(33.33_f64).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: f64 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33.33_f64);
     }
 }

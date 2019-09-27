@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::os::raw::c_char;
 use std::ptr;
 
 use jni_sys::{jint, JNI_TRUE, JNIEnv, jobject, jobjectRefType, jstring};
 
 use crate::{InvocationArg, Jvm};
+use crate::cache;
 use crate::errors;
+use crate::errors::opt_to_res;
 use crate::logger::{debug, error};
 use crate::utils;
-use crate::cache;
-use std::os::raw::c_char;
-use crate::errors::opt_to_res;
 
 pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jvm: &Jvm) -> errors::Result<jobject> {
     unsafe {
@@ -248,13 +248,53 @@ pub(crate) fn global_jobject_from_str(string: &str, jni_env: *mut JNIEnv) -> err
     }
 }
 
+pub(crate) fn global_jobject_from_i8(a: &i8, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        let tmp = a.clone() as *const i8;
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            opt_to_res(cache::get_byte_class())?,
+            opt_to_res(cache::get_byte_constructor_method())?,
+            tmp as *const i8,
+        );
+        create_global_ref_from_local_ref(o, jni_env)
+    }
+}
+
+pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        let tmp = a.clone() as *const i16;
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            opt_to_res(cache::get_short_class())?,
+            opt_to_res(cache::get_short_constructor_method())?,
+            tmp as *const i16,
+        );
+        create_global_ref_from_local_ref(o, jni_env)
+    }
+}
+
 pub(crate) fn global_jobject_from_i32(a: &i32, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
+        let tmp = a.clone() as *const i32;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             opt_to_res(cache::get_integer_class())?,
             opt_to_res(cache::get_integer_constructor_method())?,
-            utils::to_c_int(a),
+            tmp as *const i32,
+        );
+        create_global_ref_from_local_ref(o, jni_env)
+    }
+}
+
+pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        let tmp = a.clone();
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            opt_to_res(cache::get_long_class())?,
+            opt_to_res(cache::get_long_constructor_method())?,
+            tmp as *const i64,
         );
         create_global_ref_from_local_ref(o, jni_env)
     }

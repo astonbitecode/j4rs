@@ -132,6 +132,16 @@ thread_local! {
 
     pub(crate) static INTEGER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static INTEGER_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static LONG_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static LONG_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static SHORT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static SHORT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static BYTE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static BYTE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static FLOAT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FLOAT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static DOUBLE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static DOUBLE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
 }
 
 pub(crate) fn add_active_jvm() {
@@ -663,6 +673,131 @@ pub(crate) fn set_integer_constructor_method(j: jmethodID) {
 
 pub(crate) fn get_integer_constructor_method() -> Option<jmethodID> {
     INTEGER_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_long_class(j: jclass) -> jclass {
+    LONG_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+    get_long_class().unwrap()
+}
+
+pub(crate) fn get_long_class() -> Option<jclass> {
+    LONG_CLASS.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_long_constructor_method(j: jmethodID) {
+    LONG_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_long_constructor_method() -> Option<jmethodID> {
+    LONG_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_short_class(j: jclass) -> jclass {
+    SHORT_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+    get_short_class().unwrap()
+}
+
+pub(crate) fn get_short_class() -> Option<jclass> {
+    SHORT_CLASS.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_short_constructor_method(j: jmethodID) {
+    SHORT_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_short_constructor_method() -> Option<jmethodID> {
+    SHORT_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_byte_class(j: jclass) -> jclass {
+    BYTE_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+    get_byte_class().unwrap()
+}
+
+pub(crate) fn get_byte_class() -> Option<jclass> {
+    BYTE_CLASS.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_byte_constructor_method(j: jmethodID) {
+    BYTE_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_byte_constructor_method() -> Option<jmethodID> {
+    BYTE_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_float_class(j: jclass) -> jclass {
+    FLOAT_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+    get_float_class().unwrap()
+}
+
+pub(crate) fn get_float_class() -> Option<jclass> {
+    FLOAT_CLASS.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_float_constructor_method(j: jmethodID) {
+    FLOAT_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_float_constructor_method() -> Option<jmethodID> {
+    FLOAT_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_double_class(j: jclass) -> jclass {
+    DOUBLE_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+    get_double_class().unwrap()
+}
+
+pub(crate) fn get_double_class() -> Option<jclass> {
+    DOUBLE_CLASS.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_double_constructor_method(j: jmethodID) {
+    DOUBLE_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_double_constructor_method() -> Option<jmethodID> {
+    DOUBLE_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
     })
 }

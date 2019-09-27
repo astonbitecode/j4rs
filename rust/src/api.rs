@@ -560,6 +560,131 @@ impl Jvm {
                         cache::set_integer_constructor_method(j)
                     };
 
+                    // The `Long class`
+                    let long_class = if let Some(j) = cache::get_long_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            "java/lang/Long",
+                        );
+                        cache::set_long_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+                    // The constructor used for the creation of Longs
+                    if cache::get_long_constructor_method().is_none() {
+                        let constructor_signature = "(J)V";
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&constructor_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            long_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_long_constructor_method(j)
+                    };
+
+                    // The `Short class`
+                    let short_class = if let Some(j) = cache::get_short_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            "java/lang/Short",
+                        );
+                        cache::set_short_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+                    // The constructor used for the creation of Shorts
+                    if cache::get_short_constructor_method().is_none() {
+                        let constructor_signature = "(S)V";
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&constructor_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            short_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_short_constructor_method(j)
+                    };
+
+                    // The `Byte class`
+                    let byte_class = if let Some(j) = cache::get_byte_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            "java/lang/Byte",
+                        );
+                        cache::set_byte_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+                    // The constructor used for the creation of Bytes
+                    if cache::get_byte_constructor_method().is_none() {
+                        let constructor_signature = "(B)V";
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&constructor_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            byte_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_byte_constructor_method(j)
+                    };
+
+                    // The `Float class`
+                    let float_class = if let Some(j) = cache::get_float_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            "java/lang/Float",
+                        );
+                        cache::set_float_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+                    // The constructor used for the creation of Floats
+                    if cache::get_float_constructor_method().is_none() {
+                        let constructor_signature = "(F)V";
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&constructor_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            float_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_float_constructor_method(j)
+                    };
+
+                    // The `Float class`
+                    let double_class = if let Some(j) = cache::get_double_class() {
+                        j
+                    } else {
+                        let j = tweaks::find_class(
+                            jni_environment,
+                            "java/lang/Double",
+                        );
+                        cache::set_double_class(jni_utils::create_global_ref_from_local_ref(j, jni_environment)?)
+                    };
+                    // The constructor used for the creation of Floats
+                    if cache::get_double_constructor_method().is_none() {
+                        let constructor_signature = "(D)V";
+                        let cstr1 = utils::to_c_string("<init>");
+                        let cstr2 = utils::to_c_string(&constructor_signature);
+                        let j = (gmid)(
+                            jni_environment,
+                            double_class,
+                            cstr1,
+                            cstr2);
+                        utils::drop_c_string(cstr1);
+                        utils::drop_c_string(cstr2);
+                        cache::set_double_constructor_method(j)
+                    };
+
                     if (ec)(jni_environment) == JNI_TRUE {
                         (ed)(jni_environment);
                         (exclear)(jni_environment);
@@ -1571,9 +1696,29 @@ impl InvocationArg {
                 class_name: class_name.to_string(),
                 serialized: false,
             })
+        } else if let Some(a) = arg_any.downcast_ref::<i8>() {
+            println!("---------BYTE");
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_i8(a, jni_env)?, class_name),
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
+        } else if let Some(a) = arg_any.downcast_ref::<i16>() {
+            println!("---------i16");
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_i16(a, jni_env)?, class_name),
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
         } else if let Some(a) = arg_any.downcast_ref::<i32>() {
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(jni_utils::global_jobject_from_i32(a, jni_env)?, class_name),
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
+        } else if let Some(a) = arg_any.downcast_ref::<i64>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_i64(a, jni_env)?, class_name),
                 class_name: class_name.to_string(),
                 serialized: false,
             })
