@@ -1946,16 +1946,16 @@ impl<'a> TryFrom<&'a [f64]> for InvocationArg {
     }
 }
 
-//impl<'a, 'b, T> TryFrom<(&'a [T], &'a str, &'b Jvm)> for InvocationArg where T: Serialize {
-//    type Error = errors::J4RsError;
-//    fn try_from(vec: (&'a [T], &'a str, &'b Jvm)) -> errors::Result<InvocationArg> {
-//        let (vec, elements_class_name, jvm) = vec;
-//        let args: Vec<InvocationArg> = vec.iter().map(|elem| InvocationArg::new(elem, elements_class_name)).collect();
-//        let wrapper_arg = InvocationArg::new(&args, cache::J4RS_ARRAY);
-//        let res = jvm.invoke_static("java.util.Arrays", "asList", vec![wrapper_arg].as_slice());
-//        Ok(InvocationArg::from(res?))
-//    }
-//}
+impl<'a, T: 'static> TryFrom<(&'a [T], &'a str)> for InvocationArg where T: Serialize {
+    type Error = errors::J4RsError;
+    fn try_from(vec: (&'a [T], &'a str)) -> errors::Result<InvocationArg> {
+        let (vec, elements_class_name) = vec;
+        let jni_env = cache::get_thread_local_env()?;
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::new_2(elem, elements_class_name, jni_env)).collect();
+        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
+        Ok(InvocationArg::from(res?))
+    }
+}
 
 impl TryFrom<()> for InvocationArg {
     type Error = errors::J4RsError;
