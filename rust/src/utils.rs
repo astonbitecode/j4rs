@@ -17,9 +17,9 @@ use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
 use fs_extra::dir::get_dir_content;
-use libc::c_char;
+use libc::{self, c_char};
 
-use crate::{api, errors, InvocationArg};
+use crate::{cache, errors, InvocationArg};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -65,7 +65,7 @@ pub(crate) fn deps_dir() -> errors::Result<String> {
 
 pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
     let pb_opt = {
-        let guard = api::JASSETS_PATH.lock()?;
+        let guard = cache::JASSETS_PATH.lock()?;
         guard.clone()
     };
     match pb_opt {
@@ -158,23 +158,29 @@ pub(crate) fn get_class_name(inv_arg: &InvocationArg) -> &str {
 
 #[cfg(test)]
 mod utils_unit_tests {
+    use std::convert::TryFrom;
+
+    use crate::JvmBuilder;
+
     use super::*;
 
     #[test]
     fn get_class_name_test() {
-        assert!(get_class_name(&InvocationArg::from(false)) == "java.lang.Boolean");
+        let _jvm = JvmBuilder::new().build().unwrap();
+        assert!(get_class_name(&InvocationArg::try_from(false).unwrap()) == "java.lang.Boolean");
     }
 
     #[test]
     fn primitive_of_test() {
-        assert!(primitive_of(&InvocationArg::from(false)) == Some("bool".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_i8)) == Some("byte".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_i16)) == Some("short".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_32)) == Some("int".to_string()));
-        assert!(primitive_of(&InvocationArg::from(1_i64)) == Some("long".to_string()));
-        assert!(primitive_of(&InvocationArg::from(0.1_f32)) == Some("float".to_string()));
-        assert!(primitive_of(&InvocationArg::from(0.1_f64)) == Some("double".to_string()));
-        assert!(primitive_of(&InvocationArg::from('c')) == Some("char".to_string()));
-        assert!(primitive_of(&InvocationArg::from(())) == Some("void".to_string()));
+        let _jvm = JvmBuilder::new().build().unwrap();
+        assert!(primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("bool".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_i8).unwrap()) == Some("byte".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_32).unwrap()) == Some("int".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_i64).unwrap()) == Some("long".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(0.1_f32).unwrap()) == Some("float".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(0.1_f64).unwrap()) == Some("double".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from('c').unwrap()) == Some("char".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(()).unwrap()) == Some("void".to_string()));
     }
 }

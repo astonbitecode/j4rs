@@ -24,7 +24,7 @@ use jni_sys::{
     jsize,
 };
 
-use crate::api::create_global_ref_from_local_ref;
+use crate::jni_utils::create_global_ref_from_local_ref;
 use crate::utils;
 
 lazy_static! {

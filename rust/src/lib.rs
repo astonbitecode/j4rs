@@ -40,6 +40,7 @@ pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
 pub use self::provisioning::MavenArtifact as MavenArtifact;
 pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
 pub use self::provisioning::MavenSettings as MavenSettings;
+pub use self::jni_utils::jstring_to_rust_string as jstring_to_rust_string;
 
 mod api;
 pub(crate) mod api_tweaks;
@@ -48,6 +49,7 @@ mod jni_utils;
 mod logger;
 mod provisioning;
 mod utils;
+mod cache;
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
@@ -98,11 +100,11 @@ mod lib_unit_tests {
             .build()
             .unwrap();
 
-        let instantiation_args = vec![InvocationArg::from("arg from Rust")];
+        let instantiation_args = vec![InvocationArg::try_from("arg from Rust").unwrap()];
         let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref());
         match instance {
             Ok(i) => {
-                let invocation_args = vec![InvocationArg::from(" ")];
+                let invocation_args = vec![InvocationArg::try_from(" ").unwrap()];
                 let invocation_result = jvm.invoke(&i, "split", &invocation_args);
                 assert!(invocation_result.is_ok());
             }
@@ -111,11 +113,11 @@ mod lib_unit_tests {
             }
         };
 
-        let instantiation_args_2 = vec![InvocationArg::from("arg from Rust")];
+        let instantiation_args_2 = vec![InvocationArg::try_from("arg from Rust").unwrap()];
         let instance_2 = jvm.create_instance("java.lang.String", instantiation_args_2.as_ref());
         match instance_2 {
             Ok(i) => {
-                let invocation_args = vec![InvocationArg::from(" ")];
+                let invocation_args = vec![InvocationArg::try_from(" ").unwrap()];
                 let invocation_result = jvm.invoke(&i, "split", &invocation_args);
                 assert!(invocation_result.is_ok());
             }
@@ -298,7 +300,7 @@ mod lib_unit_tests {
                     if i % 100000 == 0 {
                         println!("{}", i);
                     }
-                    let _ia = InvocationArg::try_from((&string_arg_rust, &jvm)).unwrap();
+                    let _ia = InvocationArg::try_from(&string_arg_rust).unwrap();
                     jvm.invoke(&instance, "getMyWithArgs", &[_ia]).unwrap();
                 }
             }
@@ -338,7 +340,7 @@ mod lib_unit_tests {
     fn cast() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], vec![]).unwrap();
 
-        let instantiation_args = vec![InvocationArg::from("Hi")];
+        let instantiation_args = vec![InvocationArg::try_from("Hi").unwrap()];
         let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
         jvm.cast(&instance, "java.lang.Object").unwrap();
     }
@@ -349,8 +351,14 @@ mod lib_unit_tests {
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let invocation_args = vec![InvocationArg::try_from((vec!["arg1", "arg2", "arg3", "arg33"].as_slice(), &jvm)).unwrap()];
+                let invocation_args = vec![InvocationArg::try_from(vec!["arg1", "arg2", "arg3", "arg33"].as_slice()).unwrap()];
                 let _ = jvm.invoke(&i, "list", &invocation_args);
+
+                let list = jvm.create_java_list(
+                    "java.lang.String",
+                    &[InvocationArg::try_from("arg1").unwrap(), InvocationArg::try_from("arg2").unwrap(), InvocationArg::try_from("arg3").unwrap()])
+                    .unwrap();
+                let _ = jvm.invoke(&i, "list", &[InvocationArg::from(list)]);
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);
@@ -364,7 +372,7 @@ mod lib_unit_tests {
             .map(|i: i8| {
                 let v = thread::spawn(move || {
                     let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-                    let instantiation_args = vec![InvocationArg::from(format!("Thread{}", i))];
+                    let instantiation_args = vec![InvocationArg::try_from(format!("Thread{}", i)).unwrap()];
                     let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
                     let string: String = jvm.to_rust(instance).unwrap();
                     string
@@ -382,7 +390,7 @@ mod lib_unit_tests {
     #[test]
     fn use_a_java_instance_in_different_thread() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-        let instantiation_args = vec![InvocationArg::from("3")];
+        let instantiation_args = vec![InvocationArg::try_from("3").unwrap()];
         let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
 
         let jh = thread::spawn(move || {
@@ -401,14 +409,14 @@ mod lib_unit_tests {
         let tid = format!("{:?}", thread::current().id());
         {
             let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-            let instantiation_args = vec![InvocationArg::from(tid.clone())];
+            let instantiation_args = vec![InvocationArg::try_from(tid.clone()).unwrap()];
             let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
             let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
             assert!(&tid == tid_from_java);
         }
         {
             let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-            let instantiation_args = vec![InvocationArg::from(tid.clone())];
+            let instantiation_args = vec![InvocationArg::try_from(tid.clone()).unwrap()];
             let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
             let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
             assert!(&tid == tid_from_java);
@@ -422,14 +430,14 @@ mod lib_unit_tests {
             let tid = format!("{:?}", thread::current().id());
             {
                 let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-                let instantiation_args = vec![InvocationArg::from(tid.clone())];
+                let instantiation_args = vec![InvocationArg::try_from(tid.clone()).unwrap()];
                 let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
                 let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
                 assert!(&tid == tid_from_java);
             }
             {
                 let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-                let instantiation_args = vec![InvocationArg::from(tid.clone())];
+                let instantiation_args = vec![InvocationArg::try_from(tid.clone()).unwrap()];
                 let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
                 let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
                 assert!(&tid == tid_from_java);
@@ -478,9 +486,9 @@ mod lib_unit_tests {
     fn variadic_constructor() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
 
-        let s1 = InvocationArg::from("abc");
-        let s2 = InvocationArg::from("def");
-        let s3 = InvocationArg::from("ghi");
+        let s1 = InvocationArg::try_from("abc").unwrap();
+        let s2 = InvocationArg::try_from("def").unwrap();
+        let s3 = InvocationArg::try_from("ghi").unwrap();
 
         let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
 
@@ -497,9 +505,9 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
 
-        let s1 = InvocationArg::from("abc");
-        let s2 = InvocationArg::from("def");
-        let s3 = InvocationArg::from("ghi");
+        let s1 = InvocationArg::try_from("abc").unwrap();
+        let s2 = InvocationArg::try_from("def").unwrap();
+        let s3 = InvocationArg::try_from("ghi").unwrap();
 
         let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
 
@@ -514,9 +522,9 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
 
-        let s1 = InvocationArg::from(1);
-        let s2 = InvocationArg::from(2);
-        let s3 = InvocationArg::from(3);
+        let s1 = InvocationArg::try_from(1).unwrap();
+        let s2 = InvocationArg::try_from(2).unwrap();
+        let s3 = InvocationArg::try_from(3).unwrap();
 
         let arr_instance = jvm.create_java_array("java.lang.Integer", &vec![s1, s2, s3]).unwrap();
 
@@ -529,10 +537,10 @@ mod lib_unit_tests {
     #[test]
     fn instance_invocation_chain_and_collect() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from("string")]).unwrap();
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::try_from("string").unwrap()]).unwrap();
 
         let i1 = jvm.chain(instance)
-            .invoke("appendToMyString", &vec![InvocationArg::from("_is_appended")]).unwrap()
+            .invoke("appendToMyString", &vec![InvocationArg::try_from("_is_appended").unwrap()]).unwrap()
             .invoke("length", &[]).unwrap()
             .collect();
 
@@ -545,10 +553,10 @@ mod lib_unit_tests {
     #[test]
     fn instance_invocation_chain_and_to_rust() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
-        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::from("string")]).unwrap();
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::try_from("string").unwrap()]).unwrap();
 
         let product: isize = jvm.chain(instance)
-            .invoke("appendToMyString", &vec![InvocationArg::from("_is_appended")]).unwrap()
+            .invoke("appendToMyString", &vec![InvocationArg::try_from("_is_appended").unwrap()]).unwrap()
             .invoke("length", &[]).unwrap()
             .to_rust().unwrap();
 
@@ -588,7 +596,7 @@ mod lib_unit_tests {
         let system = jvm.static_class("java.lang.System").unwrap();
         let _ = jvm.chain(system)
             .field("out").unwrap()
-            .invoke("println", &vec![InvocationArg::from("Hello World")]).unwrap()
+            .invoke("println", &vec![InvocationArg::try_from("Hello World").unwrap()]).unwrap()
             .collect();
     }
 
@@ -621,7 +629,7 @@ mod lib_unit_tests {
         let dummy_map = jvm.invoke(&instance, "getMap", &[]).unwrap();
 
         // Put a new Map entry
-        let _ = jvm.invoke(&dummy_map, "put", &vec![InvocationArg::from("three"), InvocationArg::from(3)]).unwrap();
+        let _ = jvm.invoke(&dummy_map, "put", &vec![InvocationArg::try_from("three").unwrap(), InvocationArg::try_from(3).unwrap()]).unwrap();
 
         // Get the size of the new map and assert
         let size: isize = jvm.chain(dummy_map)
@@ -637,13 +645,13 @@ mod lib_unit_tests {
 
         // Test the primitives in constructors.
         // The constructor of Integer takes a primitive int as an argument.
-        let ia = InvocationArg::from(1_i32).into_primitive().unwrap();
+        let ia = InvocationArg::try_from(1_i32).unwrap().into_primitive().unwrap();
         let res1 = jvm.create_instance("java.lang.Integer", &[ia]);
         assert!(res1.is_ok());
 
         // Test the primitives in invocations.
-        let ia1 = InvocationArg::from(1_i32);
-        let ia2 = InvocationArg::from(1_i32);
+        let ia1 = InvocationArg::try_from(1_i32).unwrap();
+        let ia2 = InvocationArg::try_from(1_i32).unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
         let res2 = jvm.invoke(&test_instance, "addInts", &[ia1.into_primitive().unwrap(), ia2.into_primitive().unwrap()]);
         assert!(res2.is_ok());
@@ -653,19 +661,44 @@ mod lib_unit_tests {
     fn to_tust_returns_list() {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
-        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(10_i32)]).unwrap();
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::try_from(10_i32).unwrap()]).unwrap();
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.len() == 10)
     }
 
-    //    #[test]
-//    #[ignore]
-    fn _new2_inv_arg() {
+    #[test]
+    fn basic_types() {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
-        let ia = InvocationArg::new_2(&"astring".to_string(), "java.lang.String", &jvm).unwrap();
-        let ret_instance = jvm.invoke(&test_instance, "getMyWithArgs", &[ia]).unwrap();
-        let ret: String = jvm.to_rust(ret_instance).unwrap();
-        println!("---------------{}", ret);
+
+        let arg = InvocationArg::try_from(33_i8).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i8 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i8);
+
+        let arg = InvocationArg::try_from(33_i16).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i16 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i16);
+
+        let arg = InvocationArg::try_from(33_i32).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i32 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i32);
+
+        let arg = InvocationArg::try_from(33_i64).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i64 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i64);
+
+        let arg = InvocationArg::try_from(33.33_f32).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: f32 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33.33_f32);
+
+        let arg = InvocationArg::try_from(33.33_f64).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: f64 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33.33_f64);
     }
 }

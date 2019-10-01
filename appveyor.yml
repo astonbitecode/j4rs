@@ -1,7 +1,7 @@
 # Based on the "trust" template v0.1.2
 # https://github.com/japaric/trust/tree/v0.1.2
 
-image: Visual Studio 2017
+#image: Visual Studio 2017
 environment:
   global:
     RUST_VERSION: stable
@@ -9,18 +9,11 @@ environment:
     JAVA_HOME: C:\Program Files\Java\jdk1.8.0
 
   matrix:
-    # MinGW
-    - TARGET: x86_64-pc-windows-gnu
     # MSVC
-#    - TARGET: x86_64-pc-windows-msvc
+    - TARGET: x86_64-pc-windows-msvc
 
 install:
   - ps: >-
-      If ($Env:TARGET -eq 'x86_64-pc-windows-gnu') {
-        $Env:PATH += ';C:\msys64\mingw64\bin'
-      } ElseIf ($Env:TARGET -eq 'i686-pc-windows-gnu') {
-        $Env:PATH += ';C:\msys64\mingw32\bin'
-      }
   - curl -sSf -o rustup-init.exe https://win.rustup.rs/
   - rustup-init.exe -y --default-host %TARGET% --default-toolchain %RUST_VERSION%
   - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
@@ -29,6 +22,7 @@ install:
 
 build_script:
   - mvn -f java/pom.xml clean install
+  - cargo clean --manifest-path=rust/Cargo.toml --target %TARGET%
   - cargo build --manifest-path=rust/Cargo.toml --target %TARGET%
 
 test_script:
@@ -38,8 +32,8 @@ test_script:
     )
 
 cache:
-  - C:\Users\appveyor\.cargo\registry
-  - target
+#  - C:\Users\appveyor\.cargo\registry
+#  - target
 
 branches:
   only:
