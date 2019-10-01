@@ -24,6 +24,9 @@ import org.astonbitecode.j4rs.utils.Utils;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
+import java.util.List;
+
 import java8.util.J8Arrays;
 
 public class NativeInstantiationImpl {
@@ -88,7 +91,7 @@ public class NativeInstantiationImpl {
         Class<?>[] paramTypes = J8Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
 
-        if (!J8Arrays && !Arrays.stream(paramTypes).allMatch(type -> type.getName().equals(className))) {
+        if (!isJ4rsArray && !J8Arrays.stream(paramTypes).allMatch(type -> type.getName().equals(className))) {
             throw new IllegalArgumentException("Could not create Java array. All the arguments should be of class " + className);
         }
 
