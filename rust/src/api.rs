@@ -1696,14 +1696,12 @@ impl InvocationArg {
                 serialized: false,
             })
         } else if let Some(a) = arg_any.downcast_ref::<i8>() {
-            println!("---------BYTE");
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(jni_utils::global_jobject_from_i8(a, jni_env)?, class_name),
                 class_name: class_name.to_string(),
                 serialized: false,
             })
         } else if let Some(a) = arg_any.downcast_ref::<i16>() {
-            println!("---------i16");
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(jni_utils::global_jobject_from_i16(a, jni_env)?, class_name),
                 class_name: class_name.to_string(),
