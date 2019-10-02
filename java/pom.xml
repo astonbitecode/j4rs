@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.10.0-SNAPSHOT-java7</version>
+    <version>0.10.0-java7</version>
     <name>j4rs</name>
     <description>Java for Rust</description>
     <url>https://github.com/astonbitecode/j4rs</url>
@@ -57,7 +57,7 @@
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
         <maven.gpg.plugin.version>1.6</maven.gpg.plugin.version>
         <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
-        <maven.javadoc.plugin.version>2.10.4</maven.javadoc.plugin.version>
+        <maven.javadoc.plugin.version>3.1.1</maven.javadoc.plugin.version>
         <maven.assembly.plugin.version>3.1.0</maven.assembly.plugin.version>
         <logback.version>1.2.3</logback.version>
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
@@ -279,7 +279,10 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>2.9.1</version>
+                        <version>${maven.javadoc.plugin.version}</version>
+                        <configuration>
+                            <source>8</source>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>

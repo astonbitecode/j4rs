@@ -1670,19 +1670,14 @@ pub enum InvocationArg {
 impl InvocationArg {
     /// Creates a InvocationArg::Rust.
     /// This is default for the Args that are created from the Rust code.
-    pub fn new<T: ?Sized>(arg: &T, class_name: &str) -> InvocationArg
-        where T: Serialize
+    pub fn new<T>(arg: &T, class_name: &str) -> InvocationArg
+        where T: Serialize + Any
     {
-        match arg {
-            _ => {
-                let json = serde_json::to_string(arg).unwrap();
-                InvocationArg::Rust {
-                    json: json,
-                    class_name: class_name.to_string(),
-                    serialized: true,
-                }
-            }
-        }
+        Self::new_2(
+            arg,
+            class_name,
+            cache::get_thread_local_env().expect("Could not find the jni_env in the local cache. Please make sure that you created a Jvm before using Jvm::new"))
+            .expect("Could not create the InvocationArg. Please see the logs/console for more details.")
     }
 
     pub fn new_2<T>(arg: &T, class_name: &str, jni_env: *mut JNIEnv) -> errors::Result<InvocationArg>
@@ -1696,14 +1691,12 @@ impl InvocationArg {
                 serialized: false,
             })
         } else if let Some(a) = arg_any.downcast_ref::<i8>() {
-            println!("---------BYTE");
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(jni_utils::global_jobject_from_i8(a, jni_env)?, class_name),
                 class_name: class_name.to_string(),
                 serialized: false,
             })
         } else if let Some(a) = arg_any.downcast_ref::<i16>() {
-            println!("---------i16");
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(jni_utils::global_jobject_from_i16(a, jni_env)?, class_name),
                 class_name: class_name.to_string(),
@@ -2219,7 +2212,8 @@ mod api_unit_tests {
 
     #[test]
     fn new_invocation_arg() {
-        let _ = InvocationArg::new("something", "somethingelse");
+        let _jvm = JvmBuilder::new().build().unwrap();
+        let _ = InvocationArg::new(&"something".to_string(), "somethingelse");
 
         let gr = GuiResponse::ProvidedPassword { password: "passs".to_string(), number: 1 };
         let json = serde_json::to_string(&gr).unwrap();
