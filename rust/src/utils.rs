@@ -134,7 +134,7 @@ fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>
 
 pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
     match get_class_name(inv_arg) {
-        "java.lang.Boolean" => Some("bool".to_string()),
+        "java.lang.Boolean" => Some("boolean".to_string()),
         "java.lang.Byte" => Some("byte".to_string()),
         "java.lang.Short" => Some("short".to_string()),
         "java.lang.Integer" => Some("int".to_string()),
@@ -173,7 +173,7 @@ mod utils_unit_tests {
     #[test]
     fn primitive_of_test() {
         let _jvm = JvmBuilder::new().build().unwrap();
-        assert!(primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("bool".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("boolean".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_i8).unwrap()) == Some("byte".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_32).unwrap()) == Some("int".to_string()));
