@@ -76,7 +76,7 @@ impl Jvm {
 
     /// Attaches the current thread to an active JavaVM
     pub fn attach_thread() -> errors::Result<Jvm> {
-        Self::create_jvm(&Vec::new(), None)
+        Self::create_jvm(&[], None)
     }
 
     /// If true, the thread will not be detached when the Jvm is eing dropped.
@@ -728,7 +728,7 @@ impl Jvm {
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
             };
-            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
 
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
@@ -815,7 +815,7 @@ impl Jvm {
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
             };
-            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
 
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
@@ -883,7 +883,7 @@ impl Jvm {
                 );
                 jni_utils::create_global_ref_from_local_ref(j, jni_env)?
             };
-            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
 
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
@@ -945,7 +945,7 @@ impl Jvm {
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
             };
-            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
 
             // Rest of the arguments: populate the array
             for i in 0..size {
@@ -1047,7 +1047,7 @@ impl Jvm {
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
             };
-            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
 
             // Rest of the arguments: populate the array
             for i in 0..size {
@@ -1143,7 +1143,7 @@ impl Jvm {
                 );
                 jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
             };
-            let mut inv_arg_jobjects: Vec<jobject> = Vec::new();
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
@@ -1357,14 +1357,14 @@ impl Jvm {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
-            tweaks::get_created_java_vms(&mut Vec::new(), 0, &mut created_vms_size);
+            tweaks::get_created_java_vms(&mut Vec::with_capacity(created_vms_size as usize), 0, &mut created_vms_size);
 
             if created_vms_size == 0 {
                 None
             } else {
                 debug(&format!("Retrieving the first of {} created JVMs", created_vms_size));
-                // Get the created VM
-                let mut buffer: Vec<*mut JavaVM> = Vec::new();
+                // Get the created VM (use 2 just in case... :) )
+                let mut buffer: Vec<*mut JavaVM> = Vec::with_capacity(2);
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
 
                 let retjint = tweaks::get_created_java_vms(&mut buffer, created_vms_size, &mut created_vms_size);
@@ -1396,11 +1396,11 @@ impl Jvm {
         unsafe {
             // Get the number of the already created VMs. This is most probably 1, but we retrieve the number just in case...
             let mut created_vms_size: jsize = 0;
-            tweaks::get_created_java_vms(&mut Vec::new(), 0, &mut created_vms_size);
+            tweaks::get_created_java_vms(&mut Vec::with_capacity(created_vms_size as usize), 0, &mut created_vms_size);
 
             if created_vms_size > 0 {
                 // Get the created VM
-                let mut buffer: Vec<*mut JavaVM> = Vec::new();
+                let mut buffer: Vec<*mut JavaVM> = Vec::with_capacity(created_vms_size as usize);
                 for _ in 0..created_vms_size { buffer.push(ptr::null_mut()); }
 
                 let retjint = tweaks::get_created_java_vms(&mut buffer, created_vms_size, &mut created_vms_size);
@@ -1639,7 +1639,7 @@ impl<'a> JvmBuilder<'a> {
     ///
     /// _Note: The already created Jvm is a j4rs Jvm, not a Java VM._
     pub fn already_initialized() -> errors::Result<Jvm> {
-        Jvm::new(&Vec::new(), None)
+        Jvm::new(&[], None)
     }
 }
 
