@@ -308,7 +308,11 @@ pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result
             ptr::null_mut(),
         ) as *mut c_char;
         let rust_string = utils::to_rust_string(s);
-        utils::drop_c_string(s);
+        (cache::get_jni_release_string_utf_chars().unwrap())(
+            jvm.jni_env,
+            java_string,
+            s,
+        );
         Jvm::do_return(jvm.jni_env, rust_string)
     }
 }

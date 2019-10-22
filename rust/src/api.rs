@@ -176,6 +176,7 @@ impl Jvm {
             let _ = cache::get_jni_new_object().or_else(|| cache::set_jni_new_object((**jni_environment).NewObject));
             let _ = cache::get_jni_new_string_utf().or_else(|| cache::set_jni_new_string_utf((**jni_environment).NewStringUTF));
             let _ = cache::get_jni_get_string_utf_chars().or_else(|| cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars));
+            let _ = cache::get_jni_release_string_utf_chars().or_else(|| cache::set_jni_release_string_utf_chars((**jni_environment).ReleaseStringUTFChars));
             let _ = cache::get_jni_call_object_method().or_else(|| cache::set_jni_call_object_method((**jni_environment).CallObjectMethod));
             let _ = cache::get_jni_call_void_method().or_else(|| cache::set_jni_call_void_method((**jni_environment).CallVoidMethod));
             let _ = cache::get_jni_call_static_object_method().or_else(|| cache::set_jni_call_static_object_method((**jni_environment).CallStaticObjectMethod));
