@@ -302,13 +302,17 @@ pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::
 
 pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
     unsafe {
-        let s = (cache::get_jni_get_string_utf_chars().unwrap())(
+        let s = (opt_to_res(cache::get_jni_get_string_utf_chars())?)(
             jvm.jni_env,
             java_string,
             ptr::null_mut(),
         ) as *mut c_char;
         let rust_string = utils::to_rust_string(s);
-        utils::drop_c_string(s);
+        (opt_to_res(cache::get_jni_release_string_utf_chars())?)(
+            jvm.jni_env,
+            java_string,
+            s,
+        );
         Jvm::do_return(jvm.jni_env, rust_string)
     }
 }
