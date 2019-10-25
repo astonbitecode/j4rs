@@ -237,13 +237,12 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
 
 pub(crate) fn global_jobject_from_str(string: &str, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
-        let tmp = utils::to_c_string(string);
+        let tmp = utils::to_c_string_struct(string);
         let obj = (opt_to_res(cache::get_jni_new_string_utf())?)(
             jni_env,
-            tmp,
+            tmp.as_ptr(),
         );
         let gr = create_global_ref_from_local_ref(obj, jni_env)?;
-        utils::drop_c_string(tmp);
         Ok(gr)
     }
 }

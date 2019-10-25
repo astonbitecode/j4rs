@@ -16,19 +16,26 @@ use std::{self, fs, str};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
+use cesu8::{to_java_cesu8, from_java_cesu8};
 use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
 use crate::{cache, errors, InvocationArg};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
+
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
-    str::from_utf8(slice).unwrap().to_string()
+    from_java_cesu8(slice).unwrap().to_string()
 }
 
 pub fn to_c_string(string: &str) -> *mut c_char {
     let cs = CString::new(string.as_bytes()).unwrap();
     cs.into_raw()
+}
+
+pub fn to_c_string_struct(string: &str) -> CString {
+    let enc = to_java_cesu8(string).into_owned();
+    unsafe { CString::from_vec_unchecked(enc) }
 }
 
 pub fn drop_c_string(ptr: *mut c_char) {

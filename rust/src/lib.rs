@@ -264,7 +264,7 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-    //    #[test]
+//        #[test]
 //    #[ignore]
     fn _memory_leaks_invoke_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
@@ -275,6 +275,29 @@ mod lib_unit_tests {
                         println!("{}", i);
                     }
                     jvm.invoke(&instance, "getMyString", &[]).unwrap();
+                }
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
+//            #[test]
+//    #[ignore]
+    fn _memory_leaks_invoke_instances_and_to_rust() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+            Ok(instance) => {
+                for i in 0..100000000 {
+                    let ret_instance = jvm.invoke(&instance, "getMyString", &[]).unwrap();
+                    let s: String = jvm.to_rust(ret_instance).unwrap();
+                    if i % 100000 == 0 {
+                        println!("{}: {}", i, s);
+                    }
                 }
             }
             Err(error) => {
