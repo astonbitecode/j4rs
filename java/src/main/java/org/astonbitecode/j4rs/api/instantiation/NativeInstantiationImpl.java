@@ -100,17 +100,15 @@ public class NativeInstantiationImpl {
             Array.set(arrayObj, i, paramObjects[i]);
         }
 
-        Object[] oo = (Object[]) arrayObj;
-
         switch (collectionType) {
             case Array:
-                return new CreatedInstance(oo.getClass(), oo);
+                return new CreatedInstance(arrayObj.getClass(), arrayObj);
             case List: {
-                List<?> l = Arrays.asList(oo);
+                List<?> l = Arrays.asList(arrayObj);
                 return new CreatedInstance(l.getClass(), l);
             }
             default:
-                return new CreatedInstance(oo.getClass(), oo);
+                return new CreatedInstance(arrayObj.getClass(), arrayObj);
         }
 
     }
