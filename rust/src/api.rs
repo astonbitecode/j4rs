@@ -33,7 +33,6 @@ use jni_sys::{
     JNI_ENOMEM,
     JNI_ERR,
     JNI_EVERSION,
-    JNI_FALSE,
     JNI_OK,
     JNI_TRUE,
     JNI_VERSION_1_8,
@@ -41,6 +40,7 @@ use jni_sys::{
     jobject,
     jsize,
     jstring,
+    jint,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -59,6 +59,8 @@ use super::logger::{debug, error, info, warn};
 
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
+
+pub const _JNI_VERSION_10: jint = 0x000a0000;
 
 pub type Callback = fn(Jvm, Instance) -> ();
 
@@ -130,7 +132,7 @@ impl Jvm {
                     version: JNI_VERSION_1_8,
                     nOptions: jvm_options.len() as i32,
                     options: jvm_options_vec.as_mut_ptr(),
-                    ignoreUnrecognized: JNI_FALSE,
+                    ignoreUnrecognized: JNI_TRUE,
                 };
 
                 tweaks::create_java_vm(
