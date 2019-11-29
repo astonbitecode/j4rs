@@ -558,6 +558,20 @@ mod lib_unit_tests {
     }
 
     #[test]
+    fn variadic_long_primitive_method() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let values: Vec<i64> = vec![1, 2, 3];
+        let jargs: Vec<_> = values
+            .into_iter()
+            .map(|v| InvocationArg::try_from(v).unwrap().into_primitive().unwrap())
+            .collect();
+
+        let arr_instance = jvm.create_java_array("long", &jargs).unwrap();
+
+        let _ = jvm.invoke_static("org.astonbitecode.j4rs.tests.MyTest", "useLongPrimitivesArray", &vec![InvocationArg::from(arr_instance)]).unwrap();
+    }
+
+    #[test]
     fn instance_invocation_chain_and_collect() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::try_from("string").unwrap()]).unwrap();

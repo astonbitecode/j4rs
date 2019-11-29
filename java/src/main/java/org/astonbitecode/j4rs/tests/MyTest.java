@@ -41,6 +41,9 @@ public class MyTest extends NativeCallbackSupport {
         this.string = Arrays.stream(args).collect(Collectors.joining(", "));
     }
 
+    public static void useLongPrimitivesArray(long[] args) {
+    }
+
     public String getMyString() {
         return string;
     }

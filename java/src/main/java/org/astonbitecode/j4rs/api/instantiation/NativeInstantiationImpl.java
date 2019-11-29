@@ -104,7 +104,7 @@ public class NativeInstantiationImpl {
             case Array:
                 return new CreatedInstance(arrayObj.getClass(), arrayObj);
             case List: {
-                List<?> l = Arrays.asList(arrayObj);
+                Object l = clazz.isPrimitive() ? arrayObj : Arrays.asList(((Object[]) arrayObj));
                 return new CreatedInstance(l.getClass(), l);
             }
             default:
