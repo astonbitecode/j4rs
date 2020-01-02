@@ -1,7 +1,7 @@
 # j4rs
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.9.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.11.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
 ![Build Status](https://travis-ci.org/astonbitecode/j4rs.svg?branch=master)
 [![Build status](https://ci.appveyor.com/api/projects/status/9k83nufbt958w6p2?svg=true)](https://ci.appveyor.com/project/astonbitecode/j4rs)
 
@@ -28,13 +28,13 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code, fr
 use j4rs::{Instance, InvocationArg, Jvm, JvmBuilder};
 
 // Create a JVM
-let jvm = JvmBuilder::new().build().unwrap();
+let jvm = JvmBuilder::new().build()?;
 
 // Create a java.lang.String instance
 let string_instance = jvm.create_instance(
     "java.lang.String",     // The Java class to create an instance for
     &Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
-).unwrap();
+)?;
 
 // The instances returned from invocations and instantiations can be viewed as pointers to Java Objects.
 // They can be used for further Java calls.
@@ -43,10 +43,10 @@ let boolean_instance = jvm.invoke(
     &string_instance,       // The String instance created above
     "isEmpty",              // The method of the String instance to invoke
     &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
-).unwrap();
+)?;
 
 // If we need to transform an `Instance` to Rust value, the `to_rust` should be called
-let rust_boolean: bool = jvm.to_rust(boolean_instance).unwrap();
+let rust_boolean: bool = jvm.to_rust(boolean_instance)?;
 println!("The isEmpty() method of the java.lang.String instance returned {}", rust_boolean);
 // The above prints:
 // The isEmpty() method of the java.lang.String instance returned true
@@ -56,7 +56,7 @@ let _static_invocation_result = jvm.invoke_static(
     "java.lang.System",     // The Java class to invoke
     "currentTimeMillis",    // The static method of the Java class to invoke
     &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
-).unwrap();
+)?;
 
 ```
 
@@ -64,19 +64,19 @@ let _static_invocation_result = jvm.invoke_static(
 
 j4rs uses the `InvocationArg` enum to pass arguments to the Java world.
 
-Users can benefit of the existing `From` implementations for several basic types:
+Users can benefit of the existing `TryFrom` implementations for several basic types:
 
 ```rust
-let i1 = InvocationArg::from("a str");      // Creates an arg of java.lang.String
+let i1 = InvocationArg::try_from("a str")?;      // Creates an arg of java.lang.String
 let my_string = "a string".to_owned();
-let i2 = InvocationArg::from(my_string);    // Creates an arg of java.lang.String
-let i3 = InvocationArg::from(true);         // Creates an arg of java.lang.Boolean
-let i4 = InvocationArg::from(1_i8);         // Creates an arg of java.lang.Byte
-let i5 = InvocationArg::from('c');          // Creates an arg of java.lang.Character
-let i6 = InvocationArg::from(1_i16);        // Creates an arg of java.lang.Short
-let i7 = InvocationArg::from(1_i64);        // Creates an arg of java.lang.Long
-let i8 = InvocationArg::from(0.1_f32);      // Creates an arg of java.lang.Float
-let i9 = InvocationArg::from(0.1_f64);      // Creates an arg of java.lang.Double
+let i2 = InvocationArg::try_from(my_string)?;    // Creates an arg of java.lang.String
+let i3 = InvocationArg::try_from(true)?;         // Creates an arg of java.lang.Boolean
+let i4 = InvocationArg::try_from(1_i8)?;         // Creates an arg of java.lang.Byte
+let i5 = InvocationArg::try_from('c')?;          // Creates an arg of java.lang.Character
+let i6 = InvocationArg::try_from(1_i16)?;        // Creates an arg of java.lang.Short
+let i7 = InvocationArg::try_from(1_i64)?;        // Creates an arg of java.lang.Long
+let i8 = InvocationArg::try_from(0.1_f32)?;      // Creates an arg of java.lang.Float
+let i9 = InvocationArg::try_from(0.1_f64)?;      // Creates an arg of java.lang.Double
 ```
 
 And for `Vec`s:
@@ -87,18 +87,18 @@ let my_vec: Vec<String> = vec![
     "def".to_owned(),
     "ghi".to_owned()];
 
-let i10 = InvocationArg::from((my_vec.as_slice(), &jvm));
+let i10 = InvocationArg::try_from(my_vec.as_slice())?;
 ```
 
-The `Instance`s returned by j4rs can be transformed to `InvocationArg`s and be used for invoking methods as well:
+The `Instance`s returned by j4rs can be transformed to `InvocationArg`s and be further used for invoking methods as well:
 
 ```rust
 let one_more_string_instance = jvm.create_instance(
     "java.lang.String",     // The Java class to create an instance for
     &Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
-).unwrap();
+)?;
 
-let i11 = InvocationArg::from(one_more_string_instance);
+let i11 = InvocationArg::try_from(one_more_string_instance)?;
 ```
 
 ### Casting
@@ -106,18 +106,22 @@ let i11 = InvocationArg::from(one_more_string_instance);
 An `Instance` may be casted to some other Class:
 
 ```rust
-let instantiation_args = vec![InvocationArg::from("Hi")];
-let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref()).unwrap();
-jvm.cast(&instance, "java.lang.Object").unwrap();
+let instantiation_args = vec![InvocationArg::try_from("Hi")?];
+let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref())?;
+jvm.cast(&instance, "java.lang.Object")?;
 ```
 
 ### Java arrays and variadics
 
 ```rust
 // Create a Java array of Strings
-let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3]).unwrap();
+let s1 = InvocationArg::try_from("string1")?;
+let s2 = InvocationArg::try_from("string2")?;
+let s3 = InvocationArg::try_from("string3")?;
+
+let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3])?;
 // Invoke the Arrays.asList(...) and retrieve a java.util.List<String>
-let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[InvocationArg::from(arr_instance)]).unwrap();
+let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[InvocationArg::from(arr_instance)])?;
 ```
 
 ### Java Generics
@@ -125,7 +129,7 @@ let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[Invocation
 ```rust
 // Assuming that the following map_instance is a Map<String, Integer>
 // we may invoke its put method
-jvm.invoke(&map_instance, "put", &vec![InvocationArg::from("one"), InvocationArg::from(1)]).unwrap();
+jvm.invoke(&map_instance, "put", &vec![InvocationArg::try_from("one")?, InvocationArg::try_from(1)?])?;
 ```
 
 ### Java primitives
@@ -135,8 +139,8 @@ Even if auto boxing and unboxing is in place, `j4rs` cannot invoke methods with 
 For example, the following code does not work:
 
 ```rust
-let ia = InvocationArg::from(1_i32);
-jvm.create_instance("java.lang.Integer", &[ia]).unwrap();
+let ia = InvocationArg::try_from(1_i32)?;
+jvm.create_instance("java.lang.Integer", &[ia])?;
 ``` 
 
 It throws an _InstantiationException_ because the constructor of `Integer` takes a primitive `int` as an argument:
@@ -152,7 +156,7 @@ It throws an _InstantiationException_ because the constructor of `Integer` takes
 In situations like this, the `java.lang.Integer` instance should be transformed to a primitive `int` first:
 
 ```rust
-let ia = InvocationArg::from(1_i32).into_primitive().unwrap();
+let ia = InvocationArg::try_from(1_i32)?.into_primitive()?;
 jvm.create_instance("java.lang.Integer", &[ia]);
 ```
 
@@ -161,22 +165,22 @@ jvm.create_instance("java.lang.Integer", &[ia]);
 use j4rs::{Instance, InvocationArg, Jvm, JvmBuilder};
 
 // Create a JVM
-let jvm = JvmBuilder::new().build().unwrap();
+let jvm = JvmBuilder::new().build()?;
 
 // Create an instance
 let string_instance = jvm.create_instance(
     "java.lang.String",
-    &vec![InvocationArg::from(" a string ")],
-).unwrap();
+    &vec![InvocationArg::try_from(" a string ")?],
+)?;
 
 // Perform chained operations on the instance
 let string_size: isize = jvm.chain(string_instance)
-    .invoke("trim", &[]).unwrap()
-    .invoke("length", &[]).unwrap()
-    .to_rust().unwrap();
+    .invoke("trim", &[])?
+    .invoke("length", &[])?
+    .to_rust()?;
 
 // Assert that the string was trimmed
-assert!(string_size == 8)
+assert!(string_size == 8);
 ```
 
 ### Callback support
@@ -195,8 +199,7 @@ In order to initialize a channel that will provide Java callback values, the `Jv
 // `org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport`)
 let i = jvm.create_instance(
     "org.astonbitecode.j4rs.tests.MyTest",
-    &Vec::new())
-    .unwrap();
+    &Vec::new())?;
 
 // Invoke the method
 let instance_receiver_res = jvm.invoke_to_channel(
@@ -206,7 +209,7 @@ let instance_receiver_res = jvm.invoke_to_channel(
 );
 
 // Wait for the response to come
-let instance_receiver = instance_receiver_res.unwrap();
+let instance_receiver = instance_receiver_res?;
 let _ = instance_receiver.rx().recv();
 ```
 
@@ -242,7 +245,7 @@ For example, here is how the dropbox dependency can be downloaded and get deploy
 
 ```rust
 let dbx_artifact = MavenArtifact::from("com.dropbox.core:dropbox-core-sdk:3.0.11");
-jvm.deploy_artifact(dbx_artifact).unwrap();
+jvm.deploy_artifact(dbx_artifact)?;
 ```
 
 Additional artifactories can be used as well:
@@ -254,9 +257,9 @@ let jvm: Jvm = JvmBuilder::new()
         MavenArtifactRepo::from("myrepo2::https://my.other.repo.io/artifacts")])
     )
     .build()
-    .unwrap();
+    ?;
 
-jvm.deploy_artifact(&MavenArtifact::from("io.my:library:1.2.3")).unwrap();
+jvm.deploy_artifact(&MavenArtifact::from("io.my:library:1.2.3"))?;
 ```
 
 Maven artifacts are added automatically to the classpath and do not need to be explicitly added.
@@ -273,8 +276,7 @@ If we have one jar that needs to be accessed using `j4rs`, we need to add it in 
 let entry = ClasspathEntry::new("/home/myuser/dev/myjar-1.0.0.jar");
 let jvm: Jvm = JvmBuilder::new()
     .classpath_entry(entry)
-    .build()
-    .unwrap();
+    .build()?;
 ```
 
 ## j4rs Java library
@@ -285,7 +287,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.9.0</version>
+    <version>0.11.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -302,7 +304,7 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.9.0-java7</version>
+    <version>0.11.0-java7</version>
 </dependency>
 ```
 

@@ -237,13 +237,12 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
 
 pub(crate) fn global_jobject_from_str(string: &str, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
-        let tmp = utils::to_c_string(string);
+        let tmp = utils::to_c_string_struct(string);
         let obj = (opt_to_res(cache::get_jni_new_string_utf())?)(
             jni_env,
-            tmp,
+            tmp.as_ptr(),
         );
         let gr = create_global_ref_from_local_ref(obj, jni_env)?;
-        utils::drop_c_string(tmp);
         Ok(gr)
     }
 }
@@ -302,13 +301,17 @@ pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::
 
 pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
     unsafe {
-        let s = (cache::get_jni_get_string_utf_chars().unwrap())(
+        let s = (opt_to_res(cache::get_jni_get_string_utf_chars())?)(
             jvm.jni_env,
             java_string,
             ptr::null_mut(),
         ) as *mut c_char;
         let rust_string = utils::to_rust_string(s);
-        utils::drop_c_string(s);
+        (opt_to_res(cache::get_jni_release_string_utf_chars())?)(
+            jvm.jni_env,
+            java_string,
+            s,
+        );
         Jvm::do_return(jvm.jni_env, rust_string)
     }
 }

@@ -264,7 +264,7 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-    //    #[test]
+//        #[test]
 //    #[ignore]
     fn _memory_leaks_invoke_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
@@ -275,6 +275,29 @@ mod lib_unit_tests {
                         println!("{}", i);
                     }
                     jvm.invoke(&instance, "getMyString", &[]).unwrap();
+                }
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
+//            #[test]
+//    #[ignore]
+    fn _memory_leaks_invoke_instances_and_to_rust() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+            Ok(instance) => {
+                for i in 0..100000000 {
+                    let ret_instance = jvm.invoke(&instance, "getMyString", &[]).unwrap();
+                    let s: String = jvm.to_rust(ret_instance).unwrap();
+                    if i % 100000 == 0 {
+                        println!("{}: {}", i, s);
+                    }
                 }
             }
             Err(error) => {
@@ -532,6 +555,20 @@ mod lib_unit_tests {
 
         let num: i32 = jvm.to_rust(i).unwrap();
         assert!(num == 6);
+    }
+
+    #[test]
+    fn variadic_long_primitive_method() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        let values: Vec<i64> = vec![1, 2, 3];
+        let jargs: Vec<_> = values
+            .into_iter()
+            .map(|v| InvocationArg::try_from(v).unwrap().into_primitive().unwrap())
+            .collect();
+
+        let arr_instance = jvm.create_java_array("long", &jargs).unwrap();
+
+        let _ = jvm.invoke_static("org.astonbitecode.j4rs.tests.MyTest", "useLongPrimitivesArray", &vec![InvocationArg::from(arr_instance)]).unwrap();
     }
 
     #[test]

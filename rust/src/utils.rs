@@ -16,19 +16,26 @@ use std::{self, fs, str};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
+use cesu8::{to_java_cesu8, from_java_cesu8};
 use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
 use crate::{cache, errors, InvocationArg};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
+
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
-    str::from_utf8(slice).unwrap().to_string()
+    from_java_cesu8(slice).unwrap().to_string()
 }
 
 pub fn to_c_string(string: &str) -> *mut c_char {
     let cs = CString::new(string.as_bytes()).unwrap();
     cs.into_raw()
+}
+
+pub fn to_c_string_struct(string: &str) -> CString {
+    let enc = to_java_cesu8(string).into_owned();
+    unsafe { CString::from_vec_unchecked(enc) }
 }
 
 pub fn drop_c_string(ptr: *mut c_char) {
@@ -134,7 +141,7 @@ fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>
 
 pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
     match get_class_name(inv_arg) {
-        "java.lang.Boolean" => Some("bool".to_string()),
+        "java.lang.Boolean" => Some("boolean".to_string()),
         "java.lang.Byte" => Some("byte".to_string()),
         "java.lang.Short" => Some("short".to_string()),
         "java.lang.Integer" => Some("int".to_string()),
@@ -173,7 +180,7 @@ mod utils_unit_tests {
     #[test]
     fn primitive_of_test() {
         let _jvm = JvmBuilder::new().build().unwrap();
-        assert!(primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("bool".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("boolean".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_i8).unwrap()) == Some("byte".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_32).unwrap()) == Some("int".to_string()));

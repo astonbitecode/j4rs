@@ -46,6 +46,8 @@ pub(crate) type JniNewStringUTF = unsafe extern "system" fn(env: *mut JNIEnv, ut
 #[allow(non_snake_case)]
 pub(crate) type JniGetStringUTFChars = unsafe extern "system" fn(env: *mut JNIEnv, str: jstring, isCopy: *mut jboolean) -> *const c_char;
 #[allow(non_snake_case)]
+pub(crate) type JniReleaseStringUTFChars = unsafe extern "system" fn(env: *mut JNIEnv, str: jstring, utf: *const c_char);
+#[allow(non_snake_case)]
 pub(crate) type JniCallObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
 #[allow(non_snake_case)]
 pub(crate) type JniCallVoidMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...);
@@ -75,6 +77,7 @@ thread_local! {
     pub(crate) static JNI_NEW_OBJECT: RefCell<Option<JniNewObject>> = RefCell::new(None);
     pub(crate) static JNI_NEW_STRING_UTF: RefCell<Option<JniNewStringUTF>> = RefCell::new(None);
     pub(crate) static JNI_GET_STRING_UTF_CHARS: RefCell<Option<JniGetStringUTFChars>> = RefCell::new(None);
+    pub(crate) static JNI_RELEASE_STRING_UTF_CHARS: RefCell<Option<JniReleaseStringUTFChars>> = RefCell::new(None);
     pub(crate) static JNI_CALL_OBJECT_METHOD: RefCell<Option<JniCallObjectMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_VOID_METHOD: RefCell<Option<JniCallVoidMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_STATIC_OBJECT_METHOD: RefCell<Option<JniCallStaticObjectMethod>> = RefCell::new(None);
@@ -246,6 +249,19 @@ pub(crate) fn set_jni_get_string_utf_chars(j: Option<JniGetStringUTFChars>) -> O
 
 pub(crate) fn get_jni_get_string_utf_chars() -> Option<JniGetStringUTFChars> {
     JNI_GET_STRING_UTF_CHARS.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_jni_release_string_utf_chars(j: Option<JniReleaseStringUTFChars>) -> Option<JniReleaseStringUTFChars> {
+    JNI_RELEASE_STRING_UTF_CHARS.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_release_string_utf_chars()
+}
+
+pub(crate) fn get_jni_release_string_utf_chars() -> Option<JniReleaseStringUTFChars> {
+    JNI_RELEASE_STRING_UTF_CHARS.with(|opt| {
         *opt.borrow()
     })
 }
