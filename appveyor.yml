@@ -7,11 +7,9 @@ environment:
     JAVA_HOME: C:\Program Files\Java\jdk11
 
 install:
-  - ps: >-
-  - curl -sSf -o rustup-init.exe https://win.rustup.rs/
-  - rustup-init.exe -y
-  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
-  - rustc -Vv
+  - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+  - rustup-init -yv --default-toolchain stable --default-host x86_64-pc-windows-msvc
+  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - cargo -V
 
 build_script:
@@ -20,21 +18,4 @@ build_script:
   - cargo build --manifest-path=rust/Cargo.toml
 
 test_script:
-  # we don't run the "test phase" when doing deploys
-  - if [%APPVEYOR_REPO_TAG%]==[false] (
-      cargo test --manifest-path=rust/Cargo.toml
-    )
-
-cache:
-  - C:\Users\appveyor\.cargo\registry
-  - target
-
-branches:
-  only:
-    # Release tags
-    - /^v\d+\.\d+\.\d+.*$/
-    - master
-
-notifications:
-  - provider: Email
-    on_build_success: false
+  - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml  -- --nocapture
