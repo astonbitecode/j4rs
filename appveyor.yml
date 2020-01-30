@@ -16,6 +16,6 @@ build_script:
   - mvn -f java/pom.xml clean install
   - cargo clean --manifest-path=rust/Cargo.toml
   - cargo build --manifest-path=rust/Cargo.toml
-
 test_script:
-  - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml  -- --nocapture
+  - SET J4RS_CONSOLE_LOG_LEVEL=debug
+  - cargo test --manifest-path=rust/Cargo.toml  -- --nocapture
