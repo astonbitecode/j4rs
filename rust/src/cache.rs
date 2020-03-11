@@ -29,8 +29,9 @@ use jni_sys::{
 };
 use libc::c_char;
 
-use crate::api::Jvm;
-use crate::errors;
+use crate::{api_tweaks as tweaks, errors, jni_utils, utils};
+use crate::errors::opt_to_res;
+use crate::logger::debug;
 
 pub(crate) const INST_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
 pub(crate) const INVO_BASE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocationBase";
@@ -70,7 +71,6 @@ lazy_static! {
 
 thread_local! {
     pub(crate) static JNI_ENV: RefCell<Option<*mut JNIEnv>> = RefCell::new(None);
-    pub(crate) static JVM: RefCell<Option<Jvm>> = RefCell::new(None);
     pub(crate) static ACTIVE_JVMS: RefCell<i32> = RefCell::new(0);
     pub(crate) static JNI_GET_METHOD_ID: RefCell<Option<JniGetMethodId>> = RefCell::new(None);
     pub(crate) static JNI_GET_STATIC_METHOD_ID: RefCell<Option<JniGetStaticMethodId>> = RefCell::new(None);
@@ -176,6 +176,7 @@ pub(crate) fn get_thread_local_env_opt() -> Option<*mut JNIEnv> {
 }
 
 pub(crate) fn set_thread_local_env(jni_env_opt: Option<*mut JNIEnv>) {
+    debug("Called set_thread_local_env");
     JNI_ENV.with(|existing_jni_env_opt| {
         *existing_jni_env_opt.borrow_mut() = jni_env_opt;
     });
@@ -189,6 +190,7 @@ pub(crate) fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
 }
 
 pub(crate) fn set_jni_get_method_id(j: Option<JniGetMethodId>) -> Option<JniGetMethodId> {
+    debug("Called set_jni_get_method_id");
     JNI_GET_METHOD_ID.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -202,6 +204,7 @@ pub(crate) fn get_jni_get_method_id() -> Option<JniGetMethodId> {
 }
 
 pub(crate) fn set_jni_get_static_method_id(j: Option<JniGetMethodId>) -> Option<JniGetStaticMethodId> {
+    debug("Called set_jni_get_static_method_id");
     JNI_GET_STATIC_METHOD_ID.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -215,6 +218,7 @@ pub(crate) fn get_jni_get_static_method_id() -> Option<JniGetStaticMethodId> {
 }
 
 pub(crate) fn set_jni_new_object(j: Option<JniNewObject>) -> Option<JniNewObject> {
+    debug("Called set_jni_new_object");
     JNI_NEW_OBJECT.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -228,6 +232,7 @@ pub(crate) fn get_jni_new_object() -> Option<JniNewObject> {
 }
 
 pub(crate) fn set_jni_new_string_utf(j: Option<JniNewStringUTF>) -> Option<JniNewStringUTF> {
+    debug("Called set_jni_new_string_utf");
     JNI_NEW_STRING_UTF.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -241,6 +246,7 @@ pub(crate) fn get_jni_new_string_utf() -> Option<JniNewStringUTF> {
 }
 
 pub(crate) fn set_jni_get_string_utf_chars(j: Option<JniGetStringUTFChars>) -> Option<JniGetStringUTFChars> {
+    debug("Called set_jni_get_string_utf_chars");
     JNI_GET_STRING_UTF_CHARS.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -254,6 +260,7 @@ pub(crate) fn get_jni_get_string_utf_chars() -> Option<JniGetStringUTFChars> {
 }
 
 pub(crate) fn set_jni_release_string_utf_chars(j: Option<JniReleaseStringUTFChars>) -> Option<JniReleaseStringUTFChars> {
+    debug("Called set_jni_release_string_utf_chars");
     JNI_RELEASE_STRING_UTF_CHARS.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -267,6 +274,7 @@ pub(crate) fn get_jni_release_string_utf_chars() -> Option<JniReleaseStringUTFCh
 }
 
 pub(crate) fn set_jni_call_object_method(j: Option<JniCallObjectMethod>) -> Option<JniCallObjectMethod> {
+    debug("Called set_jni_call_object_method");
     JNI_CALL_OBJECT_METHOD.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -280,6 +288,7 @@ pub(crate) fn get_jni_call_object_method() -> Option<JniCallObjectMethod> {
 }
 
 pub(crate) fn set_jni_call_void_method(j: Option<JniCallVoidMethod>) -> Option<JniCallVoidMethod> {
+    debug("Called set_jni_call_void_method");
     JNI_CALL_VOID_METHOD.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -293,6 +302,7 @@ pub(crate) fn get_jni_call_void_method() -> Option<JniCallVoidMethod> {
 }
 
 pub(crate) fn set_jni_call_static_object_method(j: Option<JniCallStaticObjectMethod>) -> Option<JniCallStaticObjectMethod> {
+    debug("Called set_jni_call_static_object_method");
     JNI_CALL_STATIC_OBJECT_METHOD.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -306,6 +316,8 @@ pub(crate) fn get_jni_call_static_object_method() -> Option<JniCallStaticObjectM
 }
 
 pub(crate) fn set_jni_new_object_array(j: Option<JniNewObjectArray>) -> Option<JniNewObjectArray> {
+    debug("Called set_jni_new_object_array");
+
     JNI_NEW_OBJECT_ARRAY.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -319,6 +331,7 @@ pub(crate) fn get_jni_new_object_array() -> Option<JniNewObjectArray> {
 }
 
 pub(crate) fn set_jni_set_object_array_element(j: Option<JniSetObjectArrayElement>) -> Option<JniSetObjectArrayElement> {
+    debug("Called set_jni_set_object_array_element");
     JNI_SET_OBJECT_ARRAY_ELEMENT.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -332,6 +345,7 @@ pub(crate) fn get_jni_set_object_array_element() -> Option<JniSetObjectArrayElem
 }
 
 pub(crate) fn set_jni_exception_check(j: Option<JniExceptionCheck>) -> Option<JniExceptionCheck> {
+    debug("Called set_jni_exception_check");
     JNI_EXCEPTION_CHECK.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -345,6 +359,7 @@ pub(crate) fn get_jni_exception_check() -> Option<JniExceptionCheck> {
 }
 
 pub(crate) fn set_jni_exception_describe(j: Option<JniExceptionDescribe>) -> Option<JniExceptionDescribe> {
+    debug("Called set_jni_exception_describe");
     JNI_EXCEPTION_DESCRIBE.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -358,6 +373,7 @@ pub(crate) fn get_jni_exception_describe() -> Option<JniExceptionDescribe> {
 }
 
 pub(crate) fn set_jni_exception_clear(j: Option<JniExceptionClear>) -> Option<JniExceptionClear> {
+    debug("Called set_jni_exception_clear");
     JNI_EXCEPTION_CLEAR.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -371,6 +387,7 @@ pub(crate) fn get_jni_exception_clear() -> Option<JniExceptionClear> {
 }
 
 pub(crate) fn set_jni_delete_local_ref(j: Option<JniDeleteLocalRef>) -> Option<JniDeleteLocalRef> {
+    debug("Called set_jni_delete_local_ref");
     JNI_DELETE_LOCAL_REF.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -384,6 +401,7 @@ pub(crate) fn get_jni_delete_local_ref() -> Option<JniDeleteLocalRef> {
 }
 
 pub(crate) fn set_jni_delete_global_ref(j: Option<JniDeleteGlobalRef>) -> Option<JniDeleteGlobalRef> {
+    debug("Called set_jni_delete_global_ref");
     JNI_DELETE_GLOBAL_REF.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -397,6 +415,7 @@ pub(crate) fn get_jni_delete_global_ref() -> Option<JniDeleteGlobalRef> {
 }
 
 pub(crate) fn set_jni_new_global_ref(j: Option<JniNewGlobalRef>) -> Option<JniNewGlobalRef> {
+    debug("Called set_jni_new_global_ref");
     JNI_NEW_GLOBAL_REF.with(|opt| {
         *opt.borrow_mut() = j;
     });
@@ -409,411 +428,1105 @@ pub(crate) fn get_jni_new_global_ref() -> Option<JniNewGlobalRef> {
     })
 }
 
-pub(crate) fn set_factory_class(j: jclass) -> jclass {
+pub(crate) fn set_factory_class(j: jclass) {
+    debug("Called set_factory_class");
     FACTORY_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_factory_class().unwrap()
 }
 
-pub(crate) fn get_factory_class() -> Option<jclass> {
-    FACTORY_CLASS.with(|opt| {
+pub(crate) fn get_factory_class() -> errors::Result<jclass> {
+    let jopt = FACTORY_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+        let c = tweaks::find_class(env, INST_CLASS_NAME)?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_factory_class(j);
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_invocation_arg_class(j: jclass) -> jclass {
+pub(crate) fn set_invocation_arg_class(j: jclass) {
+    debug("Called set_invocation_arg_class");
     INVOCATION_ARG_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_invocation_arg_class().unwrap()
 }
 
-pub(crate) fn get_invocation_arg_class() -> Option<jclass> {
-    INVOCATION_ARG_CLASS.with(|opt| {
+pub(crate) fn get_invocation_arg_class() -> errors::Result<jclass> {
+    let jopt = INVOCATION_ARG_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+        let c = tweaks::find_class(env, "org/astonbitecode/j4rs/api/dtos/InvocationArg")?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_invocation_arg_class(j);
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_factory_constructor_method(j: jmethodID) -> jmethodID {
+pub(crate) fn set_factory_constructor_method(j: jmethodID) {
+    debug("Called set_factory_constructor_method");
     FACTORY_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_factory_constructor_method().unwrap()
 }
 
-pub(crate) fn get_factory_constructor_method() -> Option<jmethodID> {
-    FACTORY_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_factory_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = FACTORY_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string("()V");
+        // The constructor of `NativeInstantiationImpl`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_factory_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_factory_constructor_method(j);
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_factory_instantiate_method(j: jmethodID) -> jmethodID {
+pub(crate) fn set_factory_instantiate_method(j: jmethodID) {
+    debug("Called set_factory_instantiate_method");
     FACTORY_INSTANTIATE_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_factory_instantiate_method().unwrap()
 }
 
-pub(crate) fn get_factory_instantiate_method() -> Option<jmethodID> {
-    FACTORY_INSTANTIATE_METHOD.with(|opt| {
+pub(crate) fn get_factory_instantiate_method() -> errors::Result<jmethodID> {
+    let jopt = FACTORY_INSTANTIATE_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+        let instantiate_method_signature = format!(
+            "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+            INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("instantiate");
+        let cstr2 = utils::to_c_string(&instantiate_method_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_static_method_id())?)(
+                env,
+                get_factory_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_factory_instantiate_method(j);
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_factory_create_for_static_method(j: jmethodID) {
+    debug("Called set_factory_create_for_static_method");
     FACTORY_CREATE_FOR_STATIC_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_factory_create_for_static_method() -> Option<jmethodID> {
-    FACTORY_CREATE_FOR_STATIC_METHOD.with(|opt| {
+pub(crate) fn get_factory_create_for_static_method() -> errors::Result<jmethodID> {
+    let jopt = FACTORY_CREATE_FOR_STATIC_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+        let create_for_static_method_signature = format!(
+            "(Ljava/lang/String;)L{};",
+            INVO_IFACE_NAME);
+
+        let cstr1 = utils::to_c_string("createForStatic");
+        let cstr2 = utils::to_c_string(&create_for_static_method_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_static_method_id())?)(
+                env,
+                get_factory_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_factory_create_for_static_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_factory_create_java_array_method(j: jmethodID) {
+    debug("Called set_factory_create_java_array_method");
     FACTORY_CREATE_JAVA_ARRAY_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_factory_create_java_array_method() -> Option<jmethodID> {
-    FACTORY_CREATE_JAVA_ARRAY_METHOD.with(|opt| {
+pub(crate) fn get_factory_create_java_array_method() -> errors::Result<jmethodID> {
+    let jopt = FACTORY_CREATE_JAVA_ARRAY_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let create_java_array_method_signature = format!(
+            "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+            INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("createJavaArray");
+        let cstr2 = utils::to_c_string(&create_java_array_method_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_static_method_id())?)(
+                env,
+                get_factory_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_factory_create_java_array_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_factory_create_java_list_method(j: jmethodID) {
+    debug("Called set_factory_create_java_list_method");
     FACTORY_CREATE_JAVA_LIST_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_factory_create_java_list_method() -> Option<jmethodID> {
-    FACTORY_CREATE_JAVA_LIST_METHOD.with(|opt| {
+pub(crate) fn get_factory_create_java_list_method() -> errors::Result<jmethodID> {
+    let jopt = FACTORY_CREATE_JAVA_LIST_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let create_java_list_method_signature = format!(
+            "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+            INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("createJavaList");
+        let cstr2 = utils::to_c_string(&create_java_list_method_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_static_method_id())?)(
+                env,
+                get_factory_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_factory_create_java_list_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_native_invocation_base_class(j: jclass) -> jclass {
+pub(crate) fn set_native_invocation_base_class(j: jclass) {
+    debug("Called set_native_invocation_base_class");
     NATIVE_INVOCATION_BASE_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_native_invocation_base_class().unwrap()
 }
 
-pub(crate) fn get_native_invocation_base_class() -> Option<jclass> {
-    NATIVE_INVOCATION_BASE_CLASS.with(|opt| {
+pub(crate) fn get_native_invocation_base_class() -> errors::Result<jclass> {
+    let jopt = NATIVE_INVOCATION_BASE_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            INVO_BASE_NAME,
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_native_invocation_base_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_native_invocation_class(j: jclass) -> jclass {
+pub(crate) fn set_native_invocation_class(j: jclass) {
+    debug("Called set_native_invocation_class");
     NATIVE_INVOCATION_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_native_invocation_class().unwrap()
 }
 
-pub(crate) fn get_native_invocation_class() -> Option<jclass> {
-    NATIVE_INVOCATION_CLASS.with(|opt| {
+pub(crate) fn get_native_invocation_class() -> errors::Result<jclass> {
+    let jopt = NATIVE_INVOCATION_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            INVO_IFACE_NAME,
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_native_invocation_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_invoke_method(j: jmethodID) {
+    debug("Called set_invoke_method");
     INVOKE_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_invoke_method() -> Option<jmethodID> {
-    INVOKE_METHOD.with(|opt| {
+pub(crate) fn get_invoke_method() -> errors::Result<jmethodID> {
+    let jopt = INVOKE_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let invoke_method_signature = format!(
+            "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+            INVO_IFACE_NAME);
+        // Get the method ID for the `NativeInvocation.invoke`
+        let cstr1 = utils::to_c_string("invoke");
+        let cstr2 = utils::to_c_string(invoke_method_signature.as_ref());
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_native_invocation_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_invoke_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_invoke_static_method(j: jmethodID) {
+    debug("Called set_invoke_static_method");
     INVOKE_STATIC_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_invoke_static_method() -> Option<jmethodID> {
-    INVOKE_STATIC_METHOD.with(|opt| {
+pub(crate) fn get_invoke_static_method() -> errors::Result<jmethodID> {
+    let jopt = INVOKE_STATIC_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let invoke_static_method_signature = format!(
+            "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+            INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("invokeStatic");
+        let cstr2 = utils::to_c_string(invoke_static_method_signature.as_ref());
+        // Get the method ID for the `NativeInvocation.invokeStatic`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_native_invocation_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_invoke_static_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_invoke_to_channel_method(j: jmethodID) {
+    debug("Called set_invoke_to_channel_method");
     INVOKE_TO_CHANNEL_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_invoke_to_channel_method() -> Option<jmethodID> {
-    INVOKE_TO_CHANNEL_METHOD.with(|opt| {
+pub(crate) fn get_invoke_to_channel_method() -> errors::Result<jmethodID> {
+    let jopt = INVOKE_TO_CHANNEL_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let invoke_to_channel_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
+        let cstr1 = utils::to_c_string("invokeToChannel");
+        let cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
+        // Get the method ID for the `NativeInvocation.invokeToChannel`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_native_invocation_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_invoke_to_channel_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_init_callback_channel_method(j: jmethodID) {
+    debug("Called set_init_callback_channel_method");
     INIT_CALLBACK_CHANNEL_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_init_callback_channel_method() -> Option<jmethodID> {
-    INIT_CALLBACK_CHANNEL_METHOD.with(|opt| {
+pub(crate) fn get_init_callback_channel_method() -> errors::Result<jmethodID> {
+    let jopt = INIT_CALLBACK_CHANNEL_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let init_callback_channel_method_signature = "(J)V";
+        let cstr1 = utils::to_c_string("initializeCallbackChannel");
+        let cstr2 = utils::to_c_string(&init_callback_channel_method_signature);
+        // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_native_invocation_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_init_callback_channel_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_field_method(j: jmethodID) {
+    debug("Called set_field_method");
     FIELD_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_field_method() -> Option<jmethodID> {
-    FIELD_METHOD.with(|opt| {
+pub(crate) fn get_field_method() -> errors::Result<jmethodID> {
+    let jopt = FIELD_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let field_method_signature = format!(
+            "(Ljava/lang/String;)L{};",
+            INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("field");
+        let cstr2 = utils::to_c_string(field_method_signature.as_ref());
+        // Get the method ID for the `NativeInvocation.field`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_native_invocation_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_field_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_clone_static_method(j: jmethodID) {
+    debug("Called set_clone_static_method");
     CLONE_STATIC_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_clone_static_method() -> Option<jmethodID> {
-    CLONE_STATIC_METHOD.with(|opt| {
+pub(crate) fn get_clone_static_method() -> errors::Result<jmethodID> {
+    let jopt = CLONE_STATIC_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let clone_method_signature = format!(
+            "(L{};)L{};",
+            INVO_IFACE_NAME,
+            INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("cloneInstance");
+        let cstr2 = utils::to_c_string(clone_method_signature.as_ref());
+        // Get the method ID for the `NativeInvocation.clone`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_static_method_id())?)(
+                env,
+                get_class_to_invoke_clone_and_cast()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_clone_static_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_cast_static_method(j: jmethodID) {
+    debug("Called set_cast_static_method");
     CAST_STATIC_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_cast_static_method() -> Option<jmethodID> {
-    CAST_STATIC_METHOD.with(|opt| {
+pub(crate) fn get_cast_static_method() -> errors::Result<jmethodID> {
+    let jopt = CAST_STATIC_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let cast_method_signature = format!(
+            "(L{};Ljava/lang/String;)L{};",
+            INVO_IFACE_NAME,
+            INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("cast");
+        let cstr2 = utils::to_c_string(cast_method_signature.as_ref());
+
+        // Get the method ID for the `NativeInvocation.cast`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_static_method_id())?)(
+                env,
+                get_class_to_invoke_clone_and_cast()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_cast_static_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_get_json_method(j: jmethodID) {
+    debug("Called set_get_json_method");
     GET_JSON_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_get_json_method() -> Option<jmethodID> {
-    GET_JSON_METHOD.with(|opt| {
+pub(crate) fn get_get_json_method() -> errors::Result<jmethodID> {
+    let jopt = GET_JSON_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let get_json_method_signature = "()Ljava/lang/String;";
+        let cstr1 = utils::to_c_string("getJson");
+        let cstr2 = utils::to_c_string(get_json_method_signature.as_ref());
+
+        // Get the method ID for the `NativeInvocation.getJson`
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_native_invocation_class()?,
+                cstr1,
+                cstr2,
+            )
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_get_json_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_inv_arg_java_constructor_method(j: jmethodID) {
+    debug("Called set_inv_arg_java_constructor_method");
     INV_ARG_JAVA_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_inv_arg_java_constructor_method() -> Option<jmethodID> {
-    INV_ARG_JAVA_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_inv_arg_java_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = INV_ARG_JAVA_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let inv_arg_java_constructor_method_signature = format!("(Ljava/lang/String;L{};)V", INVO_IFACE_NAME);
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&inv_arg_java_constructor_method_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_invocation_arg_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_inv_arg_java_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_inv_arg_rust_constructor_method(j: jmethodID) {
+    debug("Called set_inv_arg_rust_constructor_method");
     INV_ARG_RUST_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_inv_arg_rust_constructor_method() -> Option<jmethodID> {
-    INV_ARG_RUST_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_inv_arg_rust_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = INV_ARG_RUST_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string("(Ljava/lang/String;Ljava/lang/String;)V");
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_invocation_arg_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_inv_arg_rust_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_inv_arg_basic_rust_constructor_method(j: jmethodID) {
+    debug("Called set_inv_arg_basic_rust_constructor_method");
     INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_inv_arg_basic_rust_constructor_method() -> Option<jmethodID> {
-    INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_inv_arg_basic_rust_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let inv_arg_basic_rust_constructor_method_signature = "(Ljava/lang/String;Ljava/lang/Object;)V";
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&inv_arg_basic_rust_constructor_method_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_invocation_arg_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_inv_arg_basic_rust_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_class_to_invoke_clone_and_cast(j: jclass) -> jclass {
+pub(crate) fn set_class_to_invoke_clone_and_cast(j: jclass) {
+    debug("Called set_class_to_invoke_clone_and_cast");
     CLASS_TO_INVOKE_CLONE_AND_CAST.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_class_to_invoke_clone_and_cast().unwrap()
 }
 
-pub(crate) fn get_class_to_invoke_clone_and_cast() -> Option<jclass> {
-    CLASS_TO_INVOKE_CLONE_AND_CAST.with(|opt| {
+pub(crate) fn get_class_to_invoke_clone_and_cast() -> errors::Result<jclass> {
+    let jopt = CLASS_TO_INVOKE_CLONE_AND_CAST.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        // The class to invoke the cloneInstance into, is not the same in Android target os.
+        // The native_invocation_base_class is used because of Java7 compatibility issues in Android.
+        // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
+        // and there is a base class created for this reason.
+        let j = if cfg!(target_os = "android") {
+            get_native_invocation_base_class()?
+        } else {
+            get_native_invocation_class()?
+        };
+        set_class_to_invoke_clone_and_cast(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_integer_class(j: jclass) -> jclass {
+pub(crate) fn set_integer_class(j: jclass) {
+    debug("Called set_integer_class");
     INTEGER_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_integer_class().unwrap()
 }
 
-pub(crate) fn get_integer_class() -> Option<jclass> {
-    INTEGER_CLASS.with(|opt| {
+pub(crate) fn get_integer_class() -> errors::Result<jclass> {
+    let jopt = INTEGER_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            "java/lang/Integer",
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_integer_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_integer_constructor_method(j: jmethodID) {
+    debug("Called set_integer_constructor_method");
     INTEGER_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_integer_constructor_method() -> Option<jmethodID> {
-    INTEGER_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_integer_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = INTEGER_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let constructor_signature = "(I)V";
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&constructor_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_integer_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_integer_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_long_class(j: jclass) -> jclass {
+pub(crate) fn set_long_class(j: jclass) {
+    debug("Called set_long_class");
     LONG_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_long_class().unwrap()
 }
 
-pub(crate) fn get_long_class() -> Option<jclass> {
-    LONG_CLASS.with(|opt| {
+pub(crate) fn get_long_class() -> errors::Result<jclass> {
+    let jopt = LONG_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            "java/lang/Long",
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_long_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_long_constructor_method(j: jmethodID) {
+    debug("Called set_long_constructor_method");
     LONG_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_long_constructor_method() -> Option<jmethodID> {
-    LONG_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_long_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = LONG_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let constructor_signature = "(J)V";
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&constructor_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_long_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_long_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_short_class(j: jclass) -> jclass {
+pub(crate) fn set_short_class(j: jclass) {
+    debug("Called set_short_class");
     SHORT_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_short_class().unwrap()
 }
 
-pub(crate) fn get_short_class() -> Option<jclass> {
-    SHORT_CLASS.with(|opt| {
+pub(crate) fn get_short_class() -> errors::Result<jclass> {
+    let jopt = SHORT_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            "java/lang/Short",
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_short_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_short_constructor_method(j: jmethodID) {
+    debug("Called set_short_constructor_method");
     SHORT_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_short_constructor_method() -> Option<jmethodID> {
-    SHORT_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_short_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = SHORT_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let constructor_signature = "(S)V";
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&constructor_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_short_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_short_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_byte_class(j: jclass) -> jclass {
+pub(crate) fn set_byte_class(j: jclass) {
+    debug("Called set_byte_class");
     BYTE_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_byte_class().unwrap()
 }
 
-pub(crate) fn get_byte_class() -> Option<jclass> {
-    BYTE_CLASS.with(|opt| {
+pub(crate) fn get_byte_class() -> errors::Result<jclass> {
+    let jopt = BYTE_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            "java/lang/Byte",
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_byte_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_byte_constructor_method(j: jmethodID) {
+    debug("Called set_byte_constructor_method");
     BYTE_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_byte_constructor_method() -> Option<jmethodID> {
-    BYTE_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_byte_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = BYTE_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let constructor_signature = "(B)V";
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&constructor_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_byte_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_byte_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_float_class(j: jclass) -> jclass {
+pub(crate) fn set_float_class(j: jclass) {
+    debug("Called set_float_class");
     FLOAT_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_float_class().unwrap()
 }
 
-pub(crate) fn get_float_class() -> Option<jclass> {
-    FLOAT_CLASS.with(|opt| {
+pub(crate) fn get_float_class() -> errors::Result<jclass> {
+    let jopt = FLOAT_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            "java/lang/Float",
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_float_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_float_constructor_method(j: jmethodID) {
+    debug("Called set_float_constructor_method");
     FLOAT_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_float_constructor_method() -> Option<jmethodID> {
-    FLOAT_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_float_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = FLOAT_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let constructor_signature = "(F)V";
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&constructor_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_float_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_float_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
-pub(crate) fn set_double_class(j: jclass) -> jclass {
+pub(crate) fn set_double_class(j: jclass) {
+    debug("Called set_double_class");
     DOUBLE_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
-    get_double_class().unwrap()
 }
 
-pub(crate) fn get_double_class() -> Option<jclass> {
-    DOUBLE_CLASS.with(|opt| {
+pub(crate) fn get_double_class() -> errors::Result<jclass> {
+    let jopt = DOUBLE_CLASS.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let c = tweaks::find_class(
+            env,
+            "java/lang/Double",
+        )?;
+        let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+        set_double_class(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }
 
 pub(crate) fn set_double_constructor_method(j: jmethodID) {
+    debug("Called set_double_constructor_method");
     DOUBLE_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_double_constructor_method() -> Option<jmethodID> {
-    DOUBLE_CONSTRUCTOR_METHOD.with(|opt| {
+pub(crate) fn get_double_constructor_method() -> errors::Result<jmethodID> {
+    let jopt = DOUBLE_CONSTRUCTOR_METHOD.with(|opt| {
         *opt.borrow()
-    })
+    });
+
+    if jopt.is_none() {
+        let env = get_thread_local_env()?;
+
+        let constructor_signature = "(D)V";
+        let cstr1 = utils::to_c_string("<init>");
+        let cstr2 = utils::to_c_string(&constructor_signature);
+        let j = unsafe {
+            (opt_to_res(get_jni_get_method_id())?)(
+                env,
+                get_double_class()?,
+                cstr1,
+                cstr2)
+        };
+        utils::drop_c_string(cstr1);
+        utils::drop_c_string(cstr2);
+        set_double_constructor_method(j);
+
+        Ok(j)
+    } else {
+        Ok(jopt.unwrap())
+    }
 }

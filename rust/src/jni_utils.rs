@@ -42,8 +42,8 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jn
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
         let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jni_env,
-            cache::get_invocation_arg_class().unwrap(),
-            cache::get_inv_arg_rust_constructor_method().unwrap(),
+            cache::get_invocation_arg_class()?,
+            cache::get_inv_arg_rust_constructor_method()?,
             // First argument: class_name
             class_name_jstring,
             // Second argument: json
@@ -78,8 +78,8 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env
 
         let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jni_env,
-            cache::get_invocation_arg_class().unwrap(),
-            cache::get_inv_arg_basic_rust_constructor_method().unwrap(),
+            cache::get_invocation_arg_class()?,
+            cache::get_inv_arg_basic_rust_constructor_method()?,
             // First argument: class_name
             class_name_jstring,
             // Second argument: NativeInvocation instance
@@ -108,8 +108,8 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut
 
         let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
             jni_env,
-            cache::get_invocation_arg_class().unwrap(),
-            cache::get_inv_arg_java_constructor_method().unwrap(),
+            cache::get_invocation_arg_class()?,
+            cache::get_inv_arg_java_constructor_method()?,
             // First argument: class_name
             class_name_jstring,
             // Second argument: NativeInvocation instance
@@ -252,8 +252,8 @@ pub(crate) fn global_jobject_from_i8(a: &i8, jni_env: *mut JNIEnv) -> errors::Re
         let tmp = a.clone() as *const i8;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
-            opt_to_res(cache::get_byte_class())?,
-            opt_to_res(cache::get_byte_constructor_method())?,
+            cache::get_byte_class()?,
+            cache::get_byte_constructor_method()?,
             tmp as *const i8,
         );
         create_global_ref_from_local_ref(o, jni_env)
@@ -265,8 +265,8 @@ pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::
         let tmp = a.clone() as *const i16;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
-            opt_to_res(cache::get_short_class())?,
-            opt_to_res(cache::get_short_constructor_method())?,
+            cache::get_short_class()?,
+            cache::get_short_constructor_method()?,
             tmp as *const i16,
         );
         create_global_ref_from_local_ref(o, jni_env)
@@ -278,8 +278,8 @@ pub(crate) fn global_jobject_from_i32(a: &i32, jni_env: *mut JNIEnv) -> errors::
         let tmp = a.clone() as *const i32;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
-            opt_to_res(cache::get_integer_class())?,
-            opt_to_res(cache::get_integer_constructor_method())?,
+            cache::get_integer_class()?,
+            cache::get_integer_constructor_method()?,
             tmp as *const i32,
         );
         create_global_ref_from_local_ref(o, jni_env)
@@ -291,8 +291,8 @@ pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::
         let tmp = a.clone();
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
-            opt_to_res(cache::get_long_class())?,
-            opt_to_res(cache::get_long_constructor_method())?,
+            cache::get_long_class()?,
+            cache::get_long_constructor_method()?,
             tmp as *const i64,
         );
         create_global_ref_from_local_ref(o, jni_env)

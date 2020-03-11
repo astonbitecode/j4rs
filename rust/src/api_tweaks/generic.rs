@@ -24,7 +24,8 @@ use jni_sys::{
 };
 use libloading;
 
-use crate::utils;
+use crate::{utils, errors};
+use crate::errors::opt_to_res;
 
 type JNIGetCreatedJavaVMs = unsafe extern "system" fn(vmBuf: *mut *mut JavaVM, bufLen: jsize, nVMs: *mut jsize) -> jint;
 
@@ -69,15 +70,15 @@ pub(crate) fn create_java_vm(
     }
 }
 
-pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
+pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     unsafe {
         let cstr = utils::to_c_string(classname);
-        let fc = ((**env).FindClass).expect("Could not dereference the JNIEnv to get the FindClass");
+        let fc = opt_to_res((**env).FindClass)?;
         let jc = (fc)(
             env,
             cstr,
         );
         utils::drop_c_string(cstr);
-        jc
+        Ok(jc)
     }
 }
