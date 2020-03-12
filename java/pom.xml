@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.11.1</version>
+    <version>0.11.2</version>
     <name>j4rs</name>
     <description>Java for Rust</description>
     <url>https://github.com/astonbitecode/j4rs</url>
