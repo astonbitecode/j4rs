@@ -208,6 +208,7 @@ impl Jvm {
                             cache::set_thread_local_env(Some(jni_environment));
                         }
                         cache::add_active_jvm();
+
                         Ok(jvm)
                     }
                 }
@@ -648,8 +649,7 @@ impl Jvm {
                     cache::get_invocation_arg_class()?,
                     ptr::null_mut(),
                 );
-                let m = jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?;
-                m
+                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
             };
             let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
             // Rest of the arguments: populate the array

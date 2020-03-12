@@ -40,7 +40,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jn
         let json_jstring = global_jobject_from_str(&json, jni_env)?;
 
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
-        let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
+        let inv_arg_instance = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_invocation_arg_class()?,
             cache::get_inv_arg_rust_constructor_method()?,
@@ -76,7 +76,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env
         debug(&format!("Calling the InvocationArg constructor with '{}'", class_name));
         let class_name_jstring = global_jobject_from_str(&class_name, jni_env)?;
 
-        let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
+        let inv_arg_instance = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_invocation_arg_class()?,
             cache::get_inv_arg_basic_rust_constructor_method()?,
@@ -106,7 +106,7 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut
 
         let class_name_jstring = global_jobject_from_str(&class_name, jni_env)?;
 
-        let inv_arg_instance = (cache::get_jni_new_object().unwrap())(
+        let inv_arg_instance = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_invocation_arg_class()?,
             cache::get_inv_arg_java_constructor_method()?,

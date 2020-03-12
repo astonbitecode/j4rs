@@ -62,6 +62,6 @@ pub fn create_java_vm(
 ) -> jint { android::create_java_vm(pvm, penv, args) }
 
 #[cfg(target_os = "android")]
-pub fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
+pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     android::find_class(env, classname)
 }
