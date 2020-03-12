@@ -27,6 +27,8 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 
+import java8.util.J8Arrays;
+
 public class NativeInstantiationImpl {
     static InvocationArgGenerator gen = new InvocationArgGenerator();
 
