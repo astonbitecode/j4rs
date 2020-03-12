@@ -14,9 +14,8 @@
  */
 package org.astonbitecode.j4rs.utils;
 
+import java8.util.J8Arrays;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
-
-import java.util.Arrays;
 
 public class Utils {
     public static Class<?> forNameEnhanced(final String className) throws ClassNotFoundException {
@@ -44,11 +43,11 @@ public class Utils {
         }
     }
 
-    // Return one of the classes pf the GeneratedArgs.
+    // Return one of the classes of the GeneratedArgs.
     // Currently there is no need to support many classes.
     // In the future, we may need to converge to the common parent of all the GeneratedArgs.
     public static Class<?> forNameBasedOnArgs(final GeneratedArg[] params) {
-        return Arrays.stream(params)
+        return J8Arrays.stream(params)
                 .map(arg -> arg.getClazz())
                 .reduce((a, b) -> a).orElse(Void.class);
     }

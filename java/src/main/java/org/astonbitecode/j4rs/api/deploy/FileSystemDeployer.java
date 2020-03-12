@@ -14,13 +14,6 @@
  */
 package org.astonbitecode.j4rs.api.deploy;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-
 public class FileSystemDeployer {
     private final String deployTarget;
 
@@ -30,13 +23,8 @@ public class FileSystemDeployer {
 
     public FileSystemDeployer(String deployTarget) {
         this.deployTarget = deployTarget;
-        new File(deployTarget).mkdirs();
     }
 
-    public void deploy(String path) throws MalformedURLException, IOException {
-        File jarFile = new File(path);
-        ReadableByteChannel readableByteChannel = Channels.newChannel(jarFile.toURI().toURL().openStream());
-        FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarFile.getName());
-        fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
+    public void deploy(String path) {
     }
 }

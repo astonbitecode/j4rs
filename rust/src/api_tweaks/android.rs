@@ -25,7 +25,8 @@ use jni_sys::{
 };
 
 use crate::jni_utils::create_global_ref_from_local_ref;
-use crate::utils;
+use crate::{utils, errors};
+use crate::errors::opt_to_res;
 
 lazy_static! {
     static ref MUTEX: Mutex<Option<J4rsAndroidJavaVM>> = Mutex::new(None);
@@ -63,7 +64,7 @@ pub(crate) fn create_java_vm(
 ) -> jint { panic!("Cannot create Java VM in Android.") }
 
 // Search the class in the cache first. If not found, then call the FindClass of JNI and insert the result to the cache.
-pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
+pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     unsafe {
         let mut add_to_cache = false;
         let found = match CLASSES.lock() {
@@ -93,16 +94,13 @@ pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
             }
         };
 
-        let to_ret = found.expect("Error while calling find_class");
+        let to_ret = opt_to_res(found)?;
         if add_to_cache {
-            let global = create_global_ref_from_local_ref(to_ret, env)
-                .expect(&format!("Could not create global ref of jclass {}", classname));
-            CLASSES.lock()
-                .expect("Could not get mutable lock to add to the jclass cache")
-                .insert(classname.to_string(), J4rsAndroidJclass { class: global.clone() });
-            global as jclass
+            let global = create_global_ref_from_local_ref(to_ret, env)?;
+            CLASSES.lock()?.insert(classname.to_string(), J4rsAndroidJclass { class: global.clone() });
+            Ok(global as jclass)
         } else {
-            to_ret
+            Ok(to_ret)
         }
     }
 }

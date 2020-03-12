@@ -131,14 +131,14 @@ public class JsonInvocationImplTest {
     @Test
     public void cast() {
         NativeInvocation from = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
-        NativeInvocation casted = NativeInvocation.<Dummy>cast(from, Dummy.class.getName());
+        NativeInvocation casted = JsonInvocationImpl.<Dummy>cast(from, Dummy.class.getName());
 //        assert(casted.getObject().getClass().equals(Dummy.class));
     }
 
     @Test(expected = InvocationException.class)
     public void castFailure() {
         NativeInvocation from = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
-        NativeInvocation.cast(from, Integer.class.getName());
+        JsonInvocationImpl.cast(from, Integer.class.getName());
     }
 
     @Test

@@ -18,23 +18,19 @@ import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
 import org.junit.Ignore;
-import org.junit.Test;
-
-import java.util.stream.IntStream;
 
 public class MyTestTest {
 
     @Ignore
     public void dummy() {
         NativeInvocation instance = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.tests.MyTest");
-        IntStream.range(0, 1000000000)
-                .forEach(i -> {
-                    if (i % 100000 == 0) {
-                        System.out.println(i);
-                    }
+        for (int i = 0; i < 1000000000; i++) {
+            if (i % 100000 == 0) {
+                System.out.println(i);
+            }
 
-                    InvocationArg ia = new InvocationArg("java.lang.String", "\"astring\"");
-                    instance.invoke("getMyWithArgs", ia);
-                });
+            InvocationArg ia = new InvocationArg("java.lang.String", "\"astring\"");
+            instance.invoke("getMyWithArgs", ia);
+        }
     }
 }

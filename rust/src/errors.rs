@@ -30,6 +30,15 @@ pub(crate) fn opt_to_res<T>(opt: Option<T>) -> Result<T> {
     )))
 }
 
+#[allow(unused)]
+pub(crate) fn res_to_opt<T>(res: Result<T>) -> Option<T> {
+    if res.is_err() {
+        None
+    } else {
+        Some(res.unwrap())
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum J4RsError {
     GeneralError(String),

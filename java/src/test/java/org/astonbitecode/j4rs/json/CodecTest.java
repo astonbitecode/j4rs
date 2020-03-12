@@ -16,13 +16,10 @@ package org.astonbitecode.j4rs.json;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.errors.JsonCodecException;
 import org.astonbitecode.j4rs.utils.Dummy;
 import org.astonbitecode.j4rs.utils.OtherDummy;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 public class CodecTest {
     private Codec codec = new Codec();

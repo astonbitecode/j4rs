@@ -14,6 +14,7 @@ use std::os::raw::c_void;
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use jni_sys::{JavaVM, jclass, jint, JNIEnv, jsize};
+use crate::errors;
 
 #[cfg(not(any(target_os = "android")))]
 mod generic;
@@ -34,7 +35,7 @@ pub fn create_java_vm(
 ) -> jint { generic::create_java_vm(pvm, penv, args) }
 
 #[cfg(not(any(target_os = "android")))]
-pub fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
+pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     generic::find_class(env, classname)
 }
 
@@ -61,6 +62,6 @@ pub fn create_java_vm(
 ) -> jint { android::create_java_vm(pvm, penv, args) }
 
 #[cfg(target_os = "android")]
-pub fn find_class(env: *mut JNIEnv, classname: &str) -> jclass {
+pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     android::find_class(env, classname)
 }

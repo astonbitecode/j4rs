@@ -14,6 +14,7 @@
  */
 package org.astonbitecode.j4rs.api.instantiation;
 
+import java8.util.J8Arrays;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
@@ -25,7 +26,6 @@ import org.astonbitecode.j4rs.utils.Utils;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
-import java.util.List;
 
 public class NativeInstantiationImpl {
     static InvocationArgGenerator gen = new InvocationArgGenerator();
@@ -72,9 +72,9 @@ public class NativeInstantiationImpl {
 
     static CreatedInstance createInstance(String className, GeneratedArg[] params) throws Exception {
         Class<?> clazz = Utils.forNameEnhanced(className);
-        Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())
+        Class<?>[] paramTypes = J8Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
-        Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject())
+        Object[] paramObjects = J8Arrays.stream(params).map(param -> param.getObject())
                 .toArray(size -> new Object[size]);
         Constructor<?> constructor = clazz.getConstructor(paramTypes);
         Object instance = constructor.newInstance(paramObjects);
@@ -86,14 +86,14 @@ public class NativeInstantiationImpl {
         Class<?> clazz = isJ4rsArray ? Utils.forNameBasedOnArgs(params) : Utils.forNameEnhanced(className);
         Object arrayObj = Array.newInstance(clazz, params.length);
 
-        Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())
+        Class<?>[] paramTypes = J8Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
 
-        if (!isJ4rsArray && !Arrays.stream(paramTypes).allMatch(type -> type.getName().equals(className))) {
+        if (!isJ4rsArray && !J8Arrays.stream(paramTypes).allMatch(type -> type.getName().equals(className))) {
             throw new IllegalArgumentException("Could not create Java array. All the arguments should be of class " + className);
         }
 
-        Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject())
+        Object[] paramObjects = J8Arrays.stream(params).map(param -> param.getObject())
                 .toArray(size -> new Object[size]);
 
         for (int i = 0; i < params.length; i++) {

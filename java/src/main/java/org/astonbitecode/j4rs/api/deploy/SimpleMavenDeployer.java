@@ -19,8 +19,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 
 public class SimpleMavenDeployer {
     private static final String MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2";
@@ -64,9 +62,6 @@ public class SimpleMavenDeployer {
                 }
             }
             if (searchRemoteRepo) {
-                ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(urlString).openStream());
-                FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
-                fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
             }
         }
     }
@@ -81,9 +76,6 @@ public class SimpleMavenDeployer {
         String jarName = generateArtifactName(artifactId, version, qualifier);
         String pathString = generatePathTagret(M2_CACHE, groupId, artifactId, version, jarName);
 
-        ReadableByteChannel readableByteChannel = Channels.newChannel(new File(pathString).toURI().toURL().openStream());
-        FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
-        fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
     }
 
     String generateArtifactName(String artifactId, String version, String qualifier) {

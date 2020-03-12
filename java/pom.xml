@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.11.0</version>
+    <version>0.11.1-java7</version>
     <name>j4rs</name>
     <description>Java for Rust</description>
     <url>https://github.com/astonbitecode/j4rs</url>
@@ -61,8 +61,10 @@
         <maven.assembly.plugin.version>3.1.0</maven.assembly.plugin.version>
         <logback.version>1.2.3</logback.version>
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
-        <jackson.version>2.10.0.pr1</jackson.version>
+        <jackson.version>2.7.0</jackson.version>
         <mockito.version>2.23.4</mockito.version>
+        <retrolambda.version>2.5.6</retrolambda.version>
+        <streamsupport.version>1.7.1</streamsupport.version>
     </properties>
     <dependencies>
         <dependency>
@@ -79,6 +81,11 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sourceforge.streamsupport</groupId>
+            <artifactId>streamsupport</artifactId>
+            <version>${streamsupport.version}</version>
         </dependency>
         <!-- Test dependencies -->
         <dependency>
@@ -154,6 +161,21 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>net.orfjackal.retrolambda</groupId>
+                <artifactId>retrolambda-maven-plugin</artifactId>
+                <version>${retrolambda.version}</version>
+                <configuration>
+                    <defaultMethods>false</defaultMethods>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>process-main</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>${maven.assembly.plugin.version}</version>
@@ -198,6 +220,21 @@
                                 </manifestEntries>
                             </archive>
                         </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>net.orfjackal.retrolambda</groupId>
+                        <artifactId>retrolambda-maven-plugin</artifactId>
+                        <version>${retrolambda.version}</version>
+                        <configuration>
+                            <defaultMethods>false</defaultMethods>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>process-main</goal>
+                                </goals>
+                            </execution>
+                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>

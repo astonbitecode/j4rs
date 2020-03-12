@@ -17,11 +17,11 @@ package org.astonbitecode.j4rs.json;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java8.util.J8Arrays;
 import org.astonbitecode.j4rs.errors.JsonCodecException;
 import org.astonbitecode.j4rs.utils.Utils;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Map;
 
 public class Codec {
@@ -47,7 +47,7 @@ public class Codec {
     public Object[] decodeArrayContents(String json) throws IOException {
         Map<String, Object>[] array = mapper.readValue(json, typeRef);
 
-        return Arrays.stream(array)
+        return J8Arrays.stream(array)
                 .map(elem -> {
                     try {
                         return retrieveFromMap(elem);

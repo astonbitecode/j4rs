@@ -14,12 +14,13 @@
  */
 package org.astonbitecode.j4rs.tests;
 
+import java8.util.J8Arrays;
+import java8.util.stream.Collectors;
+import java8.util.stream.StreamSupport;
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 
-import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class MyTest extends NativeCallbackSupport {
     private String string;
@@ -38,7 +39,7 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public MyTest(String... args) {
-        this.string = Arrays.stream(args).collect(Collectors.joining(", "));
+        this.string = J8Arrays.stream(args).collect(Collectors.joining(", "));
     }
 
     public static void useLongPrimitivesArray(long[] args) {
@@ -58,7 +59,7 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public String getMyWithArgsList(String... args) {
-        String str = Arrays.stream(args)
+        String str = J8Arrays.stream(args)
                 .reduce(
                         "",
                         (a, b) -> {
@@ -69,11 +70,15 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public List<Integer> getNumbersUntil(Integer until) {
-        return IntStream.range(0, until).boxed().collect(Collectors.toList());
+        List<Integer> ints = new LinkedList<>();
+        for (int i = 0; i < until; i++) {
+            ints.add(i);
+        }
+        return ints;
     }
 
     public Integer addInts(Integer... args) {
-        int result = Arrays.stream(args)
+        int result = J8Arrays.stream(args)
                 .reduce(
                         0,
                         (a, b) -> {
@@ -88,7 +93,7 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public void list(List<String> l) {
-        String str = l.stream()
+        String str = StreamSupport.stream(l)
                 .reduce(
                         "The arguments passed where",
                         (a, b) -> {

@@ -14,8 +14,11 @@
  */
 package org.astonbitecode.j4rs.tests;
 
+import java8.util.stream.Collectors;
+import java8.util.stream.StreamSupport;
+
 import java.util.HashMap;
-import java.util.stream.Collectors;
+
 
 public class DummyMapImpl extends HashMap<String, Object> implements DummyMapInterface<String, Object> {
     private static final long serialVersionUID = 1L;
@@ -26,6 +29,6 @@ public class DummyMapImpl extends HashMap<String, Object> implements DummyMapInt
     }
 
     public long keysLength() {
-        return keySet().stream().map(String::length).collect(Collectors.summingInt(Integer::intValue));
+        return StreamSupport.stream(keySet()).map(String::length).collect(Collectors.summingInt(Integer::intValue));
     }
 }

@@ -14,17 +14,16 @@
  */
 package org.astonbitecode.j4rs.api.dtos;
 
+import java8.util.J8Arrays;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
 import org.astonbitecode.j4rs.utils.Utils;
 
-import java.util.Arrays;
-
 public class InvocationArgGenerator {
     public GeneratedArg[] generateArgObjects(InvocationArg[] args) {
-        GeneratedArg[] generatedArgArr = Arrays.stream(args).map(invArg -> {
+        GeneratedArg[] generatedArgArr = J8Arrays.stream(args).map(invArg -> {
             GeneratedArg generatedArg;
             if (invArg.isSerialized()) {
                 ObjectValue objValue = new JsonValueImpl(invArg.getJson(), invArg.getClassName());

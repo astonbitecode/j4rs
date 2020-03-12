@@ -18,7 +18,7 @@ matrix:
        - mvn -f java/pom.xml clean install
        - cargo clean --manifest-path=rust/Cargo.toml
        - cargo update --manifest-path=rust/Cargo.toml
-       - cargo test --manifest-path=rust/Cargo.toml
+       - cargo build --manifest-path=rust/Cargo.toml
 
 before_install:
   - curl https://sh.rustup.rs -sSf | sh -s -- -y

@@ -14,8 +14,12 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
+import java8.util.J8Arrays;
+import java8.util.stream.Collectors;
+import java8.util.stream.StreamSupport;
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.NativeInvocationBase;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
@@ -23,11 +27,19 @@ import org.astonbitecode.j4rs.api.value.JsonValueImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
-import java.lang.reflect.*;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-public class JsonInvocationImpl<T> implements NativeInvocation<T> {
+public class JsonInvocationImpl<T> extends NativeInvocationBase implements NativeInvocation<T> {
 
     // The instance that this JsonInvocationImpl holds
     private T object;
@@ -138,7 +150,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
     }
 
     CreatedInstance invokeMethod(String methodName, GeneratedArg[] generatedArgs) throws Exception {
-        Class[] argTypes = Arrays.stream(generatedArgs)
+        Class[] argTypes = J8Arrays.stream(generatedArgs)
                 .map(invGeneratedArg -> {
                     try {
                         return invGeneratedArg.getClazz();
@@ -147,7 +159,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
                     }
                 })
                 .toArray(size -> new Class[size]);
-        Object[] argObjects = Arrays.stream(generatedArgs)
+        Object[] argObjects = J8Arrays.stream(generatedArgs)
                 .map(invGeneratedArg -> {
                     try {
                         return invGeneratedArg.getObject();
@@ -174,13 +186,13 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
         // Get the declared and methods defined in the interfaces of the class.
         Set<Method> methods = new HashSet<>(Arrays.asList(clazz.getDeclaredMethods()));
-        Set<Method> interfacesMethods = Arrays.stream(clazz.getInterfaces())
+        Set<Method> interfacesMethods = J8Arrays.stream(clazz.getInterfaces())
                 .map(c -> c.getDeclaredMethods())
-                .flatMap(m -> Arrays.stream(m))
+                .flatMap(m -> J8Arrays.stream(m))
                 .collect(Collectors.toSet());
         methods.addAll(interfacesMethods);
 
-        List<Method> found = methods.stream()
+        List<Method> found = StreamSupport.stream(methods)
                 // Match the method name
                 .filter(m -> m.getName().equals(methodName))
                 // Match the params number
@@ -217,7 +229,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
                             matchedParams.add(true);
                         }
                     }
-                    return matchedParams.stream().allMatch(Boolean::booleanValue);
+                    return StreamSupport.stream(matchedParams).allMatch(Boolean::booleanValue);
                 })
                 .collect(Collectors.toList());
         if (!found.isEmpty()) {
@@ -232,7 +244,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
     }
 
     private boolean validateSomeTypeSafety(Class c) {
-        List<Type> filteredTypeList = this.classGenTypes.stream()
+        List<Type> filteredTypeList = StreamSupport.stream(this.classGenTypes)
                 .filter(cgt -> ((Class) cgt).isAssignableFrom(c))
                 .collect(Collectors.toList());
         // If ClassGenTypes exist, the class c should be one of them
@@ -263,6 +275,5 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
             return object;
         }
     }
-
 
 }

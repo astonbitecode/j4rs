@@ -14,18 +14,20 @@
  */
 package org.astonbitecode.j4rs.utils;
 
+import java8.util.stream.Collectors;
+import java8.util.stream.StreamSupport;
+
 import java.util.HashMap;
-import java.util.stream.Collectors;
 
 public class DummyMapImpl extends HashMap<String, Object> implements DummyMapInterface<String, Object> {
-  private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-  public DummyMapImpl() {
-    put("one", 1);
-    put("two", 2);
-  }
+    public DummyMapImpl() {
+        put("one", 1);
+        put("two", 2);
+    }
 
-  public long keysLength() {
-    return keySet().stream().map(String::length).collect(Collectors.summingInt(Integer::intValue));
-  }
+    public long keysLength() {
+        return StreamSupport.stream(keySet()).map(String::length).collect(Collectors.summingInt(Integer::intValue));
+    }
 }
