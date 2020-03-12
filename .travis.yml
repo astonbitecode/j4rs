@@ -11,7 +11,7 @@ matrix:
       script:
        - cargo clean --manifest-path=rust/Cargo.toml
        - cargo update --manifest-path=rust/Cargo.toml
-       - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
+       - J4RS_CONSOLE_LOG_LEVEL=debug cargo build --manifest-path=rust/Cargo.toml
     - os: linux
       jdk: openjdk11
       script:
