@@ -14,7 +14,8 @@
  */
 package org.astonbitecode.j4rs.value;
 
-import org.astonbitecode.j4rs.api.value.JsonValueImpl;
+import org.astonbitecode.j4rs.api.JsonValue;
+import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.utils.Dummy;
 import org.junit.Test;
 
@@ -22,7 +23,7 @@ public class JsonValueImplTest {
 
     @Test
     public void fromString() {
-        JsonValueImpl jvi = new JsonValueImpl("This is a String");
+        JsonValue jvi = JsonValueFactory.create("This is a String");
         String json = jvi.getJson();
         String obj = (String) jvi.getObject();
         assert json.equals("\"This is a String\"");
@@ -31,7 +32,7 @@ public class JsonValueImplTest {
 
     @Test
     public void fromNumber() {
-        JsonValueImpl jvi = new JsonValueImpl(3.33);
+        JsonValue jvi = JsonValueFactory.create(3.33);
         String json = jvi.getJson();
         double obj = (double) jvi.getObject();
         assert json.equals("3.33");
@@ -40,10 +41,19 @@ public class JsonValueImplTest {
 
     @Test
     public void fromObject() {
-        JsonValueImpl jvi = new JsonValueImpl(new Dummy(3));
+        JsonValue jvi = JsonValueFactory.create(new Dummy(3));
         String json = jvi.getJson();
         Dummy obj = (Dummy) jvi.getObject();
         assert json.equals("{\"i\":3}");
         assert obj.getI() == 3;
+    }
+
+    @Test
+    public void nullableObject() {
+        JsonValue jvi = JsonValueFactory.create(null);
+        String json = jvi.getJson();
+        Object obj = jvi.getObject();
+        assert json.equals("null");
+        assert obj == null;
     }
 }

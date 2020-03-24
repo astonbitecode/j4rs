@@ -16,6 +16,7 @@ package org.astonbitecode.j4rs.tests;
 
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -69,7 +70,11 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public List<Integer> getNumbersUntil(Integer until) {
-        return IntStream.range(0, until).boxed().collect(Collectors.toList());
+        if (until == null) {
+            return new ArrayList<>();
+        } else {
+            return IntStream.range(0, until).boxed().collect(Collectors.toList());
+        }
     }
 
     public Integer addInts(Integer... args) {
@@ -117,6 +122,10 @@ public class MyTest extends NativeCallbackSupport {
 
     public DummyMapInterface<String, Object> getMap() {
         return new DummyMapImpl();
+    }
+
+    public Integer getNullInteger() {
+        return null;
     }
 
 }

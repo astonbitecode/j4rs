@@ -36,11 +36,11 @@ pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
+pub use self::jni_utils::jstring_to_rust_string as jstring_to_rust_string;
 pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
 pub use self::provisioning::MavenArtifact as MavenArtifact;
 pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
 pub use self::provisioning::MavenSettings as MavenSettings;
-pub use self::jni_utils::jstring_to_rust_string as jstring_to_rust_string;
 
 mod api;
 pub(crate) mod api_tweaks;
@@ -264,7 +264,7 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-//        #[test]
+    //        #[test]
 //    #[ignore]
     fn _memory_leaks_invoke_instances() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
@@ -286,7 +286,7 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-//            #[test]
+    //            #[test]
 //    #[ignore]
     fn _memory_leaks_invoke_instances_and_to_rust() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
@@ -737,5 +737,15 @@ mod lib_unit_tests {
         let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
         let ret: f64 = jvm.to_rust(i).unwrap();
         assert!(ret == 33.33_f64);
+    }
+
+    #[test]
+    fn null_handling() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let null = jvm.invoke(&test_instance, "getNullInteger", &[]).unwrap();
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
+        let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
+        assert!(vec.is_empty())
     }
 }

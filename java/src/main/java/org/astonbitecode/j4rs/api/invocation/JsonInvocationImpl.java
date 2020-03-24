@@ -19,12 +19,21 @@ import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
-import org.astonbitecode.j4rs.api.value.JsonValueImpl;
+import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class JsonInvocationImpl<T> implements NativeInvocation<T> {
@@ -127,7 +136,7 @@ public class JsonInvocationImpl<T> implements NativeInvocation<T> {
 
     @Override
     public String getJson() {
-        JsonValue jsonValue = new JsonValueImpl(this.object);
+        JsonValue jsonValue = JsonValueFactory.create(this.object);
         return jsonValue.getJson();
     }
 

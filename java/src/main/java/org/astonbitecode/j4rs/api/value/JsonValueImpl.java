@@ -16,21 +16,20 @@ package org.astonbitecode.j4rs.api.value;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.astonbitecode.j4rs.api.JsonValue;
-import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.errors.JsonCodecException;
 import org.astonbitecode.j4rs.json.Codec;
 
 import java.io.IOException;
 
-public class JsonValueImpl implements JsonValue, ObjectValue {
+public class JsonValueImpl implements JsonValue {
     private Codec codec = new Codec();
     private Object obj;
     private String json;
     @SuppressWarnings("unused")
     private String className;
 
-    public JsonValueImpl(Object obj) {
+    JsonValueImpl(Object obj) {
         this.obj = obj;
         try {
             this.json = codec.encode(obj);
@@ -40,7 +39,7 @@ public class JsonValueImpl implements JsonValue, ObjectValue {
         this.className = obj.getClass().getName();
     }
 
-    public JsonValueImpl(String json, String className) {
+    JsonValueImpl(String json, String className) {
         try {
             if (className.equals(InvocationArg.CONTENTS_ARRAY)) {
                 this.obj = codec.decodeArrayContents(json);

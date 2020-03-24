@@ -16,7 +16,7 @@ package org.astonbitecode.j4rs.api.dtos;
 
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.ObjectValue;
-import org.astonbitecode.j4rs.api.value.JsonValueImpl;
+import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
 import org.astonbitecode.j4rs.utils.Utils;
 
@@ -27,7 +27,7 @@ public class InvocationArgGenerator {
         GeneratedArg[] generatedArgArr = Arrays.stream(args).map(invArg -> {
             GeneratedArg generatedArg;
             if (invArg.isSerialized()) {
-                ObjectValue objValue = new JsonValueImpl(invArg.getJson(), invArg.getClassName());
+                ObjectValue objValue = JsonValueFactory.create(invArg.getJson(), invArg.getClassName());
                 try {
                     // If the invArg is an array, use its type class. In other cases, use the forNameEnhanced to retrieve its class.
                     generatedArg = invArg.getClassName().equals(InvocationArg.CONTENTS_ARRAY) ?
