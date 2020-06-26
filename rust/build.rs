@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use java_locator;
 use sha2::{Digest, Sha256};
 
-const VERSION: &'static str = "0.11.3-SNAPSHOT";
+const VERSION: &'static str = "0.12.0-SNAPSHOT";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
@@ -104,12 +104,12 @@ fn are_same_files(f1: &mut File, f2: &mut File) -> Result<bool, J4rsBuildError> 
     let mut hasher2 = Sha256::new();
 
     f1.read_to_end(&mut buffer1)?;
-    hasher1.input(&buffer1);
-    let hash1 = hasher1.result();
+    hasher1.update(&buffer1);
+    let hash1 = hasher1.finalize();
 
     f2.read_to_end(&mut buffer2)?;
-    hasher2.input(&buffer2);
-    let hash2 = hasher2.result();
+    hasher2.update(&buffer2);
+    let hash2 = hasher2.finalize();
 
     Ok(hash1 == hash2)
 }

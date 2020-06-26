@@ -489,6 +489,7 @@ pub(crate) fn get_invocation_arg_class() -> errors::Result<jclass> {
         set_invocation_arg_class)
 }
 
+#[allow(dead_code)]
 pub(crate) fn set_factory_constructor_method(j: jmethodID) {
     debug("Called set_factory_constructor_method");
     FACTORY_CONSTRUCTOR_METHOD.with(|opt| {
@@ -496,6 +497,7 @@ pub(crate) fn set_factory_constructor_method(j: jmethodID) {
     });
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_factory_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         FACTORY_CONSTRUCTOR_METHOD,
@@ -1312,6 +1314,7 @@ pub(crate) fn get_byte_constructor_method() -> errors::Result<jmethodID> {
         set_byte_constructor_method)
 }
 
+#[allow(dead_code)]
 pub(crate) fn set_float_class(j: jclass) {
     debug("Called set_float_class");
     FLOAT_CLASS.with(|opt| {
@@ -1319,6 +1322,7 @@ pub(crate) fn set_float_class(j: jclass) {
     });
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_float_class() -> errors::Result<jclass> {
     get_cached!(
         FLOAT_CLASS,
@@ -1334,6 +1338,7 @@ pub(crate) fn get_float_class() -> errors::Result<jclass> {
         set_float_class)
 }
 
+#[allow(dead_code)]
 pub(crate) fn set_float_constructor_method(j: jmethodID) {
     debug("Called set_float_constructor_method");
     FLOAT_CONSTRUCTOR_METHOD.with(|opt| {
@@ -1341,6 +1346,7 @@ pub(crate) fn set_float_constructor_method(j: jmethodID) {
     });
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_float_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         FLOAT_CONSTRUCTOR_METHOD,
@@ -1365,6 +1371,7 @@ pub(crate) fn get_float_constructor_method() -> errors::Result<jmethodID> {
         set_float_constructor_method)
 }
 
+#[allow(dead_code)]
 pub(crate) fn set_double_class(j: jclass) {
     debug("Called set_double_class");
     DOUBLE_CLASS.with(|opt| {
@@ -1372,6 +1379,7 @@ pub(crate) fn set_double_class(j: jclass) {
     });
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_double_class() -> errors::Result<jclass> {
     get_cached!(
         DOUBLE_CLASS,
@@ -1387,6 +1395,7 @@ pub(crate) fn get_double_class() -> errors::Result<jclass> {
         set_double_class)
 }
 
+#[allow(dead_code)]
 pub(crate) fn set_double_constructor_method(j: jmethodID) {
     debug("Called set_double_constructor_method");
     DOUBLE_CONSTRUCTOR_METHOD.with(|opt| {
@@ -1394,6 +1403,7 @@ pub(crate) fn set_double_constructor_method(j: jmethodID) {
     });
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_double_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         DOUBLE_CONSTRUCTOR_METHOD,
