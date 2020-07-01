@@ -35,6 +35,7 @@ pub use self::api::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
+pub use self::api::Null as Null;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 pub use self::jni_utils::jstring_to_rust_string as jstring_to_rust_string;
 pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
@@ -87,7 +88,7 @@ mod lib_unit_tests {
 
     use fs_extra::remove_items;
 
-    use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings};
+    use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings, Null};
     use crate::provisioning::JavaArtifact;
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
@@ -747,5 +748,20 @@ mod lib_unit_tests {
         let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.is_empty())
+    }
+
+    #[test]
+    fn null_creation() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let null = InvocationArg::from(Null::Of("java.lang.Integer"));
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
+        let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
+        assert!(vec.is_empty());
+
+        let null = InvocationArg::from(Null::Integer);
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
+        let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
+        assert!(vec.is_empty());
     }
 }

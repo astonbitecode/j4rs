@@ -101,6 +101,14 @@ let one_more_string_instance = jvm.create_instance(
 let i11 = InvocationArg::try_from(one_more_string_instance)?;
 ```
 
+To create an `InvocationArg` that represents a `null` Java value, use the `From` implementation with the `Null` struct:
+
+```rust
+let null_string = InvocationArg::from(Null::String);                // A null String
+let null_integer = InvocationArg::from(Null::Integer);              // A null Integer
+let null_obj = InvocationArg::from(Null::Of("java.util.List"));    // A null object of any other class. E.g. List
+```
+
 ### Casting
 
 An `Instance` may be casted to some other Class:

@@ -38,7 +38,14 @@ public class InvocationArgGenerator {
                 }
             } else {
                 NativeInvocation inv = invArg.getNativeInvocation();
-                generatedArg = new GeneratedArg(inv.getObjectClass(), inv.getObject());
+                try {
+                    generatedArg = new GeneratedArg(
+                            inv != null ? inv.getObjectClass() : Utils.forNameEnhanced(invArg.getClassName()),
+                            inv != null ? inv.getObject() : null);
+                } catch (ClassNotFoundException cnfe) {
+                    System.out.println("j4rs Warning! ClassNotFoundException for " + invArg.getClassName() + " Using java.lang.Object instead...");
+                    generatedArg = new GeneratedArg(Object.class, null);
+                }
             }
             return generatedArg;
         }).toArray(i -> new GeneratedArg[i]);
