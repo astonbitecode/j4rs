@@ -117,7 +117,6 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public <T> T echo(T o) {
-        System.out.println("Echoing " + o);
         return o;
     }
 

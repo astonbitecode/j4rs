@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate jni_sys;
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;
@@ -26,7 +25,7 @@ use std::os::raw::c_void;
 use std::sync::mpsc::Sender;
 
 use jni_sys::{jlong, JNIEnv, jobject};
-
+pub use jni_sys as jni_sys;
 pub use self::api::Callback as Callback;
 pub use self::api::ClasspathEntry as ClasspathEntry;
 pub use self::api::Instance as Instance;
@@ -51,6 +50,7 @@ mod logger;
 mod provisioning;
 mod utils;
 mod cache;
+pub mod prelude;
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {

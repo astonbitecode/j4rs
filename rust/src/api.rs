@@ -91,6 +91,17 @@ impl Jvm {
         Self::create_jvm(&[], None)
     }
 
+    /// Attaches the current thread to an active JavaVM and instructs that the Jvm will detach the Java JVM
+    /// from the thread when the rust Jvm is dropped.
+    ///
+    /// This is useful when creating a Jvm while on a Thread that is created in the Java world.
+    /// When this Jvm is dropped, we don't want to detach the thread from the Java VM.
+    pub fn attach_thread_with_no_detach_on_drop() -> errors::Result<Jvm> {
+        let mut jvm = Jvm::attach_thread()?;
+        jvm.detach_thread_on_drop(false);
+        Ok(jvm)
+    }
+
     /// If false, the thread will not be detached when the Jvm is being dropped.
     /// This is useful when creating a Jvm while on a Thread that is created in the Java world.
     /// When this Jvm is dropped, we don't want to detach the thread from the Java VM.
