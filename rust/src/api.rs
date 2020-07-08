@@ -213,6 +213,7 @@ impl Jvm {
             let _ = cache::get_jni_delete_global_ref().or_else(|| cache::set_jni_delete_global_ref((**jni_environment).DeleteGlobalRef));
             let _ = cache::get_jni_new_global_ref().or_else(|| cache::set_jni_new_global_ref((**jni_environment).NewGlobalRef));
             let _ = cache::get_jni_throw_new().or_else(|| cache::set_jni_throw_new((**jni_environment).ThrowNew));
+            let _ = cache::get_is_same_object().or_else(|| cache::set_is_same_object((**jni_environment).IsSameObject));
 
             match (ec, ed, exclear) {
                 (Some(ec), Some(ed), Some(exclear)) => {
@@ -751,6 +752,31 @@ impl Jvm {
 
             // Create and return the Instance
             Self::do_return(self.jni_env, Instance::from(native_invocation_instance)?)
+        }
+    }
+
+    pub fn _unimplemented(&self, instance: Instance) -> errors::Result<()> {
+        unsafe {
+            debug("Invoking the getJson method");
+
+            // Call the getObjectClassMethod. This returns a localref
+            let object_class_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+                self.jni_env,
+                instance.jinstance,
+                cache::get_get_object_class_method()?,
+            );
+
+            if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
+                // Call the getObjectMethod. This returns a localref
+                let object_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+                    self.jni_env,
+                    instance.jinstance,
+                    cache::get_get_object_method()?,
+                );
+                let _ = i32::from(jni_utils::i32_from_jobject(object_instance)?);
+            }
+
+            unimplemented!();
         }
     }
 

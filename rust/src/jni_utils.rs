@@ -286,6 +286,15 @@ pub(crate) fn global_jobject_from_i32(a: &i32, jni_env: *mut JNIEnv) -> errors::
     }
 }
 
+pub(crate) unsafe fn i32_from_jobject(obj: jobject) -> errors::Result<i32> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create an i32 from null".to_string()))
+    } else {
+        let j = obj as *mut i32;
+        Ok(*j.clone())
+    }
+}
+
 pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         let tmp = a.clone();
@@ -325,5 +334,16 @@ pub(crate) fn throw_exception(message: &str, jni_env: *mut JNIEnv) -> errors::Re
             message_jstring.as_ptr(),
         );
         Ok(i)
+    }
+}
+
+pub(crate) fn is_same_object(obj1: jobject, obj2: jobject, jni_env: *mut JNIEnv) -> errors::Result<bool> {
+    unsafe {
+        let b = (opt_to_res(cache::get_is_same_object())?)(
+            jni_env,
+            obj1,
+            obj2,
+        );
+        Ok(b == JNI_TRUE)
     }
 }

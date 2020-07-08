@@ -63,6 +63,7 @@ pub(crate) type JniDeleteLocalRef = unsafe extern "system" fn(_: *mut JNIEnv, _:
 pub(crate) type JniDeleteGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
 pub(crate) type JniNewGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> jobject;
 pub(crate) type JniThrowNew = unsafe extern "system" fn(_: *mut JNIEnv, _: jclass, _: *const c_char) -> jint;
+pub(crate) type JniIsSameObject = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject, _: jobject) -> jboolean;
 
 const CLASS_CACHING_ENABLED: bool = !(cfg!(target_os = "android"));
 
@@ -94,6 +95,7 @@ thread_local! {
     pub(crate) static JNI_DELETE_GLOBAL_REF: RefCell<Option<JniDeleteGlobalRef>> = RefCell::new(None);
     pub(crate) static JNI_NEW_GLOBAL_REF: RefCell<Option<JniNewGlobalRef>> = RefCell::new(None);
     pub(crate) static JNI_THROW_NEW: RefCell<Option<JniThrowNew>> = RefCell::new(None);
+    pub(crate) static JNI_IS_SAME_OBJECT: RefCell<Option<JniIsSameObject>> = RefCell::new(None);
     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`.
     pub(crate) static FACTORY_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     // The constructor method of the `NativeInstantiationImpl`.
@@ -131,6 +133,10 @@ thread_local! {
     pub(crate) static CAST_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The get json method
     pub(crate) static GET_JSON_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    // The get object class method
+    pub(crate) static GET_OBJECT_CLASS_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    // The get object method
+    pub(crate) static GET_OBJECT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The invstatic ocation argument constructor method for objects created by Java
     pub(crate) static INV_ARG_JAVA_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The invstatic ocation argument constructor method for objects created by Rust
@@ -467,6 +473,20 @@ pub(crate) fn set_jni_throw_new(j: Option<JniThrowNew>) -> Option<JniThrowNew> {
 
 pub(crate) fn get_jni_throw_new() -> Option<JniThrowNew> {
     JNI_THROW_NEW.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_is_same_object(j: Option<JniIsSameObject>) -> Option<JniIsSameObject> {
+    debug("Called set_is_same_object");
+    JNI_IS_SAME_OBJECT.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_is_same_object()
+}
+
+pub(crate) fn get_is_same_object() -> Option<JniIsSameObject> {
+    JNI_IS_SAME_OBJECT.with(|opt| {
         *opt.borrow()
     })
 }
@@ -998,6 +1018,74 @@ pub(crate) fn get_get_json_method() -> errors::Result<jmethodID> {
             j
         },
         set_get_json_method)
+}
+
+pub(crate) fn set_get_object_class_method(j: jmethodID) {
+    debug("Called set_get_object_class_method");
+    GET_OBJECT_CLASS_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_get_object_class_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        GET_OBJECT_CLASS_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let get_object_class_method_signature = "()Ljava/lang/Class;";
+            let cstr1 = utils::to_c_string("getObjectClass");
+            let cstr2 = utils::to_c_string(get_object_class_method_signature.as_ref());
+
+            // Get the method ID for the `NativeInvocation.getObjectClass`
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_native_invocation_class()?,
+                    cstr1,
+                    cstr2,
+                )
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_get_object_class_method)
+}
+
+pub(crate) fn set_get_object_method(j: jmethodID) {
+    debug("Called set_get_object_method");
+    GET_OBJECT_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_get_object_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        GET_OBJECT_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let get_object_method_signature = "()Ljava/lang/Object;";
+            let cstr1 = utils::to_c_string("getObject");
+            let cstr2 = utils::to_c_string(get_object_method_signature.as_ref());
+
+            // Get the method ID for the `NativeInvocation.getObject`
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_native_invocation_class()?,
+                    cstr1,
+                    cstr2,
+                )
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_get_object_method)
 }
 
 pub(crate) fn set_inv_arg_java_constructor_method(j: jmethodID) {
