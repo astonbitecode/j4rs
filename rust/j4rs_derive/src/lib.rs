@@ -17,7 +17,7 @@ extern crate proc_macro2;
 use proc_macro::TokenStream;
 
 use proc_macro2::{Ident, Span};
-use syn::{AttributeArgs, Expr, ExprReturn, FnArg, ItemFn, Lit, NestedMeta, parse_macro_input, ReturnType};
+use syn::{AttributeArgs, Expr, FnArg, ItemFn, Lit, NestedMeta, parse_macro_input, ReturnType};
 
 use quote::quote;
 
@@ -75,13 +75,21 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
     // The jni return value. This may be void or jobject
     let return_value = match &user_function_signature.output {
         ReturnType::Default => {
-            let ret_value: ExprReturn = syn::parse_str("return ()").unwrap();
+            let ret_value: Expr = syn::parse_str("()").unwrap();
             ret_value
-        },
+        }
         _ => {
-            let ret_value: ExprReturn = syn::parse_str("return inv_arg_to_return.as_java_ptr(jni_env).unwrap()").unwrap();
+            let ret_value: Expr = syn::parse_str(
+                r#"match inv_arg_to_return {
+                    Ok(ia) => ia.as_java_ptr(jni_env).unwrap(),
+                    Err(error) => {
+                        let message = format!("{}", error);
+                        let _ = jvm.throw_invocation_exception(&message);
+                        ptr::null_mut()
+                    }
+                }"#).unwrap();
             ret_value
-        },
+        }
     };
     // The Instance arguments to pass to the user function
     let instance_args_to_pass_to_user_function: Vec<Expr> = user_function_arg_names.iter()

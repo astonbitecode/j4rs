@@ -22,6 +22,7 @@ use jni_sys::{
     jclass,
     jmethodID,
     JNIEnv,
+    jint,
     jobject,
     jobjectArray,
     jsize,
@@ -61,6 +62,7 @@ pub(crate) type JniExceptionClear = unsafe extern "system" fn(_: *mut JNIEnv);
 pub(crate) type JniDeleteLocalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
 pub(crate) type JniDeleteGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
 pub(crate) type JniNewGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> jobject;
+pub(crate) type JniThrowNew = unsafe extern "system" fn(_: *mut JNIEnv, _: jclass, _: *const c_char) -> jint;
 
 const CLASS_CACHING_ENABLED: bool = !(cfg!(target_os = "android"));
 
@@ -91,6 +93,7 @@ thread_local! {
     pub(crate) static JNI_DELETE_LOCAL_REF: RefCell<Option<JniDeleteLocalRef>> = RefCell::new(None);
     pub(crate) static JNI_DELETE_GLOBAL_REF: RefCell<Option<JniDeleteGlobalRef>> = RefCell::new(None);
     pub(crate) static JNI_NEW_GLOBAL_REF: RefCell<Option<JniNewGlobalRef>> = RefCell::new(None);
+    pub(crate) static JNI_THROW_NEW: RefCell<Option<JniThrowNew>> = RefCell::new(None);
     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`.
     pub(crate) static FACTORY_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     // The constructor method of the `NativeInstantiationImpl`.
@@ -147,6 +150,7 @@ thread_local! {
     pub(crate) static FLOAT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static DOUBLE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static DOUBLE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static INVOCATION_EXCEPTION_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
 }
 
 macro_rules! get_cached {
@@ -449,6 +453,20 @@ pub(crate) fn set_jni_new_global_ref(j: Option<JniNewGlobalRef>) -> Option<JniNe
 
 pub(crate) fn get_jni_new_global_ref() -> Option<JniNewGlobalRef> {
     JNI_NEW_GLOBAL_REF.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_jni_throw_new(j: Option<JniThrowNew>) -> Option<JniThrowNew> {
+    debug("Called set_jni_throw_new");
+    JNI_THROW_NEW.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_throw_new()
+}
+
+pub(crate) fn get_jni_throw_new() -> Option<JniThrowNew> {
+    JNI_THROW_NEW.with(|opt| {
         *opt.borrow()
     })
 }
@@ -1175,6 +1193,28 @@ pub(crate) fn get_long_class() -> errors::Result<jclass> {
             jni_utils::create_global_ref_from_local_ref(c, env)?
         },
         set_long_class)
+}
+
+pub(crate) fn set_invocation_exception_class(j: jclass) {
+    debug("Called set_invocation_exception_class");
+    LONG_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_invocation_exception_class() -> errors::Result<jclass> {
+    get_cached!(
+        INVOCATION_EXCEPTION_CLASS,
+        {
+            let env = get_thread_local_env()?;
+
+            let c = tweaks::find_class(
+                env,
+                "org/astonbitecode/j4rs/errors/InvocationException",
+            )?;
+            jni_utils::create_global_ref_from_local_ref(c, env)?
+        },
+        set_invocation_exception_class)
 }
 
 pub(crate) fn set_long_constructor_method(j: jmethodID) {

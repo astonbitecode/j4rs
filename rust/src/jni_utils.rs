@@ -315,3 +315,15 @@ pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result
         Jvm::do_return(jvm.jni_env, rust_string)
     }
 }
+
+pub(crate) fn throw_exception(message: &str, jni_env: *mut JNIEnv) -> errors::Result<i32> {
+    unsafe {
+        let message_jstring = utils::to_c_string_struct(message);
+        let i = (opt_to_res(cache::get_jni_throw_new())?)(
+            jni_env,
+            cache::get_invocation_exception_class()?,
+            message_jstring.as_ptr(),
+        );
+        Ok(i)
+    }
+}

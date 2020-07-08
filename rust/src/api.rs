@@ -212,6 +212,7 @@ impl Jvm {
             let _ = cache::get_jni_delete_local_ref().or_else(|| cache::set_jni_delete_local_ref((**jni_environment).DeleteLocalRef));
             let _ = cache::get_jni_delete_global_ref().or_else(|| cache::set_jni_delete_global_ref((**jni_environment).DeleteGlobalRef));
             let _ = cache::get_jni_new_global_ref().or_else(|| cache::set_jni_new_global_ref((**jni_environment).NewGlobalRef));
+            let _ = cache::get_jni_throw_new().or_else(|| cache::set_jni_throw_new((**jni_environment).ThrowNew));
 
             match (ec, ed, exclear) {
                 (Some(ec), Some(ed), Some(exclear)) => {
@@ -866,6 +867,12 @@ impl Jvm {
     /// Initiates a chain of operations on Instances.
     pub fn chain(&self, instance: Instance) -> ChainableInstance {
         ChainableInstance::new(instance, &self)
+    }
+
+    /// Throws an exception in the Java World
+    pub fn throw_invocation_exception(&self, message: &str) -> errors::Result<()> {
+        let _ = jni_utils::throw_exception(message, self.jni_env)?;
+        Ok(())
     }
 
     pub(crate) fn do_return<T>(jni_env: *mut JNIEnv, to_return: T) -> errors::Result<T> {
