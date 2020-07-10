@@ -764,4 +764,31 @@ mod lib_unit_tests {
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.is_empty());
     }
+
+    #[test]
+    #[ignore]
+    fn dummy() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &vec![InvocationArg::try_from(33).unwrap()]).unwrap();
+        let v: Box<i32> = jvm.to_rust_boxed(i).unwrap();
+        println!("------{}", v);
+    }
+
+    #[test]
+    fn to_rust_boxed() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let i = jvm.invoke(&test_instance, "echo", &vec![InvocationArg::try_from(true).unwrap()]).unwrap();
+        let _: Box<bool> = jvm.to_rust_boxed(i).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &vec![InvocationArg::try_from(33_i8).unwrap()]).unwrap();
+        let _: Box<i8> = jvm.to_rust_boxed(i).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &vec![InvocationArg::try_from(33_i16).unwrap()]).unwrap();
+        let _: Box<i16> = jvm.to_rust_boxed(i).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &vec![InvocationArg::try_from(33_i32).unwrap()]).unwrap();
+        let _: Box<i32> = jvm.to_rust_boxed(i).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &vec![InvocationArg::try_from(33_i64).unwrap()]).unwrap();
+        let _: Box<i64> = jvm.to_rust_boxed(i).unwrap();
+    }
 }

@@ -755,33 +755,64 @@ impl Jvm {
         }
     }
 
-    pub fn _unimplemented(&self, instance: Instance) -> errors::Result<()> {
-        unsafe {
-            debug("Invoking the getJson method");
+    /// Returns the Rust representation of the provided instance, boxed
+    pub fn to_rust_boxed<T>(&self, instance: Instance) -> errors::Result<Box<T>>
+        where T: DeserializeOwned + Any {
 
+        // Define the macro inside the function in order to have access to &self
+        macro_rules! rust_box_from_java_object {
+            ($jni_transformation:path) => {
+                {
+                    // Call the getObjectMethod. This returns a localref
+                    let object_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+                        self.jni_env,
+                        instance.jinstance,
+                        cache::get_get_object_method()?,
+                    );
+                    let object_instance = jni_utils::create_global_ref_from_local_ref(object_instance, self.jni_env)?;
+                    let v = Box::new($jni_transformation(object_instance, self.jni_env)?);
+                    let v_any = v as Box<dyn Any>;
+
+                    jni_utils::delete_java_ref(self.jni_env, object_instance);
+
+                    match v_any.downcast::<T>() {
+                        Ok(v) => Ok(v),
+                        Err(error) => Err(errors::J4RsError::RustError(
+                            format!("Could not downcast to Rust type: {:?}", error))),
+                    }
+                }
+            };
+        }
+
+        unsafe {
             // Call the getObjectClassMethod. This returns a localref
             let object_class_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
                 cache::get_get_object_class_method()?,
             );
-
             if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
-                // Call the getObjectMethod. This returns a localref
-                let object_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
-                    self.jni_env,
-                    instance.jinstance,
-                    cache::get_get_object_method()?,
-                );
-                let _ = i32::from(jni_utils::i32_from_jobject(object_instance)?);
+                rust_box_from_java_object!(jni_utils::i32_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_byte_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::i8_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_short_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::i16_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::i32_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_long_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::i64_from_jobject)
+            } else {
+                Ok(Box::new(self.to_rust_deserialized(instance)?))
             }
-
-            unimplemented!();
         }
     }
 
     /// Returns the Rust representation of the provided instance
-    pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned {
+    pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned + Any {
+        self.to_rust_deserialized(instance)
+    }
+
+    pub fn to_rust_deserialized<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned + Any {
         unsafe {
             debug("Invoking the getJson method");
             // Call the getJson method. This returns a localref
@@ -797,28 +828,6 @@ impl Jvm {
             jni_utils::delete_java_ref(self.jni_env, global_json_instance);
             Self::do_return(self.jni_env, serde_json::from_str(&json)?)
         }
-    }
-
-    /// Deploys a maven artifact in the default j4rs jars location.
-    ///
-    /// This is useful for build scripts that need jars for the runtime that can be downloaded from Maven.
-    ///
-    /// The function deploys __only__ the specified artifact, not its transitive dependencies.
-    #[deprecated(since = "0.7.0", note = "please use `deploy_artifact` instead")]
-    pub fn deploy_maven(&self, artifact: MavenArtifact) -> errors::Result<()> {
-        let instance = self.create_instance(
-            "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
-            &vec![InvocationArg::try_from(artifact.base)?])?;
-
-        let _ = self.invoke(
-            &instance,
-            "deploy",
-            &vec![
-                InvocationArg::try_from(artifact.group)?,
-                InvocationArg::try_from(artifact.id)?,
-                InvocationArg::try_from(artifact.version)?,
-                InvocationArg::try_from(artifact.qualifier)?])?;
-        Ok(())
     }
 
     /// Deploys an artifact in the default j4rs jars location.
@@ -1766,8 +1775,13 @@ impl<'a> ChainableInstance<'a> {
     }
 
     /// Returns the Rust representation of the provided instance
-    pub fn to_rust<T>(self) -> errors::Result<T> where T: DeserializeOwned {
+    pub fn to_rust<T: Any>(self) -> errors::Result<T> where T: DeserializeOwned {
         self.jvm.to_rust(self.instance)
+    }
+
+    /// Returns the Rust representation of the provided instance, boxed
+    pub fn to_rust_boxed<T: Any>(self) -> errors::Result<Box<T>> where T: DeserializeOwned {
+        self.jvm.to_rust_boxed(self.instance)
     }
 }
 

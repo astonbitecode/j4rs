@@ -145,16 +145,22 @@ thread_local! {
     pub(crate) static INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // Basic types definitions
     pub(crate) static INTEGER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INTEGER_TO_INT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static INTEGER_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static LONG_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static LONG_TO_LONG_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static LONG_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static SHORT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static SHORT_TO_SHORT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static SHORT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static BYTE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static BYTE_TO_BYTE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static BYTE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static FLOAT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FLOAT_TO_FLOAT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static FLOAT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static DOUBLE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static DOUBLE_TO_DOUBLE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static DOUBLE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static INVOCATION_EXCEPTION_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
 }
@@ -1261,6 +1267,37 @@ pub(crate) fn get_integer_constructor_method() -> errors::Result<jmethodID> {
         set_integer_constructor_method)
 }
 
+pub(crate) fn set_integer_to_int_method(j: jmethodID) {
+    debug("Called set_integer_to_int_method");
+    INTEGER_TO_INT_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_integer_to_int_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        INTEGER_TO_INT_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let to_int_signature = "()I";
+            let cstr1 = utils::to_c_string("intValue");
+            let cstr2 = utils::to_c_string(&to_int_signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_integer_class()?,
+                    cstr1,
+                    cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_integer_to_int_method)
+}
+
 pub(crate) fn set_long_class(j: jclass) {
     debug("Called set_long_class");
     LONG_CLASS.with(|opt| {
@@ -1336,6 +1373,37 @@ pub(crate) fn get_long_constructor_method() -> errors::Result<jmethodID> {
         set_long_constructor_method)
 }
 
+pub(crate) fn set_long_to_long_method(j: jmethodID) {
+    debug("Called set_long_to_long_method");
+    LONG_TO_LONG_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_long_to_long_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        LONG_TO_LONG_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let signature = "()J";
+            let cstr1 = utils::to_c_string("longValue");
+            let cstr2 = utils::to_c_string(&signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_long_class()?,
+                    cstr1,
+                    cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_long_to_long_method)
+}
+
 pub(crate) fn set_short_class(j: jclass) {
     debug("Called set_short_class");
     SHORT_CLASS.with(|opt| {
@@ -1389,6 +1457,37 @@ pub(crate) fn get_short_constructor_method() -> errors::Result<jmethodID> {
         set_short_constructor_method)
 }
 
+pub(crate) fn set_short_to_short_method(j: jmethodID) {
+    debug("Called set_short_to_short_method");
+    SHORT_TO_SHORT_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_short_to_short_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        SHORT_TO_SHORT_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let signature = "()S";
+            let cstr1 = utils::to_c_string("shortValue");
+            let cstr2 = utils::to_c_string(&signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_short_class()?,
+                    cstr1,
+                    cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_short_to_short_method)
+}
+
 pub(crate) fn set_byte_class(j: jclass) {
     debug("Called set_byte_class");
     BYTE_CLASS.with(|opt| {
@@ -1440,6 +1539,37 @@ pub(crate) fn get_byte_constructor_method() -> errors::Result<jmethodID> {
             j
         },
         set_byte_constructor_method)
+}
+
+pub(crate) fn set_byte_to_byte_method(j: jmethodID) {
+    debug("Called set_byte_to_byte_method");
+    BYTE_TO_BYTE_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_byte_to_byte_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        BYTE_TO_BYTE_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let signature = "()B";
+            let cstr1 = utils::to_c_string("byteValue");
+            let cstr2 = utils::to_c_string(&signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_byte_class()?,
+                    cstr1,
+                    cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_byte_to_byte_method)
 }
 
 #[allow(dead_code)]
@@ -1500,6 +1630,39 @@ pub(crate) fn get_float_constructor_method() -> errors::Result<jmethodID> {
 }
 
 #[allow(dead_code)]
+pub(crate) fn set_float_to_float_method(j: jmethodID) {
+    debug("Called set_float_to_float_method");
+    FLOAT_TO_FLOAT_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+#[allow(dead_code)]
+pub(crate) fn get_float_to_float_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        FLOAT_TO_FLOAT_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let signature = "()F";
+            let cstr1 = utils::to_c_string("floatValue");
+            let cstr2 = utils::to_c_string(&signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_float_class()?,
+                    cstr1,
+                    cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_float_to_float_method)
+}
+
+#[allow(dead_code)]
 pub(crate) fn set_double_class(j: jclass) {
     debug("Called set_double_class");
     DOUBLE_CLASS.with(|opt| {
@@ -1554,4 +1717,37 @@ pub(crate) fn get_double_constructor_method() -> errors::Result<jmethodID> {
             j
         },
         set_double_constructor_method)
+}
+
+#[allow(dead_code)]
+pub(crate) fn set_double_to_double_method(j: jmethodID) {
+    debug("Called set_double_to_double_method");
+    DOUBLE_TO_DOUBLE_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+#[allow(dead_code)]
+pub(crate) fn get_double_to_double_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        DOUBLE_TO_DOUBLE_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let signature = "()D";
+            let cstr1 = utils::to_c_string("doubleValue");
+            let cstr2 = utils::to_c_string(&signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_double_class()?,
+                    cstr1,
+                    cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_double_to_double_method)
 }

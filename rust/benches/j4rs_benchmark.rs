@@ -3,7 +3,7 @@ extern crate criterion;
 
 use std::convert::TryFrom;
 
-use criterion::black_box;
+use criterion::{black_box, BenchmarkId};
 use criterion::Criterion;
 
 use j4rs::{self, Instance, InvocationArg, Jvm};
@@ -24,7 +24,17 @@ fn do_invocation_w_integer_args(jvm: &Jvm, instance: &Instance) -> Instance {
     jvm.invoke(instance, "echo", &vec![InvocationArg::try_from(33_i32).unwrap()]).unwrap()
 }
 
-fn criterion_benchmark(c: &mut Criterion) {
+fn use_to_rust_deserialized(jvm: &Jvm, instance: &Instance) {
+    let i_instance = jvm.invoke(instance, "echo", &vec![InvocationArg::try_from(33_i32).unwrap()]).unwrap();
+    let _: i32 = jvm.to_rust_deserialized(i_instance).unwrap();
+}
+
+fn use_to_rust_boxed(jvm: &Jvm, instance: &Instance) {
+    let i_instance = jvm.invoke(instance, "echo", &vec![InvocationArg::try_from(33_i32).unwrap()]).unwrap();
+    let _: Box<i32> = jvm.to_rust_boxed(i_instance).unwrap();
+}
+
+fn j4rs_benchmark(c: &mut Criterion) {
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     c.bench_function(
         "instances creation",
@@ -55,7 +65,33 @@ fn criterion_benchmark(c: &mut Criterion) {
         move |b| b.iter(|| {
             do_invocation_w_integer_args(black_box(&jvm), black_box(&instance))
         }));
+
+    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+    c.bench_function(
+        "to_rust_unboxed",
+        move |b| b.iter(|| {
+            use_to_rust_deserialized(black_box(&jvm), black_box(&instance))
+        }));
 }
 
-criterion_group!(benches, criterion_benchmark);
+fn bench_to_rust(c: &mut Criterion) {
+    let mut group = c.benchmark_group("to_rust");
+
+    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+    for i in 0..2 {
+        group.bench_function(
+            BenchmarkId::new("to_rust_new", i),
+            |b| b.iter(|| use_to_rust_boxed(black_box(&jvm), black_box(&instance))));
+        group.bench_function(
+            BenchmarkId::new("to_rust_old", i),
+            |b| b.iter(|| use_to_rust_deserialized(black_box(&jvm), black_box(&instance))));
+
+    }
+    group.finish();
+}
+
+criterion_group!(benches, j4rs_benchmark, bench_to_rust);
 criterion_main!(benches);
