@@ -24,7 +24,7 @@ use crate::errors::opt_to_res;
 use crate::logger::{debug, error};
 use crate::utils;
 
-pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jni_env: *mut JNIEnv, create_global: bool) -> errors::Result<jobject> {
     unsafe {
         let (class_name, json) = match ia {
             _s @ &InvocationArg::Java { .. } | _s @ &InvocationArg::RustBasic { .. } => {
@@ -55,11 +55,15 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jn
         delete_java_ref(jni_env, class_name_jstring);
         delete_java_ref(jni_env, json_jstring);
 
-        Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        if create_global {
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        } else {
+            Ok(inv_arg_instance)
+        }
     }
 }
 
-pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env: *mut JNIEnv, create_global: bool) -> errors::Result<jobject> {
     unsafe {
         let (class_name, jinstance) = match ia {
             _s @ &InvocationArg::Java { .. } => {
@@ -88,11 +92,15 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env
 
         delete_java_ref(jni_env, class_name_jstring);
 
-        Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        if create_global {
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        } else {
+            Ok(inv_arg_instance)
+        }
     }
 }
 
-pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut JNIEnv, create_global: bool) -> errors::Result<jobject> {
     unsafe {
         let (class_name, jinstance) = match ia {
             _s @ &InvocationArg::Rust { .. } => panic!("Called invocation_arg_jobject_from_java for an InvocationArg that is created by Rust. Please consider opening a bug to the developers."),
@@ -120,11 +128,15 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut
         Jvm::do_return(jni_env, ())?;
         delete_java_ref(jni_env, class_name_jstring);
 
-        Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        if create_global {
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        } else {
+            Ok(inv_arg_instance)
+        }
     }
 }
 
-pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
                (**jni_env).ExceptionCheck,
@@ -186,7 +198,7 @@ pub(crate) fn _create_weak_global_ref_from_global_ref(global_ref: jobject, jni_e
 }
 
 /// Deletes the java ref from the memory
-pub(crate) fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
+pub fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     unsafe {
         match ((**jni_env).DeleteGlobalRef,
                (**jni_env).ExceptionCheck,
@@ -260,6 +272,19 @@ pub(crate) fn global_jobject_from_i8(a: &i8, jni_env: *mut JNIEnv) -> errors::Re
     }
 }
 
+pub(crate) unsafe fn i8_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<i8> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create an i8 from null".to_string()))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+            jni_env,
+            obj,
+            cache::get_byte_to_byte_method()?,
+        );
+        Ok(v as i8)
+    }
+}
+
 pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         let tmp = a.clone() as *const i16;
@@ -270,6 +295,19 @@ pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::
             tmp as *const i16,
         );
         create_global_ref_from_local_ref(o, jni_env)
+    }
+}
+
+pub(crate) unsafe fn i16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<i16> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create an i16 from null".to_string()))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+            jni_env,
+            obj,
+            cache::get_short_to_short_method()?,
+        );
+        Ok(v as i16)
     }
 }
 
@@ -286,6 +324,19 @@ pub(crate) fn global_jobject_from_i32(a: &i32, jni_env: *mut JNIEnv) -> errors::
     }
 }
 
+pub(crate) unsafe fn i32_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<i32> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create an i32 from null".to_string()))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+            jni_env,
+            obj,
+            cache::get_integer_to_int_method()?,
+        );
+        Ok(v as i32)
+    }
+}
+
 pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         let tmp = a.clone();
@@ -298,6 +349,71 @@ pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::
         create_global_ref_from_local_ref(o, jni_env)
     }
 }
+
+pub(crate) unsafe fn i64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<i64> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create an i64 from null".to_string()))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+            jni_env,
+            obj,
+            cache::get_long_to_long_method()?,
+        );
+        Ok(v as i64)
+    }
+}
+
+// pub(crate) fn global_jobject_from_f32(a: &f32, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+//     unsafe {
+//         let tmp = a.clone();
+//         let o = (opt_to_res(cache::get_jni_new_object())?)(
+//             jni_env,
+//             cache::get_float_class()?,
+//             cache::get_float_constructor_method()?,
+//             tmp as *const f32,
+//         );
+//         create_global_ref_from_local_ref(o, jni_env)
+//     }
+// }
+
+// pub(crate) unsafe fn f32_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<f32> {
+//     if obj.is_null() {
+//         Err(errors::J4RsError::JniError("Attempt to create an f32 from null".to_string()))
+//     } else {
+//         let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+//             jni_env,
+//             obj,
+//             cache::get_float_to_float_method()?,
+//         );
+//         Ok(v as f32)
+//     }
+// }
+
+// pub(crate) fn global_jobject_from_f64(a: &f64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+//     unsafe {
+//         let tmp = a.clone();
+//         let o = (opt_to_res(cache::get_jni_new_object())?)(
+//             jni_env,
+//             cache::get_double_class()?,
+//             cache::get_double_constructor_method()?,
+//             tmp as *const f64,
+//         );
+//         create_global_ref_from_local_ref(o, jni_env)
+//     }
+// }
+
+// pub(crate) unsafe fn f64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<f64> {
+//     if obj.is_null() {
+//         Err(errors::J4RsError::JniError("Attempt to create an f64 from null".to_string()))
+//     } else {
+//         let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+//             jni_env,
+//             obj,
+//             cache::get_double_to_double_method()?,
+//         );
+//         Ok(v as f64)
+//     }
+// }
 
 pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
     unsafe {
@@ -313,5 +429,28 @@ pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result
             s,
         );
         Jvm::do_return(jvm.jni_env, rust_string)
+    }
+}
+
+pub(crate) fn throw_exception(message: &str, jni_env: *mut JNIEnv) -> errors::Result<i32> {
+    unsafe {
+        let message_jstring = utils::to_c_string_struct(message);
+        let i = (opt_to_res(cache::get_jni_throw_new())?)(
+            jni_env,
+            cache::get_invocation_exception_class()?,
+            message_jstring.as_ptr(),
+        );
+        Ok(i)
+    }
+}
+
+pub(crate) fn is_same_object(obj1: jobject, obj2: jobject, jni_env: *mut JNIEnv) -> errors::Result<bool> {
+    unsafe {
+        let b = (opt_to_res(cache::get_is_same_object())?)(
+            jni_env,
+            obj1,
+            obj2,
+        );
+        Ok(b == JNI_TRUE)
     }
 }

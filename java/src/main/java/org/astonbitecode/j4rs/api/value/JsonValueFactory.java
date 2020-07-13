@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 astonbitecode
+ * Copyright 2020 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,8 +12,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.api;
+package org.astonbitecode.j4rs.api.value;
 
-public interface JsonValue extends ObjectValue {
-    String getJson();
+import org.astonbitecode.j4rs.api.JsonValue;
+
+public class JsonValueFactory {
+    public static JsonValue create(Object obj) {
+        return obj != null ? new JsonValueImpl(obj) : new NullJsonValueImpl();
+    }
+
+    public static JsonValue create(String json, String className) {
+        return new JsonValueImpl(json, className);
+    }
 }

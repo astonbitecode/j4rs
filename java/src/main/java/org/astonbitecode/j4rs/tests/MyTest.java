@@ -70,11 +70,15 @@ public class MyTest extends NativeCallbackSupport {
     }
 
     public List<Integer> getNumbersUntil(Integer until) {
-        List<Integer> ints = new LinkedList<>();
-        for (int i = 0; i < until; i++) {
-            ints.add(i);
+        if (until == null) {
+            return new ArrayList<>();
+        } else {
+            List<Integer> ints = new LinkedList<>();
+            for (int i = 0; i < until; i++) {
+                ints.add(i);
+            }
+            return ints;
         }
-        return ints;
     }
 
     public Integer addInts(Integer... args) {
@@ -122,6 +126,10 @@ public class MyTest extends NativeCallbackSupport {
 
     public DummyMapInterface<String, Object> getMap() {
         return new DummyMapImpl();
+    }
+
+    public Integer getNullInteger() {
+        return null;
     }
 
 }

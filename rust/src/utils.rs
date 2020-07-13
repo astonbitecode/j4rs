@@ -16,14 +16,23 @@ use std::{self, fs, str};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
-use cesu8::{to_java_cesu8, from_java_cesu8};
+use cesu8::{from_java_cesu8, to_java_cesu8};
 use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
 use crate::{cache, errors, InvocationArg};
+use crate::api::{
+    CLASS_BOOLEAN,
+    CLASS_BYTE,
+    CLASS_CHARACTER,
+    CLASS_DOUBLE,
+    CLASS_FLOAT,
+    CLASS_INTEGER,
+    CLASS_LONG,
+    CLASS_SHORT,
+};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
-
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
     from_java_cesu8(slice).unwrap().to_string()
 }
@@ -141,14 +150,14 @@ fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>
 
 pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
     match get_class_name(inv_arg) {
-        "java.lang.Boolean" => Some("boolean".to_string()),
-        "java.lang.Byte" => Some("byte".to_string()),
-        "java.lang.Short" => Some("short".to_string()),
-        "java.lang.Integer" => Some("int".to_string()),
-        "java.lang.Long" => Some("long".to_string()),
-        "java.lang.Float" => Some("float".to_string()),
-        "java.lang.Double" => Some("double".to_string()),
-        "java.lang.Character" => Some("char".to_string()),
+        CLASS_BOOLEAN => Some("boolean".to_string()),
+        CLASS_BYTE => Some("byte".to_string()),
+        CLASS_SHORT => Some("short".to_string()),
+        CLASS_INTEGER => Some("int".to_string()),
+        CLASS_LONG => Some("long".to_string()),
+        CLASS_FLOAT => Some("float".to_string()),
+        CLASS_DOUBLE => Some("double".to_string()),
+        CLASS_CHARACTER => Some("char".to_string()),
         "void" => Some("void".to_string()),
         _ => None,
     }

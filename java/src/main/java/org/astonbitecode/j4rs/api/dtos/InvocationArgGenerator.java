@@ -17,7 +17,7 @@ package org.astonbitecode.j4rs.api.dtos;
 import java8.util.J8Arrays;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.ObjectValue;
-import org.astonbitecode.j4rs.api.value.JsonValueImpl;
+import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
 import org.astonbitecode.j4rs.utils.Utils;
 
@@ -26,7 +26,7 @@ public class InvocationArgGenerator {
         GeneratedArg[] generatedArgArr = J8Arrays.stream(args).map(invArg -> {
             GeneratedArg generatedArg;
             if (invArg.isSerialized()) {
-                ObjectValue objValue = new JsonValueImpl(invArg.getJson(), invArg.getClassName());
+                ObjectValue objValue = JsonValueFactory.create(invArg.getJson(), invArg.getClassName());
                 try {
                     // If the invArg is an array, use its type class. In other cases, use the forNameEnhanced to retrieve its class.
                     generatedArg = invArg.getClassName().equals(InvocationArg.CONTENTS_ARRAY) ?
@@ -37,7 +37,14 @@ public class InvocationArgGenerator {
                 }
             } else {
                 NativeInvocation inv = invArg.getNativeInvocation();
-                generatedArg = new GeneratedArg(inv.getObjectClass(), inv.getObject());
+                try {
+                    generatedArg = new GeneratedArg(
+                            inv != null ? inv.getObjectClass() : Utils.forNameEnhanced(invArg.getClassName()),
+                            inv != null ? inv.getObject() : null);
+                } catch (ClassNotFoundException cnfe) {
+                    System.out.println("j4rs Warning! ClassNotFoundException for " + invArg.getClassName() + " Using java.lang.Object instead...");
+                    generatedArg = new GeneratedArg(Object.class, null);
+                }
             }
             return generatedArg;
         }).toArray(i -> new GeneratedArg[i]);

@@ -23,7 +23,7 @@ import org.astonbitecode.j4rs.api.NativeInvocationBase;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
-import org.astonbitecode.j4rs.api.value.JsonValueImpl;
+import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
@@ -139,7 +139,7 @@ public class JsonInvocationImpl<T> extends NativeInvocationBase implements Nativ
 
     @Override
     public String getJson() {
-        JsonValue jsonValue = new JsonValueImpl(this.object);
+        JsonValue jsonValue = JsonValueFactory.create(this.object);
         return jsonValue.getJson();
     }
 

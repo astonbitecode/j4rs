@@ -15,11 +15,12 @@
 package org.astonbitecode.j4rs.api.dtos;
 
 import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
 import org.astonbitecode.j4rs.utils.Utils;
 
-public class InvocationArg {
+public class InvocationArg implements ObjectValue {
     /**
      * The array contents should map to a List. This is in order to allow calls of type Arrays.asList(arg1, arg2, arg3, ...)
      */
@@ -102,5 +103,15 @@ public class InvocationArg {
     @Override
     public String toString() {
         return "classname:" + this.className + ", serialized:" + this.serialized + ", json:" + this.json + ", nativeInvocation:" + this.nativeInvocation;
+    }
+
+    @Override
+    public Object getObject() {
+        return getNativeInvocation() != null ? getNativeInvocation().getObject() : null;
+    }
+
+    @Override
+    public Class<?> getObjectClass() {
+        return getNativeInvocation() != null ? getNativeInvocation().getObjectClass() : null;
     }
 }

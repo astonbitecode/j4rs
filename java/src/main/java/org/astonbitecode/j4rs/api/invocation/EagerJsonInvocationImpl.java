@@ -18,7 +18,7 @@ import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.NativeInvocation;
 import org.astonbitecode.j4rs.api.NativeInvocationBase;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
-import org.astonbitecode.j4rs.api.value.JsonValueImpl;
+import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 
 public class EagerJsonInvocationImpl<T> extends NativeInvocationBase implements NativeInvocation<T> {
 
@@ -29,7 +29,7 @@ public class EagerJsonInvocationImpl<T> extends NativeInvocationBase implements 
     public EagerJsonInvocationImpl(T instance, Class<T> clazz) {
         this.object = instance;
         this.clazz = clazz;
-        this.jsonValue = new JsonValueImpl(this.object);
+        this.jsonValue = JsonValueFactory.create(this.object);
     }
 
     @Override

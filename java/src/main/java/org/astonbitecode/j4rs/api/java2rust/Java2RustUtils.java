@@ -12,8 +12,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.api;
+package org.astonbitecode.j4rs.api.java2rust;
 
-public interface JsonValue extends ObjectValue {
-    String getJson();
+import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.ObjectValue;
+import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
+
+public class Java2RustUtils {
+    @SuppressWarnings("unchecked")
+    public static <T> NativeInvocation<T> createNativeInvocation(T obj) {
+        return new JsonInvocationImpl<T>(obj, (Class<T>) obj.getClass());
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T getObjectCasted(ObjectValue objectValue) {
+        return (T) objectValue.getObject();
+    }
 }

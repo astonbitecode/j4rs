@@ -66,9 +66,9 @@ public class SimpleMavenDeployer {
         }
     }
 
-    boolean artifactExists(String groupId, String artifactId, String version, String qualifier) {
+    private boolean artifactExists(String groupId, String artifactId, String version, String qualifier) {
         String jarName = generateArtifactName(artifactId, version, qualifier);
-        String pathString = generatePathTagret(deployTarget, groupId, artifactId, version, jarName);
+        String pathString = deployTarget + File.separator + jarName;
         return new File(pathString).exists();
     }
 
