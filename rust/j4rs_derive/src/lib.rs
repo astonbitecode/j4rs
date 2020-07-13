@@ -81,20 +81,21 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
         _ => {
             let ret_value: Expr = syn::parse_str(
                 r#"match inv_arg_to_return {
-                    Ok(ia) => ia.as_java_ptr(jni_env).unwrap(),
+                    Ok(ia) => {
+                        ia.as_java_ptr_with_local_ref(jni_env).unwrap()
+                    },
                     Err(error) => {
                         let message = format!("{}", error);
                         let _ = jvm.throw_invocation_exception(&message);
                         ptr::null_mut()
-                    }
+                    },
                 }"#).unwrap();
             ret_value
         }
     };
-    // The Instance arguments to pass to the user function
     let instance_args_to_pass_to_user_function: Vec<Expr> = user_function_arg_names.iter()
         .map(|jobj_arg_name| {
-            let expression: Expr = syn::parse_str(&format!("Instance::from({}).expect(\"Could not create Instance from jobject\")", jobj_arg_name)).unwrap();
+            let expression: Expr = syn::parse_str(&format!("Instance::from_jobject_with_global_ref({}).expect(\"Could not create Instance from jobject\")", jobj_arg_name)).unwrap();
             expression
         })
         .collect();

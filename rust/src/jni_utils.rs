@@ -24,7 +24,7 @@ use crate::errors::opt_to_res;
 use crate::logger::{debug, error};
 use crate::utils;
 
-pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jni_env: *mut JNIEnv, create_global: bool) -> errors::Result<jobject> {
     unsafe {
         let (class_name, json) = match ia {
             _s @ &InvocationArg::Java { .. } | _s @ &InvocationArg::RustBasic { .. } => {
@@ -55,11 +55,15 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(ia: &InvocationArg, jn
         delete_java_ref(jni_env, class_name_jstring);
         delete_java_ref(jni_env, json_jstring);
 
-        Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        if create_global {
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        } else {
+            Ok(inv_arg_instance)
+        }
     }
 }
 
-pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env: *mut JNIEnv, create_global: bool) -> errors::Result<jobject> {
     unsafe {
         let (class_name, jinstance) = match ia {
             _s @ &InvocationArg::Java { .. } => {
@@ -88,11 +92,15 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env
 
         delete_java_ref(jni_env, class_name_jstring);
 
-        Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        if create_global {
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        } else {
+            Ok(inv_arg_instance)
+        }
     }
 }
 
-pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut JNIEnv, create_global: bool) -> errors::Result<jobject> {
     unsafe {
         let (class_name, jinstance) = match ia {
             _s @ &InvocationArg::Rust { .. } => panic!("Called invocation_arg_jobject_from_java for an InvocationArg that is created by Rust. Please consider opening a bug to the developers."),
@@ -120,11 +128,15 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut
         Jvm::do_return(jni_env, ())?;
         delete_java_ref(jni_env, class_name_jstring);
 
-        Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        if create_global {
+            Ok(create_global_ref_from_local_ref(inv_arg_instance, jni_env)?)
+        } else {
+            Ok(inv_arg_instance)
+        }
     }
 }
 
-pub(crate) fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+pub fn create_global_ref_from_local_ref(local_ref: jobject, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
         match ((**jni_env).NewGlobalRef,
                (**jni_env).ExceptionCheck,
@@ -186,7 +198,7 @@ pub(crate) fn _create_weak_global_ref_from_global_ref(global_ref: jobject, jni_e
 }
 
 /// Deletes the java ref from the memory
-pub(crate) fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
+pub fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     unsafe {
         match ((**jni_env).DeleteGlobalRef,
                (**jni_env).ExceptionCheck,

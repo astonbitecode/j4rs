@@ -26,6 +26,7 @@ use std::sync::mpsc::Sender;
 
 use jni_sys::{jlong, JNIEnv, jobject};
 pub use jni_sys as jni_sys;
+
 pub use self::api::Callback as Callback;
 pub use self::api::ClasspathEntry as ClasspathEntry;
 pub use self::api::Instance as Instance;
@@ -64,7 +65,7 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
 pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
     let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel.");
     jvm.detach_thread_on_drop(false);
-    let instance_res = Instance::from(native_invocation);
+    let instance_res = Instance::from_jobject_with_global_ref(native_invocation);
     if let Ok(instance) = instance_res {
         let p = ptr_address as *mut Sender<Instance>;
         let tx = unsafe { Box::from_raw(p) };
@@ -287,17 +288,17 @@ mod lib_unit_tests {
         thread::sleep(thousand_millis);
     }
 
-    //            #[test]
-//    #[ignore]
+    // #[test]
+    // #[ignore]
     fn _memory_leaks_invoke_instances_and_to_rust() {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(instance) => {
                 for i in 0..100000000 {
-                    let ret_instance = jvm.invoke(&instance, "getMyString", &[]).unwrap();
-                    let s: String = jvm.to_rust(ret_instance).unwrap();
+                    let ret_instance = jvm.invoke(&instance, "echo", &[InvocationArg::try_from(33333333_i32).unwrap()]).unwrap();
+                    let v: i32 = jvm.to_rust(ret_instance).unwrap();
                     if i % 100000 == 0 {
-                        println!("{}: {}", i, s);
+                        println!("{}: {}", i, v);
                     }
                 }
             }
@@ -754,12 +755,12 @@ mod lib_unit_tests {
     fn null_creation() {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
-        let null = InvocationArg::from(Null::Of("java.lang.Integer"));
+        let null = InvocationArg::try_from(Null::Of("java.lang.Integer")).unwrap();
         let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.is_empty());
 
-        let null = InvocationArg::from(Null::Integer);
+        let null = InvocationArg::try_from(Null::Integer).unwrap();
         let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.is_empty());
