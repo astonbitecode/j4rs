@@ -19,6 +19,7 @@ import java8.util.stream.Collectors;
 import java8.util.stream.StreamSupport;
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
