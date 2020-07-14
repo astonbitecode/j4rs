@@ -299,6 +299,7 @@ impl Jvm {
             Self::do_return(self.jni_env, Instance {
                 jinstance: java_instance_global_instance,
                 class_name: class_name.to_string(),
+                skip_deleting_jobject: false,
             })
         }
     }
@@ -386,6 +387,7 @@ impl Jvm {
             Self::do_return(self.jni_env, Instance {
                 jinstance: java_instance_global_instance,
                 class_name: class_name.to_string(),
+                skip_deleting_jobject: false,
             })
         }
     }
@@ -454,6 +456,7 @@ impl Jvm {
             Self::do_return(jni_env, Instance {
                 jinstance: java_instance_global_instance,
                 class_name: class_name.to_string(),
+                skip_deleting_jobject: false,
             })
         }
     }
@@ -516,6 +519,7 @@ impl Jvm {
             Self::do_return(self.jni_env, Instance {
                 jinstance: java_instance_global_instance,
                 class_name: cache::UNKNOWN_FOR_RUST.to_string(),
+                skip_deleting_jobject: false,
             })
         }
     }
@@ -546,6 +550,7 @@ impl Jvm {
             Self::do_return(self.jni_env, Instance {
                 jinstance: java_instance_global_instance,
                 class_name: cache::UNKNOWN_FOR_RUST.to_string(),
+                skip_deleting_jobject: false,
             })
         }
     }
@@ -1349,6 +1354,14 @@ impl InvocationArg {
         }
     }
 
+    pub fn class_name(&self) -> &str {
+        match self {
+            &InvocationArg::Java { instance: _, ref class_name, serialized: _ } => class_name,
+            &InvocationArg::Rust { json: _, ref class_name, serialized: _ } => class_name,
+            &InvocationArg::RustBasic { instance: _, ref class_name, serialized: _ } => class_name,
+        }
+    }
+
     /// Creates an InvocationArg that contains null
     pub fn create_null(null: Null) -> errors::Result<InvocationArg> {
         let class_name = match null {
@@ -1696,6 +1709,8 @@ pub struct Instance {
     /// This object is an instance of `org/astonbitecode/j4rs/api/Instance`
     #[serde(skip)]
     pub(crate) jinstance: jobject,
+    #[serde(skip)]
+    skip_deleting_jobject: bool,
 }
 
 impl Instance {
@@ -1705,6 +1720,7 @@ impl Instance {
         Ok(Instance {
             jinstance: obj,
             class_name: classname.to_string(),
+            skip_deleting_jobject: false,
         })
     }
 
@@ -1714,7 +1730,8 @@ impl Instance {
     }
 
     /// Consumes the Instance and returns its jobject
-    pub fn java_object(self) -> jobject {
+    pub fn java_object(mut self) -> jobject {
+        self.skip_deleting_jobject = true;
         self.jinstance
     }
 
@@ -1728,6 +1745,7 @@ impl Instance {
         Ok(Instance {
             jinstance: global,
             class_name: cache::UNKNOWN_FOR_RUST.to_string(),
+            skip_deleting_jobject: false,
         })
     }
 
@@ -1739,6 +1757,7 @@ impl Instance {
         Ok(Instance {
             jinstance: obj,
             class_name: cache::UNKNOWN_FOR_RUST.to_string(),
+            skip_deleting_jobject: false,
         })
     }
 
@@ -1751,6 +1770,7 @@ impl Instance {
         Ok(Instance {
             jinstance: global,
             class_name: cache::UNKNOWN_FOR_RUST.to_string(),
+            skip_deleting_jobject: false,
         })
     }
 
@@ -1759,15 +1779,26 @@ impl Instance {
         Ok(Instance {
             class_name: self.class_name.clone(),
             jinstance: jni_utils::_create_weak_global_ref_from_global_ref(self.jinstance.clone(), cache::get_thread_local_env()?)?,
+            skip_deleting_jobject: false,
         })
+    }
+}
+
+impl TryFrom<InvocationArg> for Instance {
+    type Error = errors::J4RsError;
+    fn try_from(invocation_arg: InvocationArg) -> errors::Result<Instance> {
+        let obj = invocation_arg.as_java_ptr_with_local_ref(cache::get_thread_local_env()?)?;
+        Instance::new(obj, invocation_arg.class_name())
     }
 }
 
 impl Drop for Instance {
     fn drop(&mut self) {
         debug(&format!("Dropping an instance of {}", self.class_name));
-        if let Some(j_env) = cache::get_thread_local_env_opt() {
-            jni_utils::delete_java_ref(j_env, self.jinstance);
+        if !self.skip_deleting_jobject {
+            if let Some(j_env) = cache::get_thread_local_env_opt() {
+                jni_utils::delete_java_ref(j_env, self.jinstance);
+            }
         }
     }
 }

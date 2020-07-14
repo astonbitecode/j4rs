@@ -80,9 +80,10 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
         }
         _ => {
             let ret_value: Expr = syn::parse_str(
-                r#"match inv_arg_to_return {
-                    Ok(ia) => {
-                        ia.as_java_ptr_with_local_ref(jni_env).unwrap()
+                r#"match instance_to_return {
+                    Ok(i) => {
+                        i.java_object()
+                        // i.as_java_ptr_with_local_ref(jni_env).unwrap()
                     },
                     Err(error) => {
                         let message = format!("{}", error);
@@ -107,7 +108,7 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
                 Ok(mut jvm) => {
                     jvm.detach_thread_on_drop(false);
                     // println!("Called {}. Calling now  {}", stringify!(#jni_ident), stringify!(#user_function_name));
-                    let inv_arg_to_return = #user_function_name(#(#instance_args_to_pass_to_user_function),*);
+                    let instance_to_return = #user_function_name(#(#instance_args_to_pass_to_user_function),*);
                     #return_value
                 },
                 Err(error) => {
@@ -120,6 +121,3 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
     };
     gen.into()
 }
-
-#[cfg(test)]
-mod tests {}
