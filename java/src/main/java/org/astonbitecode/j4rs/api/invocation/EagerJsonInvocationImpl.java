@@ -20,7 +20,7 @@ import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 
-public class EagerJsonInvocationImpl<T> implements InstanceBase<T> {
+public class EagerJsonInvocationImpl<T> extends InstanceBase implements Instance<T> {
 
     private T object;
     private Class<T> clazz;
