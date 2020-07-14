@@ -14,7 +14,7 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
-import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
@@ -24,7 +24,7 @@ import java.util.Optional;
  * Performs native callbacks to Rust
  */
 public class NativeCallbackSupport {
-    private static native void docallback(long functionPointerAddress, NativeInvocation inv);
+    private static native void docallback(long functionPointerAddress, Instance inv);
 
     private Optional<RustPointer> functionPointerOpt = Optional.empty();
 

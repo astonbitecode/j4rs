@@ -19,27 +19,27 @@ import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.utils.Utils;
 
-public interface NativeInvocation<T> extends ObjectValue, JsonValue {
+public interface Instance<T> extends ObjectValue, JsonValue {
     /**
-     * Invokes a method of the instance of the class that is set for this {@link NativeInvocation}
+     * Invokes a method of the instance of the class that is set for this {@link Instance}
      *
      * @param methodName The method name
      * @param args       The arguments to use for invoking the method
-     * @return A {@link NativeInvocation} instance containing the result of the invocation
+     * @return A {@link Instance} instance containing the result of the invocation
      */
-    NativeInvocation invoke(String methodName, InvocationArg... args);
+    Instance invoke(String methodName, InvocationArg... args);
 
     /**
-     * Invokes a static method of the class that is set for this {@link NativeInvocation}
+     * Invokes a static method of the class that is set for this {@link Instance}
      *
      * @param methodName The static method name
      * @param args       The arguments to use for invoking the static method
-     * @return A {@link NativeInvocation} instance containing the result of the invocation
+     * @return A {@link Instance} instance containing the result of the invocation
      */
-    NativeInvocation invokeStatic(String methodName, InvocationArg... args);
+    Instance invokeStatic(String methodName, InvocationArg... args);
 
     /**
-     * Invokes asynchronously a method of the instance of the class that is set for this {@link NativeInvocation}.
+     * Invokes asynchronously a method of the instance of the class that is set for this {@link Instance}.
      * The result of the invocation should be provided later using the performCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport} class.
      * Any possible returned objects from the actual synchronous invocation of the defined method will be dropped.
      *
@@ -50,7 +50,7 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     void invokeAsync(long functionPointerAddress, String methodName, InvocationArg... args);
 
     /**
-     * Invokes a method of the instance of the class that is set for this {@link NativeInvocation}.
+     * Invokes a method of the instance of the class that is set for this {@link Instance}.
      * The result of the invocation should be provided later using the doCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
      * Any possible returned objects from the actual synchronous invocation of the defined method will be dropped.
      *
@@ -61,7 +61,7 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     void invokeToChannel(long channelAddress, String methodName, InvocationArg... args);
 
     /**
-     * Initialize a callback channel for this {@link NativeInvocation}.
+     * Initialize a callback channel for this {@link Instance}.
      * The channel can be used by Java to send values to Rust using the doCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
      * @param channelAddress The memory address of the channel
      */
@@ -70,19 +70,19 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     /**
      * Retrieves the instance held under the Field fieldName
      * @param fieldName The name of the field to retrieve
-     * @return A {@link NativeInvocation} instance containing the defined field.
+     * @return A {@link Instance} instance containing the defined field.
      */
-    NativeInvocation field(String fieldName);
+    Instance field(String fieldName);
 
     /**
-     * Casts a the object that is contained in a NativeInvocation to an object of class clazz.
+     * Casts a the object that is contained in a Instance to an object of class clazz.
      *
      * @param <T>     Generically defined return type
-     * @param from    The {@link NativeInvocation} to cast.
-     * @param toClass The class that the provided {@link NativeInvocation} should be casted to
-     * @return A {@link NativeInvocation} instance containing the result of the cast.
+     * @param from    The {@link Instance} to cast.
+     * @param toClass The class that the provided {@link Instance} should be casted to
+     * @return A {@link Instance} instance containing the result of the cast.
      */
-    static <T> NativeInvocation cast(NativeInvocation from, String toClass) {
+    static <T> Instance cast(Instance from, String toClass) {
         try {
             Class<T> clazz = (Class<T>) Utils.forNameEnhanced(toClass);
             return new JsonInvocationImpl(clazz.cast(from.getObject()), clazz);
@@ -92,13 +92,13 @@ public interface NativeInvocation<T> extends ObjectValue, JsonValue {
     }
 
     /**
-     * Clones a NativeInvocation
+     * Clones a Instance
      *
      * @param from The object to clone.
      * @param <T>  Generically defined return type
-     * @return a {@link NativeInvocation} instance.
+     * @return a {@link Instance} instance.
      */
-    static <T> NativeInvocation cloneInstance(NativeInvocation from) {
+    static <T> Instance cloneInstance(Instance from) {
         return new JsonInvocationImpl(from.getObject(), from.getObjectClass());
     }
 }

@@ -15,7 +15,7 @@
 package org.astonbitecode.j4rs.api.instantiation;
 
 import java8.util.J8Arrays;
-import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
@@ -32,7 +32,7 @@ import java8.util.J8Arrays;
 public class NativeInstantiationImpl {
     static InvocationArgGenerator gen = new InvocationArgGenerator();
 
-    public static NativeInvocation instantiate(String className, InvocationArg... args) {
+    public static Instance instantiate(String className, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = createInstance(className, generateArgObjects(args));
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
@@ -41,7 +41,7 @@ public class NativeInstantiationImpl {
         }
     }
 
-    public static NativeInvocation createForStatic(String className) {
+    public static Instance createForStatic(String className) {
         try {
             Class<?> clazz = Utils.forNameEnhanced(className);
             return new JsonInvocationImpl(clazz);
@@ -50,7 +50,7 @@ public class NativeInstantiationImpl {
         }
     }
 
-    public static NativeInvocation createJavaArray(String className, InvocationArg... args) {
+    public static Instance createJavaArray(String className, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = createCollection(className, generateArgObjects(args), J4rsCollectionType.Array);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
@@ -59,7 +59,7 @@ public class NativeInstantiationImpl {
         }
     }
 
-    public static NativeInvocation createJavaList(String className, InvocationArg... args) {
+    public static Instance createJavaList(String className, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = createCollection(className, generateArgObjects(args), J4rsCollectionType.List);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);

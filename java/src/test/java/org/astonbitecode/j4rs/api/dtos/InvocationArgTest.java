@@ -25,7 +25,7 @@ public class InvocationArgTest {
     @Test(expected = InvalidArgumentException.class)
     public void getNativeInvocationOnAnArgCreatedByRust() {
         InvocationArg ia = new InvocationArg(CLASS_NAME, "{\"a\":\"b\"}");
-        ia.getNativeInvocation();
+        ia.getInstance();
     }
 
     @Test(expected = InvalidArgumentException.class)

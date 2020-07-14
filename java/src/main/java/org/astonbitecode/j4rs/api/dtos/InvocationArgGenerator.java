@@ -15,7 +15,7 @@
 package org.astonbitecode.j4rs.api.dtos;
 
 import java8.util.J8Arrays;
-import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvalidArgumentException;
@@ -36,7 +36,7 @@ public class InvocationArgGenerator {
                     throw new InvalidArgumentException("Cannot parse InvocationArgument ", cnfe);
                 }
             } else {
-                NativeInvocation inv = invArg.getNativeInvocation();
+                Instance inv = invArg.getInstance();
                 try {
                     generatedArg = new GeneratedArg(
                             inv != null ? inv.getObjectClass() : Utils.forNameEnhanced(invArg.getClassName()),

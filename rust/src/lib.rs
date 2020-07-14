@@ -62,10 +62,10 @@ pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) 
 }
 
 #[no_mangle]
-pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, native_invocation: jobject) {
+pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustChannelSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, java_instance: jobject) {
     let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel.");
     jvm.detach_thread_on_drop(false);
-    let instance_res = Instance::from_jobject_with_global_ref(native_invocation);
+    let instance_res = Instance::from_jobject_with_global_ref(java_instance);
     if let Ok(instance) = instance_res {
         let p = ptr_address as *mut Sender<Instance>;
         let tx = unsafe { Box::from_raw(p) };
@@ -76,7 +76,7 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
             panic!("Could not send to the defined callback channel: {:?}", error);
         }
     } else {
-        panic!("Could not create Instance from the NativeInvocation object...");
+        panic!("Could not create Rust Instance from the Java Instance object...");
     }
 }
 

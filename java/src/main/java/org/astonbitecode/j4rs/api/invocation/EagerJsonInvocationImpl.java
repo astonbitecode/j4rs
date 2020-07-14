@@ -14,13 +14,13 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
+import org.astonbitecode.j4rs.api.Instance;
+import org.astonbitecode.j4rs.api.InstanceBase;
 import org.astonbitecode.j4rs.api.JsonValue;
-import org.astonbitecode.j4rs.api.NativeInvocation;
-import org.astonbitecode.j4rs.api.NativeInvocationBase;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 
-public class EagerJsonInvocationImpl<T> extends NativeInvocationBase implements NativeInvocation<T> {
+public class EagerJsonInvocationImpl<T> implements InstanceBase<T> {
 
     private T object;
     private Class<T> clazz;
@@ -33,12 +33,12 @@ public class EagerJsonInvocationImpl<T> extends NativeInvocationBase implements 
     }
 
     @Override
-    public NativeInvocation invoke(String methodName, InvocationArg... arg) {
+    public Instance invoke(String methodName, InvocationArg... arg) {
         throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
     }
 
     @Override
-    public NativeInvocation invokeStatic(String methodName, InvocationArg... arg) {
+    public Instance invokeStatic(String methodName, InvocationArg... arg) {
         throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
     }
 
@@ -58,7 +58,7 @@ public class EagerJsonInvocationImpl<T> extends NativeInvocationBase implements 
     }
 
     @Override
-    public NativeInvocation field(String methodName) {
+    public Instance field(String methodName) {
         throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
     }
 

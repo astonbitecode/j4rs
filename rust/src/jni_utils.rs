@@ -86,7 +86,7 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(ia: &InvocationArg, jni_env
             cache::get_inv_arg_basic_rust_constructor_method()?,
             // First argument: class_name
             class_name_jstring,
-            // Second argument: NativeInvocation instance
+            // Second argument: Instance instance
             jinstance,
         );
 
@@ -120,7 +120,7 @@ pub(crate) fn invocation_arg_jobject_from_java(ia: &InvocationArg, jni_env: *mut
             cache::get_inv_arg_java_constructor_method()?,
             // First argument: class_name
             class_name_jstring,
-            // Second argument: NativeInvocation instance
+            // Second argument: Instance instance
             jinstance,
         );
 

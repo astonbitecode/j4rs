@@ -18,8 +18,8 @@ import java8.util.J8Arrays;
 import java8.util.stream.Collectors;
 import java8.util.stream.StreamSupport;
 import org.astonbitecode.j4rs.api.JsonValue;
-import org.astonbitecode.j4rs.api.NativeInvocation;
-import org.astonbitecode.j4rs.api.NativeInvocationBase;
+import org.astonbitecode.j4rs.api.Instance;
+import org.astonbitecode.j4rs.api.InstanceBase;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
@@ -39,7 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class JsonInvocationImpl<T> extends NativeInvocationBase implements NativeInvocation<T> {
+public class JsonInvocationImpl<T> extends InstanceBase implements Instance<T> {
 
     // The instance that this JsonInvocationImpl holds
     private T object;
@@ -67,7 +67,7 @@ public class JsonInvocationImpl<T> extends NativeInvocationBase implements Nativ
     }
 
     @Override
-    public NativeInvocation invoke(String methodName, InvocationArg... args) {
+    public Instance invoke(String methodName, InvocationArg... args) {
         // Invoke the instance
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
@@ -78,7 +78,7 @@ public class JsonInvocationImpl<T> extends NativeInvocationBase implements Nativ
     }
 
     @Override
-    public NativeInvocation invokeStatic(String methodName, InvocationArg... args) {
+    public Instance invokeStatic(String methodName, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
@@ -118,7 +118,7 @@ public class JsonInvocationImpl<T> extends NativeInvocationBase implements Nativ
     }
 
     @Override
-    public NativeInvocation field(String fieldName) {
+    public Instance field(String fieldName) {
         try {
             CreatedInstance createdInstance = getField(fieldName);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
@@ -275,5 +275,6 @@ public class JsonInvocationImpl<T> extends NativeInvocationBase implements Nativ
             return object;
         }
     }
+
 
 }
