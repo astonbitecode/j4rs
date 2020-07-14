@@ -276,8 +276,8 @@ impl Jvm {
                 inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the factory that instantiates a new class of `class_name`.
-            // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            // This returns a Instance that acts like a proxy to the Java world.
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
                 cache::get_factory_class()?,
                 cache::get_factory_instantiate_method()?,
@@ -288,7 +288,7 @@ impl Jvm {
             // Check for exceptions before creating the globalref
             Self::do_return(self.jni_env, ())?;
 
-            let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            let java_instance_global_instance = jni_utils::create_global_ref_from_local_ref(java_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             jni_utils::delete_java_ref(self.jni_env, array_ptr);
             jni_utils::delete_java_ref(self.jni_env, class_name_jstring);
@@ -298,7 +298,7 @@ impl Jvm {
 
             // Create and return the Instance
             Self::do_return(self.jni_env, Instance {
-                jinstance: native_invocation_global_instance,
+                jinstance: java_instance_global_instance,
                 class_name: class_name.to_string(),
             })
         }
@@ -311,9 +311,9 @@ impl Jvm {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
 
-            // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
-            // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            // Call the method of the factory that creates a Instance for static calls to methods of class `class_name`.
+            // This returns a Instance that acts like a proxy to the Java world.
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
                 cache::get_factory_class()?,
                 cache::get_factory_create_for_static_method()?,
@@ -323,7 +323,7 @@ impl Jvm {
             jni_utils::delete_java_ref(self.jni_env, class_name_jstring);
 
             // Create and return the Instance.
-            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(native_invocation_instance)?)
+            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(java_instance)?)
         }
     }
 
@@ -363,8 +363,8 @@ impl Jvm {
                 inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the factory that instantiates a new Java Array of `class_name`.
-            // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            // This returns a Instance that acts like a proxy to the Java world.
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
                 cache::get_factory_class()?,
                 cache::get_factory_create_java_array_method()?,
@@ -375,7 +375,7 @@ impl Jvm {
             // Check for exceptions before creating the globalref
             Self::do_return(self.jni_env, ())?;
 
-            let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            let java_instance_global_instance = jni_utils::create_global_ref_from_local_ref(java_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
                 jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
@@ -385,7 +385,7 @@ impl Jvm {
 
             // Create and return the Instance
             Self::do_return(self.jni_env, Instance {
-                jinstance: native_invocation_global_instance,
+                jinstance: java_instance_global_instance,
                 class_name: class_name.to_string(),
             })
         }
@@ -431,8 +431,8 @@ impl Jvm {
                 inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the factory that instantiates a new Java Array of `class_name`.
-            // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            // This returns a Instance that acts like a proxy to the Java world.
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 jni_env,
                 cache::get_factory_class()?,
                 cache::get_factory_create_java_list_method()?,
@@ -443,7 +443,7 @@ impl Jvm {
             // Check for exceptions before creating the globalref
             Self::do_return(jni_env, ())?;
 
-            let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, jni_env)?;
+            let java_instance_global_instance = jni_utils::create_global_ref_from_local_ref(java_instance, jni_env)?;
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
                 jni_utils::delete_java_ref(jni_env, inv_arg_jobject);
@@ -453,7 +453,7 @@ impl Jvm {
 
             // Create and return the Instance
             Self::do_return(jni_env, Instance {
-                jinstance: native_invocation_global_instance,
+                jinstance: java_instance_global_instance,
                 class_name: class_name.to_string(),
             })
         }
@@ -494,7 +494,7 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+            let java_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
                 cache::get_invoke_method()?,
@@ -505,7 +505,7 @@ impl Jvm {
             // Check for exceptions before creating the globalref
             Self::do_return(self.jni_env, ())?;
 
-            let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            let java_instance_global_instance = jni_utils::create_global_ref_from_local_ref(java_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
                 jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
@@ -515,7 +515,7 @@ impl Jvm {
 
             // Create and return the Instance
             Self::do_return(self.jni_env, Instance {
-                jinstance: native_invocation_global_instance,
+                jinstance: java_instance_global_instance,
                 class_name: cache::UNKNOWN_FOR_RUST.to_string(),
             })
         }
@@ -529,7 +529,7 @@ impl Jvm {
             let field_name_jstring: jstring = jni_utils::global_jobject_from_str(&field_name, self.jni_env)?;
 
             // Call the method of the instance
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+            let java_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
                 cache::get_field_method()?,
@@ -539,13 +539,13 @@ impl Jvm {
             // Check for exceptions before creating the globalref
             Self::do_return(self.jni_env, ())?;
 
-            let native_invocation_global_instance = jni_utils::create_global_ref_from_local_ref(native_invocation_instance, self.jni_env)?;
+            let java_instance_global_instance = jni_utils::create_global_ref_from_local_ref(java_instance, self.jni_env)?;
             // Prevent memory leaks from the created local references
             jni_utils::delete_java_ref(self.jni_env, field_name_jstring);
 
             // Create and return the Instance
             Self::do_return(self.jni_env, Instance {
-                jinstance: native_invocation_global_instance,
+                jinstance: java_instance_global_instance,
                 class_name: cache::UNKNOWN_FOR_RUST.to_string(),
             })
         }
@@ -651,9 +651,9 @@ impl Jvm {
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring = jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
-            // Call the method of the factory that creates a NativeInvocation for static calls to methods of class `class_name`.
-            // This returns a NativeInvocation that acts like a proxy to the Java world.
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            // Call the method of the factory that creates a Instance for static calls to methods of class `class_name`.
+            // This returns a Instance that acts like a proxy to the Java world.
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
                 cache::get_factory_class()?,
                 cache::get_factory_create_for_static_method()?,
@@ -689,9 +689,9 @@ impl Jvm {
                 inv_arg_jobjects.push(inv_arg_java);
             }
             // Call the method of the instance
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+            let java_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
-                native_invocation_instance,
+                java_instance,
                 cache::get_invoke_static_method()?,
                 method_name_jstring,
                 array_ptr,
@@ -707,7 +707,7 @@ impl Jvm {
             jni_utils::delete_java_ref(self.jni_env, method_name_jstring);
 
             // Create and return the Instance.
-            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(native_invocation_instance)?)
+            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(java_instance)?)
         }
     }
 
@@ -715,7 +715,7 @@ impl Jvm {
     pub fn clone_instance(&self, instance: &Instance) -> errors::Result<Instance> {
         unsafe {
             // Call the clone method
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
                 cache::get_class_to_invoke_clone_and_cast()?,
                 cache::get_clone_static_method()?,
@@ -723,7 +723,7 @@ impl Jvm {
             );
 
             // Create and return the Instance
-            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(native_invocation_instance)?)
+            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(java_instance)?)
         }
     }
 
@@ -736,7 +736,7 @@ impl Jvm {
             let to_class_jstring: jstring = jni_utils::global_jobject_from_str(&to_class, self.jni_env)?;
 
             // Call the cast method
-            let native_invocation_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
                 cache::get_class_to_invoke_clone_and_cast()?,
                 cache::get_cast_static_method()?,
@@ -751,7 +751,7 @@ impl Jvm {
             jni_utils::delete_java_ref(self.jni_env, to_class_jstring);
 
             // Create and return the Instance
-            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(native_invocation_instance)?)
+            Self::do_return(self.jni_env, Instance::from_jobject_with_global_ref(java_instance)?)
         }
     }
 
@@ -1694,7 +1694,7 @@ pub struct Instance {
     class_name: String,
     /// The JNI jobject that manipulates this instance.
     ///
-    /// This object is an instance of `org/astonbitecode/j4rs/api/NativeInvocation`
+    /// This object is an instance of `org/astonbitecode/j4rs/api/Instance`
     #[serde(skip)]
     pub(crate) jinstance: jobject,
 }

@@ -14,18 +14,18 @@
  */
 package org.astonbitecode.j4rs.api.java2rust;
 
-import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 
 public class Java2RustUtils {
     @SuppressWarnings("unchecked")
-    public static <T> NativeInvocation<T> createNativeInvocation(T obj) {
+    public static <T> Instance<T> createInstance(T obj) {
         return new JsonInvocationImpl<T>(obj, (Class<T>) obj.getClass());
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T getObjectCasted(ObjectValue objectValue) {
-        return (T) objectValue.getObject();
+    public static <T> T getObjectCasted(Instance instance) {
+        return (T) instance.getObject();
     }
 }

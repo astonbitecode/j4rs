@@ -14,11 +14,10 @@
  */
 package org.astonbitecode.j4rs.tests;
 
-import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
 import org.junit.Ignore;
-import org.junit.Test;
 
 import java.util.stream.IntStream;
 
@@ -26,7 +25,7 @@ public class MyTestTest {
 
     @Ignore
     public void dummy() {
-        NativeInvocation instance = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.tests.MyTest");
+        Instance instance = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.tests.MyTest");
         IntStream.range(0, 1000000000)
                 .forEach(i -> {
                     if (i % 100000 == 0) {

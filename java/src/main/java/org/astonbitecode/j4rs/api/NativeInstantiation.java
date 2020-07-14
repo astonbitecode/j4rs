@@ -17,9 +17,9 @@ package org.astonbitecode.j4rs.api;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 
 public interface NativeInstantiation {
-    NativeInvocation instantiate(String className, InvocationArg... arg);
+    Instance instantiate(String className, InvocationArg... arg);
 
-    NativeInvocation createForStatic(String className);
+    Instance createForStatic(String className);
 
-    NativeInvocation createJavaArray(String className, InvocationArg... arg);
+    Instance createJavaArray(String className, InvocationArg... arg);
 }

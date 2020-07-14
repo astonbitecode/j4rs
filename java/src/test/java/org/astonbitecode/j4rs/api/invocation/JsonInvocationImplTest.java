@@ -14,7 +14,7 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
-import org.astonbitecode.j4rs.api.NativeInvocation;
+import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
@@ -27,21 +27,21 @@ public class JsonInvocationImplTest {
     public void genericMethodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
 
-        NativeInvocation invocation1 = toTest.invoke("invokeGeneric", new InvocationArg(new JsonInvocationImpl("astring", String.class)));
+        Instance invocation1 = toTest.invoke("invokeGeneric", new InvocationArg(new JsonInvocationImpl("astring", String.class)));
         assert (invocation1.getObject().equals(String.class));
     }
 
     @Test
     public void methodOfGenericInterfaceMatches() {
-        NativeInvocation childDummy = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.utils.ChildDummy");
+        Instance childDummy = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.utils.ChildDummy");
 
-        NativeInvocation toTest = childDummy.invoke("getMap");
+        Instance toTest = childDummy.invoke("getMap");
 
         toTest.invoke("put",
                 new InvocationArg(new JsonInvocationImpl("three", String.class)),
                 new InvocationArg(new JsonInvocationImpl(3, Integer.class)));
 
-        NativeInvocation invocation = toTest.invoke("size");
+        Instance invocation = toTest.invoke("size");
         assert (invocation.getObject().getClass().equals(Integer.class));
         assert (((Integer) invocation.getObject()) == 3);
     }
@@ -50,9 +50,9 @@ public class JsonInvocationImplTest {
     // TODO: <String, Object> and here we put to the Map <Object, String>
     @Test
     public void methodOfGenericInterfaceShouldNotMatch() {
-        NativeInvocation childDummy = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.utils.ChildDummy");
+        Instance childDummy = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.utils.ChildDummy");
 
-        NativeInvocation toTest = childDummy.invoke("getMap");
+        Instance toTest = childDummy.invoke("getMap");
 
         toTest.invoke("put",
                 new InvocationArg(new JsonInvocationImpl(3, Integer.class)),
@@ -63,7 +63,7 @@ public class JsonInvocationImplTest {
     public void interfaceMethodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(new DummyMapImpl(), DummyMapInterface.class);
 
-        NativeInvocation invocation = toTest.invoke("keysLength");
+        Instance invocation = toTest.invoke("keysLength");
         assert (invocation.getObject().getClass().equals(Long.class));
         assert (((Long) invocation.getObject()) == 6L);
     }
@@ -72,7 +72,7 @@ public class JsonInvocationImplTest {
     public void parentInterfaceMethodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(new DummyMapImpl(), DummyMapInterface.class);
 
-        NativeInvocation invocation = toTest.invoke("size");
+        Instance invocation = toTest.invoke("size");
         assert (invocation.getObject().getClass().equals(Integer.class));
         assert (((Integer) invocation.getObject()) == 2);
     }
@@ -81,7 +81,7 @@ public class JsonInvocationImplTest {
     public void methodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(new Dummy(33), Dummy.class);
 
-        NativeInvocation invocation = toTest.invoke("getI");
+        Instance invocation = toTest.invoke("getI");
         assert (invocation.getObject().getClass().equals(Integer.class));
         assert (((Integer) invocation.getObject()) == 33);
     }
@@ -90,7 +90,7 @@ public class JsonInvocationImplTest {
     public void staticMethodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(DummyWithStatic.class);
 
-        NativeInvocation invocation = toTest.invokeStatic("method");
+        Instance invocation = toTest.invokeStatic("method");
         assert (invocation.getObject().getClass().equals(String.class));
         assert (((String) invocation.getObject()).equals("method product"));
     }
@@ -102,7 +102,7 @@ public class JsonInvocationImplTest {
         InvocationArg arg = new InvocationArg(new JsonInvocationImpl(3, Integer.class));
         toTest.invoke("setI", arg);
 
-        NativeInvocation getIResult = toTest.invoke("getI");
+        Instance getIResult = toTest.invoke("getI");
         assert (getIResult.getObject().getClass().equals(Integer.class));
         assert (((Integer) getIResult.getObject()) == 3);
     }
@@ -112,7 +112,7 @@ public class JsonInvocationImplTest {
         JsonInvocationImpl toTest = new JsonInvocationImpl(DummyWithStatic.class);
 
         InvocationArg arg = new InvocationArg(new JsonInvocationImpl(3, Integer.class));
-        NativeInvocation invocation = toTest.invokeStatic("methodWithArg", arg);
+        Instance invocation = toTest.invokeStatic("methodWithArg", arg);
 
         assert (invocation.getObject().getClass().equals(String.class));
         assert (((String) invocation.getObject()).equals("3"));
@@ -130,47 +130,47 @@ public class JsonInvocationImplTest {
 
     @Test
     public void cast() {
-        NativeInvocation from = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
-        NativeInvocation casted = NativeInvocation.<Dummy>cast(from, Dummy.class.getName());
+        Instance from = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
+        Instance casted = Instance.<Dummy>cast(from, Dummy.class.getName());
 //        assert(casted.getObject().getClass().equals(Dummy.class));
     }
 
     @Test(expected = InvocationException.class)
     public void castFailure() {
-        NativeInvocation from = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
-        NativeInvocation.cast(from, Integer.class.getName());
+        Instance from = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
+        Instance.cast(from, Integer.class.getName());
     }
 
     @Test
     public void invokeMethodInHierarchy() {
-        NativeInvocation ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
-        NativeInvocation res = ni.invoke("getI");
+        Instance ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        Instance res = ni.invoke("getI");
         Integer i = (Integer) res.getObject();
         assert (i.equals(33));
     }
 
     @Test
     public void invokeMethodInInterface() {
-        NativeInvocation ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        Instance ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
         ni.invoke("doSomething");
     }
 
     @Test(expected = Exception.class)
     public void invokeMethodNotFoundInHierarchy() {
-        NativeInvocation ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        Instance ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
         ni.invoke("nonExisting");
     }
 
     @Test
     public void getFieldInstance() {
-        NativeInvocation ni = new JsonInvocationImpl(new DummyWithFields(), DummyWithFields.class);
+        Instance ni = new JsonInvocationImpl(new DummyWithFields(), DummyWithFields.class);
 
-        NativeInvocation res1 = ni.field("pubInt");
+        Instance res1 = ni.field("pubInt");
         Integer i1 = (Integer) res1.getObject();
         assert (i1.equals(11));
 
         try {
-            NativeInvocation res2 = ni.field("packageInt");
+            Instance res2 = ni.field("packageInt");
             res2.getObject();
             assert (false);
         } catch (InvocationException ie) {
@@ -178,7 +178,7 @@ public class JsonInvocationImplTest {
         }
 
         try {
-            NativeInvocation res3 = ni.field("protectedInt");
+            Instance res3 = ni.field("protectedInt");
             res3.getObject();
             assert (false);
         } catch (InvocationException ie) {
@@ -186,7 +186,7 @@ public class JsonInvocationImplTest {
         }
 
         try {
-            NativeInvocation res4 = ni.field("privateInt");
+            Instance res4 = ni.field("privateInt");
             res4.getObject();
             assert (false);
         } catch (InvocationException ie) {
@@ -196,14 +196,14 @@ public class JsonInvocationImplTest {
 
     @Test
     public void getFieldInstanceInHierarchy() {
-        NativeInvocation ni = new JsonInvocationImpl(new ChildOfDummyWithFields(), ChildOfDummyWithFields.class);
+        Instance ni = new JsonInvocationImpl(new ChildOfDummyWithFields(), ChildOfDummyWithFields.class);
 
-        NativeInvocation res1 = ni.field("pubInt");
+        Instance res1 = ni.field("pubInt");
         Integer i1 = (Integer) res1.getObject();
         assert (i1.equals(11));
 
         try {
-            NativeInvocation res2 = ni.field("packageInt");
+            Instance res2 = ni.field("packageInt");
             res2.getObject();
             assert (false);
         } catch (InvocationException ie) {
@@ -211,7 +211,7 @@ public class JsonInvocationImplTest {
         }
 
         try {
-            NativeInvocation res3 = ni.field("protectedInt");
+            Instance res3 = ni.field("protectedInt");
             res3.getObject();
             assert (false);
         } catch (InvocationException ie) {
@@ -219,7 +219,7 @@ public class JsonInvocationImplTest {
         }
 
         try {
-            NativeInvocation res4 = ni.field("privateInt");
+            Instance res4 = ni.field("privateInt");
             res4.getObject();
             assert (false);
         } catch (InvocationException ie) {

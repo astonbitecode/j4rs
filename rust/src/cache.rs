@@ -35,8 +35,8 @@ use crate::errors::opt_to_res;
 use crate::logger::debug;
 
 pub(crate) const INST_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
-pub(crate) const INVO_BASE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocationBase";
-pub(crate) const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/NativeInvocation";
+pub(crate) const INVO_BASE_NAME: &'static str = "org/astonbitecode/j4rs/api/InstanceBase";
+pub(crate) const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/Instance";
 pub(crate) const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
 pub(crate) const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
 
@@ -108,12 +108,12 @@ thread_local! {
     pub(crate) static FACTORY_CREATE_JAVA_ARRAY_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The method id of the `createJavaList` method of the `NativeInstantiation`.
     pub(crate) static FACTORY_CREATE_JAVA_LIST_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    // The `NativeInvocationBase` class.
+    // The `Instance` class.
     // This is optional because it exists only in Android for Java7 compatibility
     // because Java7 does not support static method implementations in interfaces.
-    pub(crate) static NATIVE_INVOCATION_BASE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    // The `NativeInvocation` class.
-    pub(crate) static NATIVE_INVOCATION_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static JAVA_INSTANCE_BASE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    // The `Instance` class.
+    pub(crate) static JAVA_INSTANCE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     // The Java class for the `InvocationArg`.
     pub(crate) static INVOCATION_ARG_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     // The invoke method
@@ -700,16 +700,16 @@ pub(crate) fn get_factory_create_java_list_method() -> errors::Result<jmethodID>
         set_factory_create_java_list_method)
 }
 
-pub(crate) fn set_native_invocation_base_class(j: jclass) {
-    debug("Called set_native_invocation_base_class");
-    NATIVE_INVOCATION_BASE_CLASS.with(|opt| {
+pub(crate) fn set_java_instance_base_class(j: jclass) {
+    debug("Called set_java_instance_base_class");
+    JAVA_INSTANCE_BASE_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_native_invocation_base_class() -> errors::Result<jclass> {
+pub(crate) fn get_java_instance_base_class() -> errors::Result<jclass> {
     get_cached!(
-        NATIVE_INVOCATION_BASE_CLASS,
+        JAVA_INSTANCE_BASE_CLASS,
         {
             let env = get_thread_local_env()?;
 
@@ -721,19 +721,19 @@ pub(crate) fn get_native_invocation_base_class() -> errors::Result<jclass> {
 
             j
         },
-        set_native_invocation_base_class)
+        set_java_instance_base_class)
 }
 
-pub(crate) fn set_native_invocation_class(j: jclass) {
-    debug("Called set_native_invocation_class");
-    NATIVE_INVOCATION_CLASS.with(|opt| {
+pub(crate) fn set_java_instance_class(j: jclass) {
+    debug("Called set_java_instance_class");
+    JAVA_INSTANCE_CLASS.with(|opt| {
         *opt.borrow_mut() = Some(j);
     });
 }
 
-pub(crate) fn get_native_invocation_class() -> errors::Result<jclass> {
+pub(crate) fn get_java_instance_class() -> errors::Result<jclass> {
     get_cached!(
-        NATIVE_INVOCATION_CLASS,
+        JAVA_INSTANCE_CLASS,
         {
             let env = get_thread_local_env()?;
 
@@ -745,7 +745,7 @@ pub(crate) fn get_native_invocation_class() -> errors::Result<jclass> {
 
             j
         },
-        set_native_invocation_class)
+        set_java_instance_class)
 }
 
 pub(crate) fn set_invoke_method(j: jmethodID) {
@@ -764,13 +764,13 @@ pub(crate) fn get_invoke_method() -> errors::Result<jmethodID> {
             let invoke_method_signature = format!(
                 "(Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
                 INVO_IFACE_NAME);
-            // Get the method ID for the `NativeInvocation.invoke`
+            // Get the method ID for the `Instance.invoke`
             let cstr1 = utils::to_c_string("invoke");
             let cstr2 = utils::to_c_string(invoke_method_signature.as_ref());
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -801,11 +801,11 @@ pub(crate) fn get_invoke_static_method() -> errors::Result<jmethodID> {
                 INVO_IFACE_NAME);
             let cstr1 = utils::to_c_string("invokeStatic");
             let cstr2 = utils::to_c_string(invoke_static_method_signature.as_ref());
-            // Get the method ID for the `NativeInvocation.invokeStatic`
+            // Get the method ID for the `Instance.invokeStatic`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -834,11 +834,11 @@ pub(crate) fn get_invoke_to_channel_method() -> errors::Result<jmethodID> {
             let invoke_to_channel_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
             let cstr1 = utils::to_c_string("invokeToChannel");
             let cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
-            // Get the method ID for the `NativeInvocation.invokeToChannel`
+            // Get the method ID for the `Instance.invokeToChannel`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -867,11 +867,11 @@ pub(crate) fn get_init_callback_channel_method() -> errors::Result<jmethodID> {
             let init_callback_channel_method_signature = "(J)V";
             let cstr1 = utils::to_c_string("initializeCallbackChannel");
             let cstr2 = utils::to_c_string(&init_callback_channel_method_signature);
-            // Get the method ID for the `NativeInvocation.initializeCallbackChannel`
+            // Get the method ID for the `Instance.initializeCallbackChannel`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -902,11 +902,11 @@ pub(crate) fn get_field_method() -> errors::Result<jmethodID> {
                 INVO_IFACE_NAME);
             let cstr1 = utils::to_c_string("field");
             let cstr2 = utils::to_c_string(field_method_signature.as_ref());
-            // Get the method ID for the `NativeInvocation.field`
+            // Get the method ID for the `Instance.field`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -938,7 +938,7 @@ pub(crate) fn get_clone_static_method() -> errors::Result<jmethodID> {
                 INVO_IFACE_NAME);
             let cstr1 = utils::to_c_string("cloneInstance");
             let cstr2 = utils::to_c_string(clone_method_signature.as_ref());
-            // Get the method ID for the `NativeInvocation.clone`
+            // Get the method ID for the `Instance.clone`
             let j = unsafe {
                 (opt_to_res(get_jni_get_static_method_id())?)(
                     env,
@@ -975,7 +975,7 @@ pub(crate) fn get_cast_static_method() -> errors::Result<jmethodID> {
             let cstr1 = utils::to_c_string("cast");
             let cstr2 = utils::to_c_string(cast_method_signature.as_ref());
 
-            // Get the method ID for the `NativeInvocation.cast`
+            // Get the method ID for the `Instance.cast`
             let j = unsafe {
                 (opt_to_res(get_jni_get_static_method_id())?)(
                     env,
@@ -1009,11 +1009,11 @@ pub(crate) fn get_get_json_method() -> errors::Result<jmethodID> {
             let cstr1 = utils::to_c_string("getJson");
             let cstr2 = utils::to_c_string(get_json_method_signature.as_ref());
 
-            // Get the method ID for the `NativeInvocation.getJson`
+            // Get the method ID for the `Instance.getJson`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -1043,11 +1043,11 @@ pub(crate) fn get_get_object_class_method() -> errors::Result<jmethodID> {
             let cstr1 = utils::to_c_string("getObjectClass");
             let cstr2 = utils::to_c_string(get_object_class_method_signature.as_ref());
 
-            // Get the method ID for the `NativeInvocation.getObjectClass`
+            // Get the method ID for the `Instance.getObjectClass`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -1077,11 +1077,11 @@ pub(crate) fn get_get_object_method() -> errors::Result<jmethodID> {
             let cstr1 = utils::to_c_string("getObject");
             let cstr2 = utils::to_c_string(get_object_method_signature.as_ref());
 
-            // Get the method ID for the `NativeInvocation.getObject`
+            // Get the method ID for the `Instance.getObject`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
-                    get_native_invocation_class()?,
+                    get_java_instance_class()?,
                     cstr1,
                     cstr2,
                 )
@@ -1200,13 +1200,13 @@ pub(crate) fn get_class_to_invoke_clone_and_cast() -> errors::Result<jclass> {
         CLASS_TO_INVOKE_CLONE_AND_CAST,
         {
             // The class to invoke the cloneInstance into, is not the same in Android target os.
-            // The native_invocation_base_class is used because of Java7 compatibility issues in Android.
+            // The java_instance_base_class is used because of Java7 compatibility issues in Android.
             // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
             // and there is a base class created for this reason.
             let j = if cfg!(target_os = "android") {
-                get_native_invocation_base_class()?
+                get_java_instance_base_class()?
             } else {
-                get_native_invocation_class()?
+                get_java_instance_class()?
             };
 
             j
