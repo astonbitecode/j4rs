@@ -2,8 +2,13 @@
 name = "j4rs_derive"
 version = "0.1.0"
 authors = ["aston <astonbitecode@gmail.com>"]
-edition = "2018"
+description = "The proc macro crate for `j4rs` that allows jni calls to Rust libraries."
+keywords = ["java", "jni"]
 license = "MIT/Apache-2.0"
+repository = "https://github.com/astonbitecode/j4rs"
+readme = "README.md"
+categories = ["api-bindings"]
+edition = "2018"
 
 [lib]
 proc-macro = true
