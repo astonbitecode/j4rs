@@ -767,16 +767,6 @@ mod lib_unit_tests {
     }
 
     #[test]
-    #[ignore]
-    fn dummy() {
-        let jvm: Jvm = JvmBuilder::new().build().unwrap();
-        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
-        let i = jvm.invoke(&test_instance, "echo", &vec![InvocationArg::try_from(33).unwrap()]).unwrap();
-        let v: Box<i32> = jvm.to_rust_boxed(i).unwrap();
-        println!("------{}", v);
-    }
-
-    #[test]
     fn to_rust_boxed() {
         let jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
