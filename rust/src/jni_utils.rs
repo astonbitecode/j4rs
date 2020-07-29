@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_double};
 use std::ptr;
 
 use jni_sys::{jint, JNI_TRUE, JNIEnv, jobject, jobjectRefType, jstring};
@@ -363,57 +363,57 @@ pub(crate) unsafe fn i64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
     }
 }
 
-// pub(crate) fn global_jobject_from_f32(a: &f32, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-//     unsafe {
-//         let tmp = a.clone();
-//         let o = (opt_to_res(cache::get_jni_new_object())?)(
-//             jni_env,
-//             cache::get_float_class()?,
-//             cache::get_float_constructor_method()?,
-//             tmp as *const f32,
-//         );
-//         create_global_ref_from_local_ref(o, jni_env)
-//     }
-// }
+pub(crate) fn global_jobject_from_f32(a: &f32, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    let tmp = a.clone();
+    unsafe {
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            cache::get_float_class()?,
+            cache::get_float_constructor_method()?,
+            tmp as c_double,
+        );
+        create_global_ref_from_local_ref(o, jni_env)
+    }
+}
 
-// pub(crate) unsafe fn f32_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<f32> {
-//     if obj.is_null() {
-//         Err(errors::J4RsError::JniError("Attempt to create an f32 from null".to_string()))
-//     } else {
-//         let v = (opt_to_res(cache::get_jni_call_object_method())?)(
-//             jni_env,
-//             obj,
-//             cache::get_float_to_float_method()?,
-//         );
-//         Ok(v as f32)
-//     }
-// }
+pub(crate) unsafe fn f32_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<f32> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create an f32 from null".to_string()))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_float_method())?)(
+            jni_env,
+            obj,
+            cache::get_float_to_float_method()?,
+        );
+        Ok(v)
+    }
+}
 
-// pub(crate) fn global_jobject_from_f64(a: &f64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-//     unsafe {
-//         let tmp = a.clone();
-//         let o = (opt_to_res(cache::get_jni_new_object())?)(
-//             jni_env,
-//             cache::get_double_class()?,
-//             cache::get_double_constructor_method()?,
-//             tmp as *const f64,
-//         );
-//         create_global_ref_from_local_ref(o, jni_env)
-//     }
-// }
+pub(crate) fn global_jobject_from_f64(a: &f64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    let tmp = a.clone();
+    unsafe {
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            cache::get_double_class()?,
+            cache::get_double_constructor_method()?,
+            tmp as c_double,
+        );
+        create_global_ref_from_local_ref(o, jni_env)
+    }
+}
 
-// pub(crate) unsafe fn f64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<f64> {
-//     if obj.is_null() {
-//         Err(errors::J4RsError::JniError("Attempt to create an f64 from null".to_string()))
-//     } else {
-//         let v = (opt_to_res(cache::get_jni_call_object_method())?)(
-//             jni_env,
-//             obj,
-//             cache::get_double_to_double_method()?,
-//         );
-//         Ok(v as f64)
-//     }
-// }
+pub(crate) unsafe fn f64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<f64> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create an f64 from null".to_string()))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_double_method())?)(
+            jni_env,
+            obj,
+            cache::get_double_to_double_method()?,
+        );
+        Ok(v)
+    }
+}
 
 pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
     unsafe {

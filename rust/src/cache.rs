@@ -20,9 +20,11 @@ use jni_sys::{
     self,
     jboolean,
     jclass,
+    jdouble,
+    jfloat,
+    jint,
     jmethodID,
     JNIEnv,
-    jint,
     jobject,
     jobjectArray,
     jsize,
@@ -51,6 +53,10 @@ pub(crate) type JniGetStringUTFChars = unsafe extern "system" fn(env: *mut JNIEn
 pub(crate) type JniReleaseStringUTFChars = unsafe extern "system" fn(env: *mut JNIEnv, str: jstring, utf: *const c_char);
 #[allow(non_snake_case)]
 pub(crate) type JniCallObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
+#[allow(non_snake_case)]
+pub(crate) type JniCallFloatMethod = unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jfloat;
+#[allow(non_snake_case)]
+pub(crate) type JniCallDoubleMethod = unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jdouble;
 #[allow(non_snake_case)]
 pub(crate) type JniCallVoidMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...);
 pub(crate) type JniCallStaticObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
@@ -84,6 +90,8 @@ thread_local! {
     pub(crate) static JNI_GET_STRING_UTF_CHARS: RefCell<Option<JniGetStringUTFChars>> = RefCell::new(None);
     pub(crate) static JNI_RELEASE_STRING_UTF_CHARS: RefCell<Option<JniReleaseStringUTFChars>> = RefCell::new(None);
     pub(crate) static JNI_CALL_OBJECT_METHOD: RefCell<Option<JniCallObjectMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_FLOAT_METHOD: RefCell<Option<JniCallFloatMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_DOUBLE_METHOD: RefCell<Option<JniCallDoubleMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_VOID_METHOD: RefCell<Option<JniCallVoidMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_STATIC_OBJECT_METHOD: RefCell<Option<JniCallStaticObjectMethod>> = RefCell::new(None);
     pub(crate) static JNI_NEW_OBJECT_ARRAY: RefCell<Option<JniNewObjectArray>> = RefCell::new(None);
@@ -334,6 +342,36 @@ pub(crate) fn set_jni_call_void_method(j: Option<JniCallVoidMethod>) -> Option<J
         *opt.borrow_mut() = j;
     });
     get_jni_call_void_method()
+}
+
+
+pub(crate) fn set_jni_call_float_method(j: Option<JniCallFloatMethod>) -> Option<JniCallFloatMethod> {
+    debug("Called set_jni_call_float_method");
+    JNI_CALL_FLOAT_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_float_method()
+}
+
+pub(crate) fn get_jni_call_float_method() -> Option<JniCallFloatMethod> {
+    JNI_CALL_FLOAT_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+
+pub(crate) fn set_jni_call_double_method(j: Option<JniCallDoubleMethod>) -> Option<JniCallDoubleMethod> {
+    debug("Called set_jni_call_double_method");
+    JNI_CALL_DOUBLE_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_double_method()
+}
+
+pub(crate) fn get_jni_call_double_method() -> Option<JniCallDoubleMethod> {
+    JNI_CALL_DOUBLE_METHOD.with(|opt| {
+        *opt.borrow()
+    })
 }
 
 pub(crate) fn get_jni_call_void_method() -> Option<JniCallVoidMethod> {

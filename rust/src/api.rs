@@ -202,6 +202,8 @@ impl Jvm {
             let _ = cache::get_jni_get_string_utf_chars().or_else(|| cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars));
             let _ = cache::get_jni_release_string_utf_chars().or_else(|| cache::set_jni_release_string_utf_chars((**jni_environment).ReleaseStringUTFChars));
             let _ = cache::get_jni_call_object_method().or_else(|| cache::set_jni_call_object_method((**jni_environment).CallObjectMethod));
+            let _ = cache::get_jni_call_float_method().or_else(|| cache::set_jni_call_float_method((**jni_environment).CallFloatMethod));
+            let _ = cache::get_jni_call_double_method().or_else(|| cache::set_jni_call_double_method((**jni_environment).CallDoubleMethod));
             let _ = cache::get_jni_call_void_method().or_else(|| cache::set_jni_call_void_method((**jni_environment).CallVoidMethod));
             let _ = cache::get_jni_call_static_object_method().or_else(|| cache::set_jni_call_static_object_method((**jni_environment).CallStaticObjectMethod));
             let _ = cache::get_jni_new_object_array().or_else(|| cache::set_jni_new_object_array((**jni_environment).NewObjectArray));
@@ -807,6 +809,10 @@ impl Jvm {
                 rust_box_from_java_object!(jni_utils::i32_from_jobject)
             } else if jni_utils::is_same_object(object_class_instance, cache::get_long_class()?, self.jni_env)? {
                 rust_box_from_java_object!(jni_utils::i64_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_float_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::f32_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_double_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::f64_from_jobject)
             } else {
                 Ok(Box::new(self.to_rust_deserialized(instance)?))
             };
@@ -1291,6 +1297,18 @@ impl InvocationArg {
         } else if let Some(a) = arg_any.downcast_ref::<i64>() {
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(jni_utils::global_jobject_from_i64(a, jni_env)?, class_name)?,
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
+        } else if let Some(a) = arg_any.downcast_ref::<f32>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_f32(a, jni_env)?, class_name)?,
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
+        } else if let Some(a) = arg_any.downcast_ref::<f64>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_f64(a, jni_env)?, class_name)?,
                 class_name: class_name.to_string(),
                 serialized: false,
             })
