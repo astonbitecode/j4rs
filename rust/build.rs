@@ -25,7 +25,8 @@ use std::path::{Path, PathBuf};
 use java_locator;
 use sha2::{Digest, Sha256};
 
-const VERSION: &'static str = "0.12.0";
+// This is the version of the jar that should be used
+const VERSION: &'static str = "0.12.1-SNAPSHOT";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
