@@ -68,7 +68,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         // Invoke the instance
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
         } catch (Exception error) {
             throw new InvocationException("While invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }
@@ -78,7 +78,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     public Instance invokeStatic(String methodName, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
         } catch (Exception error) {
             throw new InvocationException("Error while invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }

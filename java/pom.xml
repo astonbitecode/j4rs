@@ -63,6 +63,7 @@
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
         <jackson.version>2.10.0.pr1</jackson.version>
         <mockito.version>2.23.4</mockito.version>
+        <javafx.version>13.0.2</javafx.version>
     </properties>
     <dependencies>
         <dependency>
@@ -79,6 +80,24 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-media</artifactId>
+            <version>${javafx.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+            <scope>provided</scope>
         </dependency>
         <!-- Test dependencies -->
         <dependency>

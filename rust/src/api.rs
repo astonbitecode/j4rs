@@ -15,9 +15,10 @@
 use std::{fs, mem};
 use std::any::Any;
 use std::convert::TryFrom;
+use std::env;
 use std::ops::Drop;
 use std::os::raw::c_void;
-use std::path::{Path, PathBuf};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -627,6 +628,9 @@ impl Jvm {
         }
     }
 
+    /// Initializes a callback channel via a Java Instance that is a `NativeCallbackToRustChannelSupport`.
+    /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`.
+    /// The `NativeCallbackToRustChannelSupport` Instance which is passed as argument, will be sending `Instance`s via this Receiver.
     pub fn init_callback_channel(&self, instance: &Instance) -> errors::Result<InstanceReceiver> {
         debug(&format!("Initializing callback channel"));
         unsafe {
@@ -890,6 +894,40 @@ impl Jvm {
         }
     }
 
+    /// Deploys the required dependencies to run a JavaFX application in order to be able to be used by j4rs.
+    pub fn deploy_javafx_dependencies(&self) -> errors::Result<()> {
+        let target_os_res = env::var("CARGO_CFG_TARGET_OS");
+        if target_os_res.is_ok() {
+            let target_os = target_os_res.as_ref().map(|x| &**x).unwrap_or("unknown");
+            if target_os == "android" {
+                return Ok(());
+            }
+
+            println!("cargo:warning=Downloading javafx dependencies from Maven...");
+            Self::maven("org.openjfx:javafx-base:13.0.2", self);
+            Self::maven(&format!("org.openjfx:javafx-base:13.0.2:{}", target_os), self);
+            Self::maven("org.openjfx:javafx-controls:13.0.2", self);
+            Self::maven(&format!("org.openjfx:javafx-controls:13.0.2:{}", target_os), self);
+            Self::maven("org.openjfx:javafx-fxml:13.0.2", self);
+            Self::maven(&format!("org.openjfx:javafx-fxml:13.0.2:{}", target_os), self);
+            Self::maven("org.openjfx:javafx-graphics:13.0.2", self);
+            Self::maven(&format!("org.openjfx:javafx-graphics:13.0.2:{}", target_os), self);
+            Self::maven("org.openjfx:javafx-media:13.0.2", self);
+            Self::maven(&format!("org.openjfx:javafx-media:13.0.2:{}", target_os), self);
+
+            Ok(())
+        } else {
+            Err(J4RsError::GeneralError("deploy_javafx_dependencies can be used only during build time. It should be called by a build script.".to_string()))
+        }
+    }
+
+    fn maven(s: &str, jvm: &Jvm) {
+        let artifact = MavenArtifact::from(s);
+        let _ = jvm.deploy_artifact(&artifact).map_err(|error| {
+            println!("cargo:warning=Could not download Maven artifact {}: {:?}", s, error);
+        });
+    }
+
     /// Copies the jassets default directory and the j4rs dynamic library under the specified location.
     /// This is useful for cases when `with_base_path` method is used when building a Jvm with the JvmBuilder.
     /// Build scripts should use this method.
@@ -923,6 +961,19 @@ impl Jvm {
     pub fn throw_invocation_exception(&self, message: &str) -> errors::Result<()> {
         let _ = jni_utils::throw_exception(message, self.jni_env)?;
         Ok(())
+    }
+
+    /// Triggers the start of a JavaFX application.
+    /// When the JavaFX application starts, the `InstanceReceiver` channel will receive an Instance of `javafx.stage.Stage`.
+    ///
+    /// The UI may start being built using the provided `Stage`
+    pub fn start_javafx_app(&self) -> errors::Result<InstanceReceiver> {
+        let fx_callback = self.create_instance(
+            "org.astonbitecode.j4rs.api.jfx.FxApplicationStartCallback",
+            &[])?;
+        let cb = self.init_callback_channel(&fx_callback)?;
+        self.invoke(&fx_callback, "setCallbackToApplicationAndLaunch", &[])?;
+        Ok(cb)
     }
 
     pub(crate) fn do_return<T>(jni_env: *mut JNIEnv, to_return: T) -> errors::Result<T> {
@@ -1027,6 +1078,7 @@ pub struct JvmBuilder<'a> {
     skip_setting_native_lib: bool,
     base_path: Option<String>,
     maven_settings: MavenSettings,
+    javafx: bool,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1041,6 +1093,7 @@ impl<'a> JvmBuilder<'a> {
             skip_setting_native_lib: false,
             base_path: None,
             maven_settings: MavenSettings::default(),
+            javafx: false,
         }
     }
 
@@ -1118,8 +1171,14 @@ impl<'a> JvmBuilder<'a> {
         self
     }
 
+    /// Adds JavaFX support to the created JVM
+    pub fn with_javafx_support(&'a mut self) -> &'a mut JvmBuilder {
+        self.javafx = true;
+        self
+    }
+
     /// Creates a Jvm
-    pub fn build(&self) -> errors::Result<Jvm> {
+    pub fn build(&mut self) -> errors::Result<Jvm> {
         let classpath = if self.no_implicit_classpath {
             self.classpath_entries
                 .iter()
@@ -1130,23 +1189,15 @@ impl<'a> JvmBuilder<'a> {
                     })
         } else {
             // The default classpath contains all the jars in the jassets directory
-            let jassets_path = match &self.base_path {
-                Some(base_path_string) => {
-                    let mut pb = PathBuf::from(base_path_string);
-                    pb.push("jassets");
-                    let mut global_jassets_path_opt = cache::JASSETS_PATH.lock()?;
-                    *global_jassets_path_opt = Some(pb.clone());
-                    pb
-                }
-                None => utils::default_jassets_path()?,
-            };
+            let jassets_path = self.get_jassets_path()?;
             let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath
             let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
             // Filter out possible incorrect jars of j4rs
             let filtered_jars: Vec<String> = all_jars.into_iter()
-                .filter(|jar| {
-                    !jar.contains("j4rs-") || jar.ends_with(&j4rs_jar_to_use)
+                .filter(|jar_full_path| {
+                    let jarname = jar_full_path.split(MAIN_SEPARATOR).last().unwrap_or(jar_full_path);
+                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use)
                 })
                 .collect();
             let cp_string = filtered_jars.join(utils::classpath_sep());
@@ -1171,6 +1222,14 @@ impl<'a> JvmBuilder<'a> {
             info(&format!("Setting library path to {}", default_library_path));
             vec![classpath, default_library_path]
         };
+
+        if self.javafx {
+            let jassets_path = self.get_jassets_path()?;
+            let jassets_path_string = jassets_path.to_str().unwrap_or(".");
+            let modules_path = format!("--module-path {}", jassets_path_string);
+            jvm_options.push(modules_path);
+            jvm_options.push("--add-modules javafx.base,javafx.controls,javafx.graphics,javafx.fxml".to_string());
+        }
         self.java_opts.clone().into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
 
         // Pass to the Java world the name of the j4rs library.
@@ -1225,6 +1284,19 @@ impl<'a> JvmBuilder<'a> {
     /// _Note: The already created Jvm is a j4rs Jvm, not a Java VM._
     pub fn already_initialized() -> errors::Result<Jvm> {
         Jvm::new(&[], None)
+    }
+
+    fn get_jassets_path(&self) -> errors::Result<PathBuf> {
+        match &self.base_path {
+            Some(base_path_string) => {
+                let mut pb = PathBuf::from(base_path_string);
+                pb.push("jassets");
+                let mut global_jassets_path_opt = cache::JASSETS_PATH.lock()?;
+                *global_jassets_path_opt = Some(pb.clone());
+                Ok(pb)
+            }
+            None => utils::default_jassets_path(),
+        }
     }
 }
 
@@ -1983,6 +2055,13 @@ mod api_unit_tests {
         Jvm::copy_j4rs_libs_under(newdir).unwrap();
 
         let _ = fs_extra::remove_items(&vec![newdir]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_deploy_javafx_dependencies() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        jvm.deploy_javafx_dependencies().unwrap();
     }
 
     fn validate_type(ia: InvocationArg, class: &str) {

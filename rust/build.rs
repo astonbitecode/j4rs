@@ -47,7 +47,10 @@ fn main() -> Result<(), J4rsBuildError> {
     copy_jars_from_java(&source_jar_location)?;
     let _ = copy_jars_to_exec_directory(&out_dir)?;
     generate_src(&out_dir)?;
-
+    if cfg!(feature = "javafx") {
+        println!("cargo:warning=JAVAFX");
+        println!("cargo:rustc-env=J4RS_JAVAFX=TRUE")
+    }
     Ok(())
 }
 

@@ -18,6 +18,7 @@ import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
+import org.astonbitecode.j4rs.api.invocation.InstanceGenerator;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InstantiationException;
 import org.astonbitecode.j4rs.utils.Utils;
@@ -32,7 +33,7 @@ public class NativeInstantiationImpl {
     public static Instance instantiate(String className, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = createInstance(className, generateArgObjects(args));
-            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create instance of " + className, error);
         }
