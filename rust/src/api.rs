@@ -894,40 +894,6 @@ impl Jvm {
         }
     }
 
-    /// Deploys the required dependencies to run a JavaFX application in order to be able to be used by j4rs.
-    pub fn deploy_javafx_dependencies(&self) -> errors::Result<()> {
-        let target_os_res = env::var("CARGO_CFG_TARGET_OS");
-        if target_os_res.is_ok() {
-            let target_os = target_os_res.as_ref().map(|x| &**x).unwrap_or("unknown");
-            if target_os == "android" {
-                return Ok(());
-            }
-
-            println!("cargo:warning=Downloading javafx dependencies from Maven...");
-            Self::maven("org.openjfx:javafx-base:13.0.2", self);
-            Self::maven(&format!("org.openjfx:javafx-base:13.0.2:{}", target_os), self);
-            Self::maven("org.openjfx:javafx-controls:13.0.2", self);
-            Self::maven(&format!("org.openjfx:javafx-controls:13.0.2:{}", target_os), self);
-            Self::maven("org.openjfx:javafx-fxml:13.0.2", self);
-            Self::maven(&format!("org.openjfx:javafx-fxml:13.0.2:{}", target_os), self);
-            Self::maven("org.openjfx:javafx-graphics:13.0.2", self);
-            Self::maven(&format!("org.openjfx:javafx-graphics:13.0.2:{}", target_os), self);
-            Self::maven("org.openjfx:javafx-media:13.0.2", self);
-            Self::maven(&format!("org.openjfx:javafx-media:13.0.2:{}", target_os), self);
-
-            Ok(())
-        } else {
-            Err(J4RsError::GeneralError("deploy_javafx_dependencies can be used only during build time. It should be called by a build script.".to_string()))
-        }
-    }
-
-    fn maven(s: &str, jvm: &Jvm) {
-        let artifact = MavenArtifact::from(s);
-        let _ = jvm.deploy_artifact(&artifact).map_err(|error| {
-            println!("cargo:warning=Could not download Maven artifact {}: {:?}", s, error);
-        });
-    }
-
     /// Copies the jassets default directory and the j4rs dynamic library under the specified location.
     /// This is useful for cases when `with_base_path` method is used when building a Jvm with the JvmBuilder.
     /// Build scripts should use this method.
@@ -965,19 +931,6 @@ impl Jvm {
     pub fn throw_invocation_exception(&self, message: &str) -> errors::Result<()> {
         let _ = jni_utils::throw_exception(message, self.jni_env)?;
         Ok(())
-    }
-
-    /// Triggers the start of a JavaFX application.
-    /// When the JavaFX application starts, the `InstanceReceiver` channel will receive an Instance of `javafx.stage.Stage`.
-    ///
-    /// The UI may start being built using the provided `Stage`
-    pub fn start_javafx_app(&self) -> errors::Result<InstanceReceiver> {
-        let fx_callback = self.create_instance(
-            "org.astonbitecode.j4rs.api.jfx.FxApplicationStartCallback",
-            &[])?;
-        let cb = self.init_callback_channel(&fx_callback)?;
-        self.invoke(&fx_callback, "setCallbackToApplicationAndLaunch", &[])?;
-        Ok(cb)
     }
 
     pub(crate) fn do_return<T>(jni_env: *mut JNIEnv, to_return: T) -> errors::Result<T> {
@@ -2064,13 +2017,6 @@ mod api_unit_tests {
         Jvm::copy_j4rs_libs_under(newdir).unwrap();
 
         let _ = fs_extra::remove_items(&vec![newdir]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_deploy_javafx_dependencies() {
-        let jvm: Jvm = JvmBuilder::new().build().unwrap();
-        jvm.deploy_javafx_dependencies().unwrap();
     }
 
     fn validate_type(ia: InvocationArg, class: &str) {
