@@ -923,6 +923,7 @@ impl Jvm {
         ChainableInstance::new_with_instance_ref(&instance, &self)
     }
 
+    /// Initiates a chain of operations on Instances.
     pub fn into_chain(&self, instance: Instance) -> ChainableInstance {
         ChainableInstance::new(instance, &self)
     }

@@ -61,12 +61,15 @@ public class JavaFxInvocation<T> implements Instance<T> {
 
     @Override
     public void invokeAsync(long functionPointerAddress, String methodName, InvocationArg... args) {
-        Platform.runLater(() -> this.invokeAsync(functionPointerAddress, methodName, args));
+        Platform.runLater(() -> jsonInvocation.invokeAsync(functionPointerAddress, methodName, args));
     }
 
     @Override
     public void invokeToChannel(long channelAddress, String methodName, InvocationArg... args) {
-        Platform.runLater(() -> this.invokeToChannel(channelAddress, methodName, args));
+        System.out.println("Invoking to channel " + methodName + " with " + args.length + " args");
+        Platform.runLater(() -> {
+            jsonInvocation.invokeToChannel(channelAddress, methodName, args);
+        });
     }
 
     @Override

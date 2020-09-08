@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::env;
+use std::convert::TryFrom;
 
-use crate::{InstanceReceiver, Jvm, MavenArtifact};
+use crate::{InstanceReceiver, Jvm, MavenArtifact, Instance, InvocationArg};
 use crate::errors;
 use crate::errors::J4RsError;
 
@@ -25,6 +26,8 @@ pub trait JavaFxSupport {
     fn start_javafx_app(&self) -> errors::Result<InstanceReceiver>;
     /// Deploys the required dependencies to run a JavaFX application in order to be able to be used by j4rs.
     fn deploy_javafx_dependencies(&self) -> errors::Result<()>;
+
+    fn set_javafx_event_receiver(&self, instance: &Instance, method: &str) -> errors::Result<InstanceReceiver>;
 }
 
 impl JavaFxSupport for Jvm {
@@ -39,6 +42,13 @@ impl JavaFxSupport for Jvm {
         let cb = self.init_callback_channel(&fx_callback)?;
         self.invoke(&fx_callback, "setCallbackToApplicationAndLaunch", &[])?;
         Ok(cb)
+    }
+
+    fn set_javafx_event_receiver(&self, instance: &Instance, method: &str) -> errors::Result<InstanceReceiver> {
+        let j4rs_event_handler = self.create_instance("org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler", &[])?;
+        let btn_action_channel = self.init_callback_channel(&j4rs_event_handler)?;
+        self.invoke(&instance, method, &[InvocationArg::try_from(j4rs_event_handler)?])?;
+        Ok(btn_action_channel)
     }
 
     /// Deploys the required dependencies to run a JavaFX application in order to be able to be used by j4rs.
