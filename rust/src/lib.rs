@@ -52,6 +52,7 @@ mod provisioning;
 mod utils;
 mod cache;
 pub mod prelude;
+pub mod jfx;
 
 /// Creates a new JVM, using the provided classpath entries and JVM arguments
 pub fn new_jvm(classpath_entries: Vec<ClasspathEntry>, java_opts: Vec<JavaOpt>) -> errors::Result<Jvm> {
@@ -578,7 +579,7 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::try_from("string").unwrap()]).unwrap();
 
-        let i1 = jvm.chain(instance)
+        let i1 = jvm.chain(&instance).unwrap()
             .invoke("appendToMyString", &vec![InvocationArg::try_from("_is_appended").unwrap()]).unwrap()
             .invoke("length", &[]).unwrap()
             .collect();
@@ -594,7 +595,7 @@ mod lib_unit_tests {
         let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
         let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &vec![InvocationArg::try_from("string").unwrap()]).unwrap();
 
-        let product: isize = jvm.chain(instance)
+        let product: isize = jvm.into_chain(instance)
             .invoke("appendToMyString", &vec![InvocationArg::try_from("_is_appended").unwrap()]).unwrap()
             .invoke("length", &[]).unwrap()
             .to_rust().unwrap();
@@ -610,7 +611,7 @@ mod lib_unit_tests {
 
         let static_invocation = jvm.static_class("java.lang.System").unwrap();
 
-        let _: isize = jvm.chain(static_invocation)
+        let _: isize = jvm.into_chain(static_invocation)
             .invoke("currentTimeMillis", &[]).unwrap()
             .to_rust().unwrap();
     }
@@ -633,7 +634,7 @@ mod lib_unit_tests {
             .unwrap();
 
         let system = jvm.static_class("java.lang.System").unwrap();
-        let _ = jvm.chain(system)
+        let _ = jvm.into_chain(system)
             .field("out").unwrap()
             .invoke("println", &vec![InvocationArg::try_from("Hello World").unwrap()]).unwrap()
             .collect();
@@ -646,7 +647,7 @@ mod lib_unit_tests {
             .unwrap();
         let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
 
-        let size: isize = jvm.chain(instance)
+        let size: isize = jvm.into_chain(instance)
             .invoke("getMap", &[]).unwrap()
             .cast("java.util.Map").unwrap()
             .invoke("size", &[]).unwrap()
@@ -671,7 +672,7 @@ mod lib_unit_tests {
         let _ = jvm.invoke(&dummy_map, "put", &vec![InvocationArg::try_from("three").unwrap(), InvocationArg::try_from(3).unwrap()]).unwrap();
 
         // Get the size of the new map and assert
-        let size: isize = jvm.chain(dummy_map)
+        let size: isize = jvm.into_chain(dummy_map)
             .invoke("size", &[]).unwrap()
             .to_rust().unwrap();
 

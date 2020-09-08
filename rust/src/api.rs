@@ -953,7 +953,11 @@ impl Jvm {
     }
 
     /// Initiates a chain of operations on Instances.
-    pub fn chain(&self, instance: Instance) -> ChainableInstance {
+    pub fn chain(&self, instance: &Instance) -> errors::Result<ChainableInstance> {
+        ChainableInstance::new_with_instance_ref(&instance, &self)
+    }
+
+    pub fn into_chain(&self, instance: Instance) -> ChainableInstance {
         ChainableInstance::new(instance, &self)
     }
 
@@ -1905,6 +1909,11 @@ pub struct ChainableInstance<'a> {
 impl<'a> ChainableInstance<'a> {
     fn new(instance: Instance, jvm: &'a Jvm) -> ChainableInstance {
         ChainableInstance { instance, jvm }
+    }
+
+    fn new_with_instance_ref(instance: &Instance, jvm: &'a Jvm) -> errors::Result<ChainableInstance<'a>> {
+        let cloned = jvm.clone_instance(&instance)?;
+        Ok(ChainableInstance { instance:  cloned, jvm })
     }
 
     pub fn collect(self) -> Instance {

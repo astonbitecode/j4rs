@@ -17,6 +17,10 @@ package org.astonbitecode.j4rs.api.invocation;
 import javafx.application.Platform;
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
+import org.astonbitecode.j4rs.errors.InvocationException;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class JavaFxInvocation<T> implements Instance<T> {
     private JsonInvocationImpl<T> jsonInvocation;
@@ -27,22 +31,42 @@ public class JavaFxInvocation<T> implements Instance<T> {
 
     @Override
     public Instance invoke(String methodName, InvocationArg... args) {
-        return jsonInvocation.invoke(methodName, args);
+        CompletableFuture<Instance<T>> f = new CompletableFuture();
+        Platform.runLater(() -> {
+            Instance i = jsonInvocation.invoke(methodName, args);
+            f.complete(i);
+        });
+
+        try {
+            return f.get();
+        } catch (InterruptedException | ExecutionException error) {
+            throw new InvocationException("While invoking method " + methodName + " of Class " + this.jsonInvocation.getObjectClass().getName(), error);
+        }
     }
 
     @Override
     public Instance invokeStatic(String methodName, InvocationArg... args) {
-        return jsonInvocation;
+        CompletableFuture<Instance<T>> f = new CompletableFuture();
+        Platform.runLater(() -> {
+            Instance i = jsonInvocation.invokeStatic(methodName, args);
+            f.complete(i);
+        });
+
+        try {
+            return f.get();
+        } catch (InterruptedException | ExecutionException error) {
+            throw new InvocationException("While invoking method " + methodName + " of Class " + this.jsonInvocation.getObjectClass().getName(), error);
+        }
     }
 
     @Override
     public void invokeAsync(long functionPointerAddress, String methodName, InvocationArg... args) {
-        Platform.runLater(() -> this.invoke(methodName, args));
+        Platform.runLater(() -> this.invokeAsync(functionPointerAddress, methodName, args));
     }
 
     @Override
     public void invokeToChannel(long channelAddress, String methodName, InvocationArg... args) {
-        Platform.runLater(() -> this.invoke(methodName, args));
+        Platform.runLater(() -> this.invokeToChannel(channelAddress, methodName, args));
     }
 
     @Override
@@ -51,7 +75,7 @@ public class JavaFxInvocation<T> implements Instance<T> {
     }
 
     @Override
-    public Instance field(String fieldName) {
+    public Instance<?> field(String fieldName) {
         return jsonInvocation.field(fieldName);
     }
 

@@ -214,7 +214,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                             matchedParams.add(argTypes[i].isArray());
                         } else if (typ instanceof Class) {
                             // In case of TypeVariable, the arg matches via the equals method
-                            matchedParams.add(typ.equals(argTypes[i]));
+                            matchedParams.add(((Class<?>) typ).isAssignableFrom(argTypes[i]));
                         } else {
                             // We get to this point if the TypeVariable is a generic, which is defined with a name like T, U etc.
                             // The type erasure makes the parameter be an Object.class. Therefore, the argument is always matched.

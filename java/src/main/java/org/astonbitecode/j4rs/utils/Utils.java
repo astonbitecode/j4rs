@@ -44,7 +44,7 @@ public class Utils {
         }
     }
 
-    // Return one of the classes pf the GeneratedArgs.
+    // Return one of the classes of the GeneratedArgs.
     // Currently there is no need to support many classes.
     // In the future, we may need to converge to the common parent of all the GeneratedArgs.
     public static Class<?> forNameBasedOnArgs(final GeneratedArg[] params) {

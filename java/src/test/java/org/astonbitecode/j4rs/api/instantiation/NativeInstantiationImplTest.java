@@ -14,9 +14,13 @@
  */
 package org.astonbitecode.j4rs.api.instantiation;
 
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
+import org.astonbitecode.j4rs.utils.ChildDummy;
+import org.astonbitecode.j4rs.utils.ClassWithDummyAtConstructor;
 import org.astonbitecode.j4rs.utils.Dummy;
 import org.junit.Test;
 
@@ -105,5 +109,14 @@ public class NativeInstantiationImplTest {
                 new GeneratedArg(String.class, "this is a string")
         };
         NativeInstantiationImpl.createCollection(className, generatedArgs, NativeInstantiationImpl.J4rsCollectionType.Array);
+    }
+
+    @Test
+    public void createClassWithNeededArgsInHierarchy() throws Exception {
+        GeneratedArg[] generatedArgs = {
+                new GeneratedArg(ChildDummy.class, new ChildDummy())
+        };
+        NativeInstantiationImpl.CreatedInstance instance = NativeInstantiationImpl.createInstance(ClassWithDummyAtConstructor.class.getName(), generatedArgs);
+        assert (instance.getClazz().equals(ClassWithDummyAtConstructor.class));
     }
 }
