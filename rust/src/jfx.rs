@@ -15,6 +15,7 @@ use std::convert::TryFrom;
 use std::env;
 
 use crate::{Instance, InstanceReceiver, InvocationArg, Jvm, MavenArtifact};
+use crate::api::CLASS_J4RS_EVENT_HANDLER;
 use crate::errors;
 use crate::errors::J4RsError;
 
@@ -26,8 +27,16 @@ pub trait JavaFxSupport {
     fn start_javafx_app(&self) -> errors::Result<InstanceReceiver>;
     /// Deploys the required dependencies to run a JavaFX application in order to be able to be used by j4rs.
     fn deploy_javafx_dependencies(&self) -> errors::Result<()>;
-
+    /// Creates an instance receiver that will be receiving `Instance`s of events.
+    /// The method argument is the name of the method that sets a `javafx.event.EventHandler`.
+    ///
+    /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button', you need to call the method by using the button as the _instance_ argument
+    /// and "`setOnAction`" as the _method_ argument
     fn set_javafx_event_receiver(&self, instance: &Instance, method: &str) -> errors::Result<InstanceReceiver>;
+    /// Creates an instance receiver that will be receiving `Instance`s of events for onclose requests of a `Stage`.
+    ///
+    /// The instance passed as argument needs to be of class `javafx.stage.Stage`.
+    fn on_close_event_receiver(&self, stage: &Instance) -> errors::Result<InstanceReceiver>;
 }
 
 impl JavaFxSupport for Jvm {
@@ -43,11 +52,26 @@ impl JavaFxSupport for Jvm {
         self.invoke_to_channel(&fx_callback, "setCallbackToApplicationAndLaunch", &[])
     }
 
+    /// Creates an instance receiver that will be receiving `Instance`s of events.
+    /// The method argument is the name of the method that sets a `javafx.event.EventHandler`.
+    ///
+    /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button', you need to call the method by using the button as the _instance_ argument
+    /// and "`setOnAction`" as the _method_ argument
     fn set_javafx_event_receiver(&self, instance: &Instance, method: &str) -> errors::Result<InstanceReceiver> {
-        let j4rs_event_handler = self.create_instance("org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler", &[])?;
+        let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
         let btn_action_channel = self.init_callback_channel(&j4rs_event_handler)?;
         self.invoke(&instance, method, &[InvocationArg::try_from(j4rs_event_handler)?])?;
         Ok(btn_action_channel)
+    }
+
+    /// Creates an instance receiver that will be receiving `Instance`s of events for onclose requests of a `Stage`.
+    ///
+    /// The instance passed as argument needs to be of class `javafx.stage.Stage`.
+    fn on_close_event_receiver(&self, stage: &Instance) -> errors::Result<InstanceReceiver> {
+        let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
+        let action_channel = self.init_callback_channel(&j4rs_event_handler)?;
+        self.invoke(&stage, "setOnCloseRequest", &[InvocationArg::try_from(j4rs_event_handler)?])?;
+        Ok(action_channel)
     }
 
     /// Deploys the required dependencies to run a JavaFX application in order to be able to be used by j4rs.

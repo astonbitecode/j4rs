@@ -70,6 +70,7 @@ pub(crate) const CLASS_LONG: &'static str = "java.lang.Long";
 pub(crate) const CLASS_FLOAT: &'static str = "java.lang.Float";
 pub(crate) const CLASS_DOUBLE: &'static str = "java.lang.Double";
 pub(crate) const CLASS_LIST: &'static str = "java.util.List";
+pub(crate) const CLASS_J4RS_EVENT_HANDLER: &'static str = "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
 pub const _JNI_VERSION_10: jint = 0x000a0000;
 
 pub type Callback = fn(Jvm, Instance) -> ();
