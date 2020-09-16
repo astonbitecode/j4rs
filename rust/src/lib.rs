@@ -228,6 +228,30 @@ mod lib_unit_tests {
         }
     }
 
+    // #[test]
+    // #[ignore]
+    fn _memory_leaks_invoke_instances_to_channel() {
+        let jvm: Jvm = super::new_jvm(Vec::new(), Vec::new()).unwrap();
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MySecondTest", Vec::new().as_ref()) {
+            Ok(instance) => {
+                for i in 0..100000000 {
+                    let instance_receiver = jvm.invoke_to_channel(&instance, "performCallback", &[]).unwrap();
+                    let thousand_millis = time::Duration::from_millis(1000);
+                    let res = instance_receiver.rx().recv_timeout(thousand_millis);
+                    if i % 100000 == 0 {
+                        println!("{}: {}", i, res.is_ok());
+                    }
+                }
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+
+        let thousand_millis = time::Duration::from_millis(1000);
+        thread::sleep(thousand_millis);
+    }
+
     #[test]
     fn clone_instance() {
         let jvm: Jvm = super::new_jvm(vec![ClasspathEntry::new("onemore.jar")], Vec::new()).unwrap();

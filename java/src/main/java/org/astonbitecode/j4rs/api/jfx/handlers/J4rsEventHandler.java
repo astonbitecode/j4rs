@@ -19,13 +19,8 @@ import javafx.event.EventHandler;
 import org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport;
 
 public class J4rsEventHandler<T extends Event> extends NativeCallbackToRustChannelSupport implements EventHandler<T> {
-    public J4rsEventHandler() {
-        System.out.println("------NEW---");
-    }
-
     @Override
     public void handle(T event) {
-        System.out.println("---------");
         doCallback(event);
     }
 }

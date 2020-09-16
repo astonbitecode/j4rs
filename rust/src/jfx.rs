@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 // Copyright 2020 astonbitecode
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::env;
-use std::convert::TryFrom;
 
-use crate::{InstanceReceiver, Jvm, MavenArtifact, Instance, InvocationArg};
+use crate::{Instance, InstanceReceiver, InvocationArg, Jvm, MavenArtifact};
 use crate::errors;
 use crate::errors::J4RsError;
 
@@ -39,9 +39,8 @@ impl JavaFxSupport for Jvm {
         let fx_callback = self.create_instance(
             "org.astonbitecode.j4rs.api.jfx.FxApplicationStartCallback",
             &[])?;
-        let cb = self.init_callback_channel(&fx_callback)?;
-        self.invoke(&fx_callback, "setCallbackToApplicationAndLaunch", &[])?;
-        Ok(cb)
+
+        self.invoke_to_channel(&fx_callback, "setCallbackToApplicationAndLaunch", &[])
     }
 
     fn set_javafx_event_receiver(&self, instance: &Instance, method: &str) -> errors::Result<InstanceReceiver> {
@@ -88,8 +87,9 @@ fn maven(s: &str, jvm: &Jvm) {
 
 #[cfg(test)]
 mod api_unit_tests {
-    use super::*;
     use crate::JvmBuilder;
+
+    use super::*;
 
     #[test]
     #[should_panic]

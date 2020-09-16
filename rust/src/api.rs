@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fs, mem};
+use std::{fs, mem, thread, time};
 use std::any::Any;
 use std::convert::TryFrom;
 use std::env;
@@ -1013,6 +1013,44 @@ impl Jvm {
             }
         }
     }
+
+    /// Returns the first `Instance` that is available from the passed `InstanceReceiver`s,
+    /// along with the index of the receiver that was selected and actually returned the instance.
+    ///
+    /// This is a mostly naive implementation of select, because of [absence for selecting among mpsc channels](https://github.com/rust-lang/rust/issues/27800).
+    pub fn select(instance_receivers: &[&InstanceReceiver]) -> errors::Result<(usize, Instance)> {
+        loop {
+            for (index, ir) in instance_receivers.iter().enumerate() {
+                let res = ir.rx.try_recv();
+                if res.is_ok() {
+                    return Ok((index, res.unwrap()));
+                }
+            }
+            thread::yield_now();
+        }
+    }
+
+    /// Returns the first `Instance` that is available from the passed `InstanceReceiver`s,
+    /// along with the index of the receiver that was selected and actually returned the instance.
+    ///
+    /// If there are no instances returned for the duration defined in timeout argument, an error is returned.
+    ///
+    /// This is a mostly naive implementation of select, because of [absence for selecting among mpsc channels](https://github.com/rust-lang/rust/issues/27800).
+    pub fn select_timeout(instance_receivers: &[&InstanceReceiver], timeout: &time::Duration) -> errors::Result<(usize, Instance)> {
+        let start = time::Instant::now();
+        loop {
+            for (index, ir) in instance_receivers.iter().enumerate() {
+                let res = ir.rx.try_recv();
+                if res.is_ok() {
+                    return Ok((index, res.unwrap()));
+                }
+            }
+            if &start.elapsed() > timeout {
+                return Err(errors::J4RsError::Timeout);
+            }
+            thread::yield_now();
+        }
+    }
 }
 
 impl Drop for Jvm {
@@ -1739,11 +1777,13 @@ impl InstanceReceiver {
 
 impl Drop for InstanceReceiver {
     fn drop(&mut self) {
-        debug("Dropping an InstanceReceiver");
-        let p = self.tx_address as *mut Sender<Instance>;
-        unsafe {
-            let tx = Box::from_raw(p);
-            mem::drop(tx);
+        if self.tx_address > 0 {
+            debug("Dropping an InstanceReceiver");
+            let p = self.tx_address as *mut Sender<Instance>;
+            unsafe {
+                let tx = Box::from_raw(p);
+                mem::drop(tx);
+            }
         }
     }
 }
@@ -1867,7 +1907,7 @@ impl<'a> ChainableInstance<'a> {
 
     fn new_with_instance_ref(instance: &Instance, jvm: &'a Jvm) -> errors::Result<ChainableInstance<'a>> {
         let cloned = jvm.clone_instance(&instance)?;
-        Ok(ChainableInstance { instance:  cloned, jvm })
+        Ok(ChainableInstance { instance: cloned, jvm })
     }
 
     pub fn collect(self) -> Instance {
@@ -2018,6 +2058,56 @@ mod api_unit_tests {
         Jvm::copy_j4rs_libs_under(newdir).unwrap();
 
         let _ = fs_extra::remove_items(&vec![newdir]);
+    }
+
+    #[test]
+    fn test_select() {
+        let (tx1, rx1) = channel();
+        let ir1 = InstanceReceiver::new(rx1, 0);
+        let (_tx2, rx2) = channel();
+        let ir2 = InstanceReceiver::new(rx2, 0);
+        let (tx3, rx3) = channel();
+        let ir3 = InstanceReceiver::new(rx3, 0);
+
+        thread::spawn(move || {
+            let _ = tx3.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+            // Block the thread as sending does not block the current thread
+            thread::sleep(time::Duration::from_millis(10));
+            let _ = tx1.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+            thread::sleep(time::Duration::from_millis(10));
+            let _ = tx3.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+        });
+
+        let (index1, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
+        let (index2, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
+        let (index3, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
+        assert!(index1 == 2);
+        assert!(index2 == 0);
+        assert!(index3 == 2);
+    }
+
+    #[test]
+    fn test_select_timeout() {
+        let (tx1, rx1) = channel();
+        let ir1 = InstanceReceiver::new(rx1, 0);
+        let (tx2, rx2) = channel();
+        let ir2 = InstanceReceiver::new(rx2, 0);
+
+        thread::spawn(move || {
+            let _ = tx1.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+            // Block the thread as sending does not block the current thread
+            thread::sleep(time::Duration::from_millis(10));
+            let _ = tx2.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+        });
+
+        let d = time::Duration::from_millis(500);
+        let (index1, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
+        let (index2, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
+        assert!(Jvm::select_timeout(&[&ir1, &ir2], &d).is_err());
+        dbg!(index1);
+        dbg!(index2);
+        assert!(index1 == 0);
+        assert!(index2 == 1);
     }
 
     fn validate_type(ia: InvocationArg, class: &str) {

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{fmt, result};
 use std::convert::Infallible;
 use std::error::Error;
 use std::ffi::NulError;
 use std::io;
 use std::sync::{PoisonError, TryLockError};
-use std::{fmt, result};
 
 use fs_extra;
 use serde_json;
@@ -46,6 +46,7 @@ pub enum J4RsError {
     JniError(String),
     RustError(String),
     ParseError(String),
+    Timeout,
 }
 
 impl fmt::Display for J4RsError {
@@ -56,6 +57,7 @@ impl fmt::Display for J4RsError {
             &J4RsError::JniError(ref message) => write!(f, "{}", message),
             &J4RsError::RustError(ref message) => write!(f, "{}", message),
             &J4RsError::ParseError(ref message) => write!(f, "{}", message),
+            &J4RsError::Timeout => write!(f, "Timeout"),
         }
     }
 }
@@ -68,6 +70,7 @@ impl Error for J4RsError {
             J4RsError::JniError(_) => "A JNI error occured",
             J4RsError::RustError(_) => "An error coming from Rust occured",
             J4RsError::ParseError(_) => "A parsing error occured",
+            J4RsError::Timeout => "Timeout",
         }
     }
 }
