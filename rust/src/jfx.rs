@@ -83,7 +83,7 @@ impl JavaFxSupport for Jvm {
                 return Ok(());
             }
 
-            println!("cargo:warning=Downloading javafx dependencies from Maven...");
+            println!("cargo:warning=javafx dependencies deployment...");
             maven("org.openjfx:javafx-base:13.0.2", self);
             maven(&format!("org.openjfx:javafx-base:13.0.2:{}", target_os), self);
             maven("org.openjfx:javafx-controls:13.0.2", self);
@@ -94,6 +94,7 @@ impl JavaFxSupport for Jvm {
             maven(&format!("org.openjfx:javafx-graphics:13.0.2:{}", target_os), self);
             maven("org.openjfx:javafx-media:13.0.2", self);
             maven(&format!("org.openjfx:javafx-media:13.0.2:{}", target_os), self);
+            println!("cargo:warning=javafx dependencies deployment completed...");
 
             Ok(())
         } else {
