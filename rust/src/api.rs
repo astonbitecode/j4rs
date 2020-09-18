@@ -559,6 +559,12 @@ impl Jvm {
             })
         }
     }
+    /// Retrieves the field `field_name` of a static class.
+    pub fn static_class_field(&self, class_name: &str, field_name: &str) -> errors::Result<Instance> {
+        debug(&format!("Retrieving field {} of static class {}", field_name, class_name));
+        let i = self.static_class(class_name)?;
+        self.field(&i, &field_name)
+    }
 
     /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
     /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`. The result of the invocation will come via this Receiver.
