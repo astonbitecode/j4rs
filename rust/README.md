@@ -346,6 +346,9 @@ fn my_function_with_no_args() {
 
 For a complete example, please have a look [here](https://github.com/astonbitecode/j4rs-java-call-rust).
 
+*Note: JNI is used behind the scenes, so, any [conventions in naming](https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/design.html#wp133) that hold for JNI, should hold for `j4rs` too. 
+For example, underscores (`_`) should be escaped and become `_1` in the `call_from_java` definition.* 
+
 ## Licence
 
 At your option, under: 
