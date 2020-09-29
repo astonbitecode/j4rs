@@ -10,7 +10,7 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
 # Info
 
 `j4rs` focused solely in facilitating Rust applications in making calls to Java code 
-by [allowing]((#Basics)) JVM creation and manipulation from the Rust code, efortless Java method invocations,
+by [allowing]((#Basics)) JVM creation and manipulation from the Rust code, effortless Java method invocations,
 Java libraries [provisioning via Maven](#Using-Maven-artifacts) and [more](#Features).
 
 This has changed since release 0.12.0. 
