@@ -71,6 +71,8 @@ pub(crate) const CLASS_FLOAT: &'static str = "java.lang.Float";
 pub(crate) const CLASS_DOUBLE: &'static str = "java.lang.Double";
 pub(crate) const CLASS_LIST: &'static str = "java.util.List";
 pub(crate) const CLASS_J4RS_EVENT_HANDLER: &'static str = "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
+pub(crate) const CLASS_J4RS_FX_CONTROLLER: &'static str = "org.astonbitecode.j4rs.api.jfx.controllers.FxController";
+pub(crate) const CLASS_J4RS_FXML_LOADER: &'static str = "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
 pub const _JNI_VERSION_10: jint = 0x000a0000;
 
 pub type Callback = fn(Jvm, Instance) -> ();

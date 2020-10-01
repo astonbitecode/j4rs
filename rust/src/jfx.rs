@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 // Copyright 2020 astonbitecode
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,10 +15,12 @@ use std::convert::TryFrom;
 use std::env;
 
 use crate::{Instance, InstanceReceiver, InvocationArg, Jvm, MavenArtifact};
-use crate::api::CLASS_J4RS_EVENT_HANDLER;
+use crate::api::{CLASS_J4RS_EVENT_HANDLER, CLASS_J4RS_FXML_LOADER};
 use crate::errors;
-use crate::errors::J4RsError;
+use crate::errors::{J4RsError, opt_to_res};
+use std::path::PathBuf;
 
+/// Provides JavaFx support.
 pub trait JavaFxSupport {
     /// Triggers the start of a JavaFX application.
     /// When the JavaFX application starts, the `InstanceReceiver` channel will receive an Instance of `javafx.stage.Stage`.
@@ -37,6 +39,8 @@ pub trait JavaFxSupport {
     ///
     /// The instance passed as argument needs to be of class `javafx.stage.Stage`.
     fn on_close_event_receiver(&self, stage: &Instance) -> errors::Result<InstanceReceiver>;
+    /// Loads a FXML and returns a Result of a FxController for it.
+    fn load_fxml(&self, path: &PathBuf, stage: &Instance) -> errors::Result<FxController>;
 }
 
 impl JavaFxSupport for Jvm {
@@ -101,6 +105,16 @@ impl JavaFxSupport for Jvm {
             Err(J4RsError::GeneralError("deploy_javafx_dependencies can be used only during build time. It should be called by a build script.".to_string()))
         }
     }
+
+    fn load_fxml(&self, path: &PathBuf, stage: &Instance) -> errors::Result<FxController> {
+        let cloned = self.clone_instance(&stage)?;
+        let path_str = opt_to_res(path.to_str())?;
+        let controller = self.invoke_static(
+            CLASS_J4RS_FXML_LOADER,
+            "loadFxml",
+            &[cloned.try_into()?, path_str.try_into()?])?;
+        Ok(FxController::new(controller))
+    }
 }
 
 fn maven(s: &str, jvm: &Jvm) {
@@ -108,6 +122,16 @@ fn maven(s: &str, jvm: &Jvm) {
     let _ = jvm.deploy_artifact(&artifact).map_err(|error| {
         println!("cargo:warning=Could not download Maven artifact {}: {:?}", s, error);
     });
+}
+
+pub struct FxController {
+    controller: Instance
+}
+
+impl FxController {
+    fn new(controller: Instance) -> FxController {
+        FxController { controller }
+    }
 }
 
 #[cfg(test)]

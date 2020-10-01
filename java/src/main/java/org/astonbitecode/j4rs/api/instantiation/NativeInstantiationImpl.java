@@ -44,7 +44,7 @@ public class NativeInstantiationImpl {
     public static Instance createForStatic(String className) {
         try {
             Class<?> clazz = Utils.forNameEnhanced(className);
-            return new JsonInvocationImpl(clazz);
+            return InstanceGenerator.create(clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create instance of " + className, error);
         }

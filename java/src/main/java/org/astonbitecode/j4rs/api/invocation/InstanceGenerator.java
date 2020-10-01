@@ -22,7 +22,7 @@ import java.util.List;
 public class InstanceGenerator {
     public static <T> Instance<T> create(T instance, Class<T> clazz, List<Type> classGenTypes) {
         JsonInvocationImpl<T> jsonInvocation = new JsonInvocationImpl<T>(instance, clazz, classGenTypes);
-        if (jsonInvocation.getObjectClass().getName().startsWith("javafx")) {
+        if (shouldRunInFxThread(jsonInvocation.getObjectClass())) {
             return new JavaFxInvocation<T>(jsonInvocation);
         } else {
             return jsonInvocation;
@@ -31,10 +31,25 @@ public class InstanceGenerator {
 
     public static <T> Instance<T> create(T instance, Class clazz) {
         JsonInvocationImpl<T> jsonInvocation = new JsonInvocationImpl<T>(instance, clazz);
-        if (clazz.getName().startsWith("javafx")) {
+        if (shouldRunInFxThread(jsonInvocation.getObjectClass())) {
             return new JavaFxInvocation<T>(jsonInvocation);
         } else {
             return jsonInvocation;
         }
+    }
+
+    public static <T> Instance<T> create(Class clazz) {
+        JsonInvocationImpl<T> jsonInvocation = new JsonInvocationImpl(clazz);
+        if (shouldRunInFxThread(jsonInvocation.getObjectClass())) {
+            return new JavaFxInvocation<T>(jsonInvocation);
+        } else {
+            return jsonInvocation;
+        }
+    }
+
+    private static boolean shouldRunInFxThread(Class<?> clazz) {
+        String className = clazz.getName();
+        return className.startsWith("javafx") ||
+                (className.startsWith("org.astonbitecode.j4rs.api.jfx") && !className.startsWith("org.astonbitecode.j4rs.api.jfx.FxApplication"));
     }
 }
