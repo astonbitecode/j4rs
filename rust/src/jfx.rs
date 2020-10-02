@@ -30,11 +30,12 @@ pub trait JavaFxSupport {
     /// Deploys the required dependencies to run a JavaFX application in order to be able to be used by j4rs.
     fn deploy_javafx_dependencies(&self) -> errors::Result<()>;
     /// Creates an instance receiver that will be receiving `Instance`s of events.
-    /// The method argument is the name of the method that sets a `javafx.event.EventHandler`.
+    /// The fx_event_type argument is the type of the event that we want to handle and receive Instances for.
     ///
-    /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button', you need to call the method by using the button as the _instance_ argument
-    /// and "`setOnAction`" as the _method_ argument
-    fn set_javafx_event_receiver(&self, instance: &Instance, method: &str) -> errors::Result<InstanceReceiver>;
+    /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button',
+    /// you need to call the method by using the button as the _instance_ argument
+    /// `FxEventType::ActionEvent_Action` as the fx_event_type argument
+    fn get_javafx_event_receiver(&self, instance: &Instance, fx_event_type: FxEventType) -> errors::Result<InstanceReceiver>;
     /// Creates an instance receiver that will be receiving `Instance`s of events for onclose requests of a `Stage`.
     ///
     /// The instance passed as argument needs to be of class `javafx.stage.Stage`.
@@ -57,14 +58,19 @@ impl JavaFxSupport for Jvm {
     }
 
     /// Creates an instance receiver that will be receiving `Instance`s of events.
-    /// The method argument is the name of the method that sets a `javafx.event.EventHandler`.
+    /// The fx_event_type argument is the type of the event that we want to handle and receive Instances for.
     ///
-    /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button', you need to call the method by using the button as the _instance_ argument
-    /// and "`setOnAction`" as the _method_ argument
-    fn set_javafx_event_receiver(&self, instance: &Instance, method: &str) -> errors::Result<InstanceReceiver> {
+    /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button',
+    /// you need to call the method by using the button as the _instance_ argument
+    /// `FxEventType::ActionEvent_Action` as the fx_event_type argument
+    fn get_javafx_event_receiver(&self, instance: &Instance, fx_event_type: FxEventType) -> errors::Result<InstanceReceiver> {
         let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
         let btn_action_channel = self.init_callback_channel(&j4rs_event_handler)?;
-        self.invoke(&instance, method, &[InvocationArg::try_from(j4rs_event_handler)?])?;
+
+        let (event_class, field) = fx_event_type_to_event_class_and_field(fx_event_type);
+        let event_type_instance = self.static_class_field(&event_class, &field)?;
+
+        self.invoke(&instance, "addEventHandler", &[event_type_instance.try_into()?, j4rs_event_handler.try_into()?])?;
         Ok(btn_action_channel)
     }
 
