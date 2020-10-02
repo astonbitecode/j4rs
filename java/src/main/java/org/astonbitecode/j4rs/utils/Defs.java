@@ -15,4 +15,5 @@
 package org.astonbitecode.j4rs.utils;
 
 public class Defs {
+
 }

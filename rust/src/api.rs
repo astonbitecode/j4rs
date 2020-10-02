@@ -70,8 +70,8 @@ pub(crate) const CLASS_LONG: &'static str = "java.lang.Long";
 pub(crate) const CLASS_FLOAT: &'static str = "java.lang.Float";
 pub(crate) const CLASS_DOUBLE: &'static str = "java.lang.Double";
 pub(crate) const CLASS_LIST: &'static str = "java.util.List";
+pub(crate) const CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT: &'static str = "org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport";
 pub(crate) const CLASS_J4RS_EVENT_HANDLER: &'static str = "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
-pub(crate) const CLASS_J4RS_FX_CONTROLLER: &'static str = "org.astonbitecode.j4rs.api.jfx.controllers.FxController";
 pub(crate) const CLASS_J4RS_FXML_LOADER: &'static str = "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
 pub const _JNI_VERSION_10: jint = 0x000a0000;
 
@@ -187,7 +187,7 @@ impl Jvm {
             if let Some(libname) = lib_name_to_load {
                 // Pass to the Java world the name of the j4rs library.
                 debug(&format!("Initializing NativeCallbackSupport with libname {}", libname));
-                jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport",
+                jvm.invoke_static(CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT,
                                   "initialize",
                                   &vec![InvocationArg::try_from(libname)?])?;
                 debug("NativeCallbackSupport initialized");

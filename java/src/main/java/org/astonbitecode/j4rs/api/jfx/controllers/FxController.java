@@ -14,6 +14,9 @@
  */
 package org.astonbitecode.j4rs.api.jfx.controllers;
 
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.event.EventType;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -23,19 +26,23 @@ import org.astonbitecode.j4rs.api.jfx.errors.ComponentNotFoundException;
 public interface FxController extends Initializable {
     /**
      * This will be called when the initialize method of {@link Initializable} is called.
+     *
      * @param callback The callback to add.
      */
     void addControllerInitializedCallback(NativeCallbackToRustChannelSupport callback);
 
     /**
-     * Add a callback for an {@link javafx.event.ActionEvent} that comes from a component with a specific id.
-     * @param id The id of the callback.
-     * @param callback The callback to add.
+     * Add a handler for an {@link javafx.event.ActionEvent} that comes from a component with a specific id.
+     *
+     * @param id        The id of the callback.
+     * @param handler   The handler to add.
+     * @param eventType The EventType for Event to handle.
      */
-    void addActionEventCallback(String id, NativeCallbackToRustChannelSupport callback);
+    void addEventHandler(String id, EventHandler<Event> handler, EventType<?> eventType) throws ComponentNotFoundException;
 
     /**
      * Retrieves a node given its ID.
+     *
      * @param id The id of the node to retrieve.
      * @return The {@link Node} found.
      * @throws ComponentNotFoundException In case that the node is not found.
@@ -44,6 +51,7 @@ public interface FxController extends Initializable {
 
     /**
      * Sets a scene for this controller.
+     *
      * @param scene The scene to set.
      */
     void setScene(Scene scene);

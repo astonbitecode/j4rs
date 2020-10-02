@@ -18,6 +18,7 @@ use std::error::Error;
 use std::ffi::NulError;
 use std::io;
 use std::sync::{PoisonError, TryLockError};
+use std::sync::mpsc::RecvError;
 
 use fs_extra;
 use serde_json;
@@ -113,6 +114,12 @@ impl<T> From<PoisonError<T>> for J4RsError {
 
 impl From<Infallible> for J4RsError {
     fn from(err: Infallible) -> J4RsError {
+        J4RsError::RustError(format!("{:?}", err))
+    }
+}
+
+impl From<RecvError> for J4RsError {
+    fn from(err: RecvError) -> J4RsError {
         J4RsError::RustError(format!("{:?}", err))
     }
 }
