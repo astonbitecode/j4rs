@@ -1,4 +1,3 @@
-use std::convert::{TryFrom, TryInto};
 // Copyright 2020 astonbitecode
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +12,7 @@ use std::convert::{TryFrom, TryInto};
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::env;
+use std::convert::{TryFrom, TryInto};
 use std::path::PathBuf;
 
 use crate::{Instance, InstanceReceiver, InvocationArg, Jvm, MavenArtifact};
