@@ -14,7 +14,6 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
-import javafx.scene.layout.StackPane;
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.utils.ChildDummy;
 import org.junit.Test;
@@ -24,8 +23,5 @@ public class InstanceGeneratorTest {
     public void generateCorrectImpl() {
         Instance<?> nonJavaFxInstance = InstanceGenerator.create(new ChildDummy(), ChildDummy.class);
         assert (nonJavaFxInstance.getClass().equals(JsonInvocationImpl.class));
-
-        Instance<?> javaFxInstance = InstanceGenerator.create(new StackPane(), StackPane.class);
-        assert (javaFxInstance.getClass().equals(JavaFxInvocation.class));
     }
 }

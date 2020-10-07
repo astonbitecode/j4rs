@@ -15,6 +15,7 @@
 package org.astonbitecode.j4rs.api.instantiation;
 
 import java8.util.J8Arrays;
+import java8.util.stream.Collectors;
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
@@ -28,9 +29,6 @@ import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import java8.util.J8Arrays;
 
 public class NativeInstantiationImpl {
     static InvocationArgGenerator gen = new InvocationArgGenerator();
@@ -87,7 +85,7 @@ public class NativeInstantiationImpl {
     }
 
     private static Constructor<?> findConstructor(Class clazz, Class[] argTypes) throws NoSuchMethodException {
-        List<Constructor> found = Arrays.stream(clazz.getConstructors())
+        List<Constructor> found = J8Arrays.stream(clazz.getConstructors())
                 // Match the params number
                 .filter(constructor -> constructor.getGenericParameterTypes().length == argTypes.length)
                 .filter(constructor -> {

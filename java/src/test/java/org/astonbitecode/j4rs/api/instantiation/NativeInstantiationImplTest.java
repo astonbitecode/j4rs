@@ -14,8 +14,6 @@
  */
 package org.astonbitecode.j4rs.api.instantiation;
 
-import javafx.scene.Scene;
-import javafx.scene.layout.StackPane;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
