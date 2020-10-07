@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 astonbitecode
+ * Copyright 2020 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,8 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.utils;
+package org.astonbitecode.j4rs.api.jfx.handlers;
 
-public class Defs {
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport;
 
+public class J4rsEventHandler<T extends Event> extends NativeCallbackToRustChannelSupport implements EventHandler<T> {
+    @Override
+    public void handle(T event) {
+        doCallback(event);
+    }
 }

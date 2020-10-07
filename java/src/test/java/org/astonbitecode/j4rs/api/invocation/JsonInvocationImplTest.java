@@ -226,4 +226,12 @@ public class JsonInvocationImplTest {
             assert (true);
         }
     }
+
+    @Test
+    public void invokeMethodWithArgumentOfSubclassType() {
+        Instance instance = new JsonInvocationImpl(new ClassWithDummyAtConstructor(new ChildDummy()), ClassWithDummyAtConstructor.class);
+
+        Instance otherChildDummyInstance = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
+        instance.invoke("replaceDummy", new InvocationArg(otherChildDummyInstance));
+    }
 }

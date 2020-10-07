@@ -39,7 +39,7 @@ public class NativeCallbackSupport {
      */
     protected void doCallback(Object obj) {
         if (functionPointerOpt.isPresent() && obj != null) {
-            docallback(functionPointerOpt.get().getAddress(), new JsonInvocationImpl(obj, obj.getClass()));
+            docallback(functionPointerOpt.get().getAddress(), InstanceGenerator.create(obj, obj.getClass()));
         } else {
             throw new InvocationException("Cannot do callback. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackSupport)");
         }

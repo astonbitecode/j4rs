@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 astonbitecode
+ * Copyright 2020 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,8 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.utils;
+package org.astonbitecode.j4rs.api.jfx;
 
-public class Defs {
+import javafx.application.Application;
+import org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport;
+
+public class FxApplicationStartCallback extends NativeCallbackToRustChannelSupport {
+    public void setCallbackToApplicationAndLaunch() {
+        FxApplication.setCallback(this);
+        new Thread(() -> Application.launch(FxApplication.class)).start();
+    }
 
 }

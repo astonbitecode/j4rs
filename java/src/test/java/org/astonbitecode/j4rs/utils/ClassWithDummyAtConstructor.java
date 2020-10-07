@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 astonbitecode
+ * Copyright 2020 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,6 +14,14 @@
  */
 package org.astonbitecode.j4rs.utils;
 
-public class Defs {
+public class ClassWithDummyAtConstructor {
+    private Dummy d;
 
+    public ClassWithDummyAtConstructor(Dummy d) {
+        this.d = d;
+    }
+
+    public void replaceDummy(Dummy d) {
+        this.d = d;
+    }
 }

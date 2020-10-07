@@ -29,7 +29,7 @@ public class NativeCallbackToRustChannelSupport {
     static void initialize(String libname) {
         try {
             System.loadLibrary(libname);
-        } catch(UnsatisfiedLinkError error) {
+        } catch (UnsatisfiedLinkError error) {
             System.err.println("The Callbacks are not initialized because the j4rs lib was not found. You may ignore this error if you don't use callbacks.");
             error.printStackTrace();
         }
@@ -42,7 +42,7 @@ public class NativeCallbackToRustChannelSupport {
      */
     public void doCallback(Object obj) {
         if (channelPointerOpt != null && obj != null) {
-            docallbacktochannel(channelPointerOpt.getAddress(), new JsonInvocationImpl(obj, obj.getClass()));
+            docallbacktochannel(channelPointerOpt.getAddress(), InstanceGenerator.create(obj, obj.getClass()));
         } else {
             throw new InvocationException("Cannot do callback. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackSupport)");
         }

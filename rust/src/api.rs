@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fs, mem};
+use std::{fs, mem, thread, time};
 use std::any::Any;
 use std::convert::TryFrom;
+use std::env;
 use std::ops::Drop;
 use std::os::raw::c_void;
-use std::path::{Path, PathBuf};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -69,6 +70,9 @@ pub(crate) const CLASS_LONG: &'static str = "java.lang.Long";
 pub(crate) const CLASS_FLOAT: &'static str = "java.lang.Float";
 pub(crate) const CLASS_DOUBLE: &'static str = "java.lang.Double";
 pub(crate) const CLASS_LIST: &'static str = "java.util.List";
+pub(crate) const CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT: &'static str = "org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport";
+pub(crate) const CLASS_J4RS_EVENT_HANDLER: &'static str = "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
+pub(crate) const CLASS_J4RS_FXML_LOADER: &'static str = "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
 pub const _JNI_VERSION_10: jint = 0x000a0000;
 
 pub type Callback = fn(Jvm, Instance) -> ();
@@ -182,7 +186,7 @@ impl Jvm {
             if let Some(libname) = lib_name_to_load {
                 // Pass to the Java world the name of the j4rs library.
                 debug(&format!("Initializing NativeCallbackSupport with libname {}", libname));
-                jvm.invoke_static("org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport",
+                jvm.invoke_static(CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT,
                                   "initialize",
                                   &vec![InvocationArg::try_from(libname)?])?;
                 debug("NativeCallbackSupport initialized");
@@ -201,6 +205,8 @@ impl Jvm {
             let _ = cache::get_jni_get_string_utf_chars().or_else(|| cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars));
             let _ = cache::get_jni_release_string_utf_chars().or_else(|| cache::set_jni_release_string_utf_chars((**jni_environment).ReleaseStringUTFChars));
             let _ = cache::get_jni_call_object_method().or_else(|| cache::set_jni_call_object_method((**jni_environment).CallObjectMethod));
+            let _ = cache::get_jni_call_float_method().or_else(|| cache::set_jni_call_float_method((**jni_environment).CallFloatMethod));
+            let _ = cache::get_jni_call_double_method().or_else(|| cache::set_jni_call_double_method((**jni_environment).CallDoubleMethod));
             let _ = cache::get_jni_call_void_method().or_else(|| cache::set_jni_call_void_method((**jni_environment).CallVoidMethod));
             let _ = cache::get_jni_call_static_object_method().or_else(|| cache::set_jni_call_static_object_method((**jni_environment).CallStaticObjectMethod));
             let _ = cache::get_jni_new_object_array().or_else(|| cache::set_jni_new_object_array((**jni_environment).NewObjectArray));
@@ -554,6 +560,12 @@ impl Jvm {
             })
         }
     }
+    /// Retrieves the field `field_name` of a static class.
+    pub fn static_class_field(&self, class_name: &str, field_name: &str) -> errors::Result<Instance> {
+        debug(&format!("Retrieving field {} of static class {}", field_name, class_name));
+        let i = self.static_class(class_name)?;
+        self.field(&i, &field_name)
+    }
 
     /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
     /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`. The result of the invocation will come via this Receiver.
@@ -624,6 +636,9 @@ impl Jvm {
         }
     }
 
+    /// Initializes a callback channel via a Java Instance that is a `NativeCallbackToRustChannelSupport`.
+    /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`.
+    /// The `NativeCallbackToRustChannelSupport` Instance which is passed as argument, will be sending `Instance`s via this Receiver.
     pub fn init_callback_channel(&self, instance: &Instance) -> errors::Result<InstanceReceiver> {
         debug(&format!("Initializing callback channel"));
         unsafe {
@@ -806,6 +821,10 @@ impl Jvm {
                 rust_box_from_java_object!(jni_utils::i32_from_jobject)
             } else if jni_utils::is_same_object(object_class_instance, cache::get_long_class()?, self.jni_env)? {
                 rust_box_from_java_object!(jni_utils::i64_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_float_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::f32_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_double_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::f64_from_jobject)
             } else {
                 Ok(Box::new(self.to_rust_deserialized(instance)?))
             };
@@ -908,7 +927,12 @@ impl Jvm {
     }
 
     /// Initiates a chain of operations on Instances.
-    pub fn chain(&self, instance: Instance) -> ChainableInstance {
+    pub fn chain(&self, instance: &Instance) -> errors::Result<ChainableInstance> {
+        ChainableInstance::new_with_instance_ref(&instance, &self)
+    }
+
+    /// Initiates a chain of operations on Instances.
+    pub fn into_chain(&self, instance: Instance) -> ChainableInstance {
         ChainableInstance::new(instance, &self)
     }
 
@@ -997,6 +1021,44 @@ impl Jvm {
             }
         }
     }
+
+    /// Returns the first `Instance` that is available from the passed `InstanceReceiver`s,
+    /// along with the index of the receiver that was selected and actually returned the instance.
+    ///
+    /// This is a mostly naive implementation of select, because of [absence for selecting among mpsc channels](https://github.com/rust-lang/rust/issues/27800).
+    pub fn select(instance_receivers: &[&InstanceReceiver]) -> errors::Result<(usize, Instance)> {
+        loop {
+            for (index, ir) in instance_receivers.iter().enumerate() {
+                let res = ir.rx.try_recv();
+                if res.is_ok() {
+                    return Ok((index, res.unwrap()));
+                }
+            }
+            thread::yield_now();
+        }
+    }
+
+    /// Returns the first `Instance` that is available from the passed `InstanceReceiver`s,
+    /// along with the index of the receiver that was selected and actually returned the instance.
+    ///
+    /// If there are no instances returned for the duration defined in timeout argument, an error is returned.
+    ///
+    /// This is a mostly naive implementation of select, because of [absence for selecting among mpsc channels](https://github.com/rust-lang/rust/issues/27800).
+    pub fn select_timeout(instance_receivers: &[&InstanceReceiver], timeout: &time::Duration) -> errors::Result<(usize, Instance)> {
+        let start = time::Instant::now();
+        loop {
+            for (index, ir) in instance_receivers.iter().enumerate() {
+                let res = ir.rx.try_recv();
+                if res.is_ok() {
+                    return Ok((index, res.unwrap()));
+                }
+            }
+            if &start.elapsed() > timeout {
+                return Err(errors::J4RsError::Timeout);
+            }
+            thread::yield_now();
+        }
+    }
 }
 
 impl Drop for Jvm {
@@ -1020,6 +1082,7 @@ pub struct JvmBuilder<'a> {
     skip_setting_native_lib: bool,
     base_path: Option<String>,
     maven_settings: MavenSettings,
+    javafx: bool,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1034,6 +1097,7 @@ impl<'a> JvmBuilder<'a> {
             skip_setting_native_lib: false,
             base_path: None,
             maven_settings: MavenSettings::default(),
+            javafx: false,
         }
     }
 
@@ -1111,8 +1175,14 @@ impl<'a> JvmBuilder<'a> {
         self
     }
 
+    /// Adds JavaFX support to the created JVM
+    pub fn with_javafx_support(&'a mut self) -> &'a mut JvmBuilder {
+        self.javafx = true;
+        self
+    }
+
     /// Creates a Jvm
-    pub fn build(&self) -> errors::Result<Jvm> {
+    pub fn build(&mut self) -> errors::Result<Jvm> {
         let classpath = if self.no_implicit_classpath {
             self.classpath_entries
                 .iter()
@@ -1123,23 +1193,15 @@ impl<'a> JvmBuilder<'a> {
                     })
         } else {
             // The default classpath contains all the jars in the jassets directory
-            let jassets_path = match &self.base_path {
-                Some(base_path_string) => {
-                    let mut pb = PathBuf::from(base_path_string);
-                    pb.push("jassets");
-                    let mut global_jassets_path_opt = cache::JASSETS_PATH.lock()?;
-                    *global_jassets_path_opt = Some(pb.clone());
-                    pb
-                }
-                None => utils::default_jassets_path()?,
-            };
+            let jassets_path = self.get_jassets_path()?;
             let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath
             let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
             // Filter out possible incorrect jars of j4rs
             let filtered_jars: Vec<String> = all_jars.into_iter()
-                .filter(|jar| {
-                    !jar.contains("j4rs-") || jar.ends_with(&j4rs_jar_to_use)
+                .filter(|jar_full_path| {
+                    let jarname = jar_full_path.split(MAIN_SEPARATOR).last().unwrap_or(jar_full_path);
+                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use)
                 })
                 .collect();
             let cp_string = filtered_jars.join(utils::classpath_sep());
@@ -1164,6 +1226,14 @@ impl<'a> JvmBuilder<'a> {
             info(&format!("Setting library path to {}", default_library_path));
             vec![classpath, default_library_path]
         };
+
+        if self.javafx {
+            let jassets_path = self.get_jassets_path()?;
+            let jassets_path_string = jassets_path.to_str().unwrap_or(".");
+            let modules_path = format!("--module-path {}", jassets_path_string);
+            jvm_options.push(modules_path);
+            jvm_options.push("--add-modules javafx.base,javafx.controls,javafx.graphics,javafx.fxml".to_string());
+        }
         self.java_opts.clone().into_iter().for_each(|opt| jvm_options.push(opt.to_string()));
 
         // Pass to the Java world the name of the j4rs library.
@@ -1218,6 +1288,19 @@ impl<'a> JvmBuilder<'a> {
     /// _Note: The already created Jvm is a j4rs Jvm, not a Java VM._
     pub fn already_initialized() -> errors::Result<Jvm> {
         Jvm::new(&[], None)
+    }
+
+    fn get_jassets_path(&self) -> errors::Result<PathBuf> {
+        match &self.base_path {
+            Some(base_path_string) => {
+                let mut pb = PathBuf::from(base_path_string);
+                pb.push("jassets");
+                let mut global_jassets_path_opt = cache::JASSETS_PATH.lock()?;
+                *global_jassets_path_opt = Some(pb.clone());
+                Ok(pb)
+            }
+            None => utils::default_jassets_path(),
+        }
     }
 }
 
@@ -1290,6 +1373,18 @@ impl InvocationArg {
         } else if let Some(a) = arg_any.downcast_ref::<i64>() {
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(jni_utils::global_jobject_from_i64(a, jni_env)?, class_name)?,
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
+        } else if let Some(a) = arg_any.downcast_ref::<f32>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_f32(a, jni_env)?, class_name)?,
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
+        } else if let Some(a) = arg_any.downcast_ref::<f64>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(jni_utils::global_jobject_from_f64(a, jni_env)?, class_name)?,
                 class_name: class_name.to_string(),
                 serialized: false,
             })
@@ -1690,11 +1785,13 @@ impl InstanceReceiver {
 
 impl Drop for InstanceReceiver {
     fn drop(&mut self) {
-        debug("Dropping an InstanceReceiver");
-        let p = self.tx_address as *mut Sender<Instance>;
-        unsafe {
-            let tx = Box::from_raw(p);
-            mem::drop(tx);
+        if self.tx_address > 0 {
+            debug("Dropping an InstanceReceiver");
+            let p = self.tx_address as *mut Sender<Instance>;
+            unsafe {
+                let tx = Box::from_raw(p);
+                mem::drop(tx);
+            }
         }
     }
 }
@@ -1814,6 +1911,11 @@ pub struct ChainableInstance<'a> {
 impl<'a> ChainableInstance<'a> {
     fn new(instance: Instance, jvm: &'a Jvm) -> ChainableInstance {
         ChainableInstance { instance, jvm }
+    }
+
+    fn new_with_instance_ref(instance: &Instance, jvm: &'a Jvm) -> errors::Result<ChainableInstance<'a>> {
+        let cloned = jvm.clone_instance(&instance)?;
+        Ok(ChainableInstance { instance: cloned, jvm })
     }
 
     pub fn collect(self) -> Instance {
@@ -1964,6 +2066,56 @@ mod api_unit_tests {
         Jvm::copy_j4rs_libs_under(newdir).unwrap();
 
         let _ = fs_extra::remove_items(&vec![newdir]);
+    }
+
+    #[test]
+    fn test_select() {
+        let (tx1, rx1) = channel();
+        let ir1 = InstanceReceiver::new(rx1, 0);
+        let (_tx2, rx2) = channel();
+        let ir2 = InstanceReceiver::new(rx2, 0);
+        let (tx3, rx3) = channel();
+        let ir3 = InstanceReceiver::new(rx3, 0);
+
+        thread::spawn(move || {
+            let _ = tx3.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+            // Block the thread as sending does not block the current thread
+            thread::sleep(time::Duration::from_millis(10));
+            let _ = tx1.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+            thread::sleep(time::Duration::from_millis(10));
+            let _ = tx3.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+        });
+
+        let (index1, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
+        let (index2, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
+        let (index3, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
+        assert!(index1 == 2);
+        assert!(index2 == 0);
+        assert!(index3 == 2);
+    }
+
+    #[test]
+    fn test_select_timeout() {
+        let (tx1, rx1) = channel();
+        let ir1 = InstanceReceiver::new(rx1, 0);
+        let (tx2, rx2) = channel();
+        let ir2 = InstanceReceiver::new(rx2, 0);
+
+        thread::spawn(move || {
+            let _ = tx1.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+            // Block the thread as sending does not block the current thread
+            thread::sleep(time::Duration::from_millis(10));
+            let _ = tx2.send(Instance::new(ptr::null_mut(), CLASS_STRING).unwrap());
+        });
+
+        let d = time::Duration::from_millis(500);
+        let (index1, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
+        let (index2, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
+        assert!(Jvm::select_timeout(&[&ir1, &ir2], &d).is_err());
+        dbg!(index1);
+        dbg!(index2);
+        assert!(index1 == 0);
+        assert!(index2 == 1);
     }
 
     fn validate_type(ia: InvocationArg, class: &str) {

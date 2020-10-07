@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 astonbitecode
+ * Copyright 2020 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,8 +12,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.utils;
+package org.astonbitecode.j4rs.api.jfx.errors;
 
-public class Defs {
+public class ComponentNotFoundException extends Exception {
+    public ComponentNotFoundException(String message) {
+        super(message);
+    }
 
+    public ComponentNotFoundException(Throwable throwable) {
+        super(throwable);
+    }
+
+    public ComponentNotFoundException(String message, Throwable throwable) {
+        super(message, throwable);
+    }
 }

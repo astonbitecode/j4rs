@@ -19,13 +19,16 @@ import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
+import org.astonbitecode.j4rs.api.invocation.InstanceGenerator;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InstantiationException;
 import org.astonbitecode.j4rs.utils.Utils;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
+import java.lang.reflect.*;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import java8.util.J8Arrays;
 
@@ -35,7 +38,7 @@ public class NativeInstantiationImpl {
     public static Instance instantiate(String className, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = createInstance(className, generateArgObjects(args));
-            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create instance of " + className, error);
         }
@@ -44,7 +47,7 @@ public class NativeInstantiationImpl {
     public static Instance createForStatic(String className) {
         try {
             Class<?> clazz = Utils.forNameEnhanced(className);
-            return new JsonInvocationImpl(clazz);
+            return InstanceGenerator.create(clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create instance of " + className, error);
         }
@@ -78,9 +81,57 @@ public class NativeInstantiationImpl {
                 .toArray(size -> new Class<?>[size]);
         Object[] paramObjects = J8Arrays.stream(params).map(param -> param.getObject())
                 .toArray(size -> new Object[size]);
-        Constructor<?> constructor = clazz.getConstructor(paramTypes);
+        Constructor<?> constructor = findConstructor(clazz, paramTypes);
         Object instance = constructor.newInstance(paramObjects);
         return new CreatedInstance(clazz, instance);
+    }
+
+    private static Constructor<?> findConstructor(Class clazz, Class[] argTypes) throws NoSuchMethodException {
+        List<Constructor> found = Arrays.stream(clazz.getConstructors())
+                // Match the params number
+                .filter(constructor -> constructor.getGenericParameterTypes().length == argTypes.length)
+                .filter(constructor -> {
+                    // Each element of the matchedParams list shows whether a parameter is matched or not
+                    List<Boolean> matchedParams = new ArrayList<>();
+                    // Get the parameter types of the method to check if matches
+                    Type[] pts = constructor.getGenericParameterTypes();
+                    for (int i = 0; i < argTypes.length; i++) {
+                        // Check each parameter type
+                        Type typ = pts[i];
+
+                        if (typ instanceof ParameterizedType || typ instanceof WildcardType) {
+                            // For generic parameters, the type erasure makes the parameter be an Object.class
+                            // Therefore, the argument is always matched
+                            matchedParams.add(true);
+                        } else if (typ instanceof GenericArrayType) {
+                            // TODO: Improve by checking the actual types of the arrays?
+                            matchedParams.add(argTypes[i].isArray());
+                        } else if (typ instanceof Class) {
+                            // In case of TypeVariable, the arg matches via the equals method
+                            matchedParams.add(((Class<?>) typ).isAssignableFrom(argTypes[i]));
+                        } else {
+                            // We get to this point if the TypeVariable is a generic, which is defined with a name like T, U etc.
+                            // The type erasure makes the parameter be an Object.class. Therefore, the argument is always matched.
+                            // TODO:
+                            // We may have some info about the generic types (if they are defined in the Class scope).
+                            // Can we use this info to provide some type safety? Use matchedParams.add(validateSomeTypeSafety(argTypes[i]));
+                            // In that case however, we don't catch the situation where a class is defined with a generic T in the class scope,
+                            // but there is a method that defines another generic U in the method scope.
+                            matchedParams.add(true);
+                        }
+                    }
+                    return matchedParams.stream().allMatch(Boolean::booleanValue);
+                })
+                .collect(Collectors.toList());
+        if (!found.isEmpty()) {
+            return found.get(0);
+        } else {
+            Class<?> superclass = clazz.getSuperclass();
+            if (superclass == null) {
+                throw new NoSuchMethodException("Constructor was not found in " + clazz.getName() + " or its ancestors.");
+            }
+            return findConstructor(superclass, argTypes);
+        }
     }
 
     static CreatedInstance createCollection(String className, GeneratedArg[] params, J4rsCollectionType collectionType) throws Exception {

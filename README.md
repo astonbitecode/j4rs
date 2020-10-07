@@ -1,34 +1,27 @@
 # j4rs
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.12.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.13.0-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
 [![Build Status](https://travis-ci.org/astonbitecode/j4rs.svg?branch=master)](https://travis-ci.org/astonbitecode/j4rs/)
 [![Build status](https://ci.appveyor.com/api/projects/status/9k83nufbt958w6p2?svg=true)](https://ci.appveyor.com/project/astonbitecode/j4rs)
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
 
-# Info
-
-`j4rs` focused solely in facilitating Rust applications in making calls to Java code 
-by [allowing]((#Basics)) JVM creation and manipulation from the Rust code, efortless Java method invocations,
-Java libraries [provisioning via Maven](#Using-Maven-artifacts) and [more](#Features).
-
-This has changed since release 0.12.0. 
-***j4rs can now be used as well in Java projects that want to achieve JNI calls to Rust libraries.***
-
 ## Features
 
-* No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
-* [Easily instantiate and invoke Java classes.](#Basics)
-* [Casting support.](#Casting)
-* [Java arrays / variadic support.](#Java-arrays-and-variadics)
-* [Java generics support.](#Java-Generics)
-* [Java primitives support.](#Java-primitives)
-* [Java instances invocations chaining.](#Java-instances-chaining)
-* [Java -> Rust callbacks support.](#Callback-support)
-* [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
-* Tested on Linux, Windows and Android.
-* [Java -> Rust support](#Java-to-Rust-support).
+* **Rust to Java direction support (call Java from Rust).**
+    * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
+    * [Easily instantiate and invoke Java classes.](#Basics)
+    * [Casting support.](#Casting)
+    * [Java arrays / variadic support.](#Java-arrays-and-variadics)
+    * [Java generics support.](#Java-Generics)
+    * [Java primitives support.](#Java-primitives)
+    * [Java instances invocations chaining.](#Java-instances-chaining)
+    * [Java -> Rust callbacks support.](#Callback-support)
+    * [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
+* **[JavaFX support](#JavaFX-support) (including FXML support).**
+* **[Java -> Rust support](#Java-to-Rust-support) (Call Rust from Java).**
+* **Tested on Linux, Windows and Android.**
 
 ## Usage
 
@@ -305,7 +298,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.12.0</version>
+    <version>0.13.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -322,11 +315,149 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.12.0-java7</version>
+    <version>0.13.0-java7</version>
 </dependency>
 ```
 
+## JavaFX support
+(v0.13.0 onwards)
+
+### Steps to build a JavaFX UI
+
+#### 1. Have Rust, cargo and JDK 11 (or above) installed
+
+#### 2. Retrieve the JavaFX dependencies for j4rs:
+
+A good idea is that this happens during build time, in order the dependencies to be available when the actual Rust application starts and the JVM is initialized.
+This can happen by adding the following in a [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html?highlight=build,scrpit#build-scripts):
+	
+```rust
+	use j4rs::JvmBuilder;
+	use j4rs::jfx::JavaFxSupport;
+
+	fn main() {
+		let jvm = JvmBuilder::new().build().unwrap();
+		jvm.deploy_javafx_dependencies().unwrap();
+	}
+
+```
+
+#### 3. Implement the UI:
+
+There are two choices here; either build the UI using FXML, or, build it traditionally, using Java code. 
+In the code snippets below, you may find comments with a short description for each line.
+
+##### 3.a Implement the UI with Java calls to the JavaFX API
+	
+```rust
+// Create a Jvm with JavaFX support
+let jvm = JvmBuilder::new().with_javafx_support().build()?;
+
+// Start the JavaFX application.
+// When the JavaFX application starts, the `InstanceReceiver` channel that is returned from the `start_javafx_app` invocation
+// will receive an Instance of `javafx.stage.Stage`.
+// The UI may start being built using the provided `Stage`.
+let stage = jvm.start_javafx_app()?.rx().recv()?;
+
+// Create a StackPane. Java code: StackPane root = new StackPane();
+let root = jvm.create_instance("javafx.scene.layout.StackPane", &[])?;
+
+// Create the button. Java code: Button btn = new Button();
+let btn = jvm.create_instance("javafx.scene.control.Button", &[])?;
+// Get the action channel for this button
+let btn_action_channel = jvm.get_javafx_event_receiver(&btn, FxEventType::ActionEvent_Action)?;
+// Set the text of the button. Java code: btn.setText("Say Hello World to Rust");
+jvm.invoke(&btn, "setText", &["A button that sends events to Rust".try_into()?])?;
+// Add the button to the GUI. Java code: root.getChildren().add(btn);
+jvm.chain(&root)?
+	.invoke("getChildren", &[])?
+	.invoke("add", &[btn.try_into()?])?
+	.collect();
+
+// Create a new Scene. Java code: Scene scene = new Scene(root, 300, 250);
+let scene = jvm.create_instance("javafx.scene.Scene", &[
+	root.try_into()?,
+	InvocationArg::try_from(300_f64)?.into_primitive()?,
+	InvocationArg::try_from(250_f64)?.into_primitive()?])?;
+// Set the title for the scene. Java code: stage.setTitle("Hello Rust world!");
+jvm.invoke(&stage, "setTitle", &["Hello Rust world!".try_into()?])?;
+// Set the scene in the stage. Java code: stage.setScene(scene);
+jvm.invoke(&stage, "setScene", &[scene.try_into()?])?;
+// Show the stage. Java code: stage.show();
+jvm.invoke(&stage, "show", &[])?;
+
+```
+
+##### 3.b Implement the UI with [FXML](https://openjfx.io/javadoc/12/javafx.fxml/javafx/fxml/doc-files/introduction_to_fxml.html#overview)
+
+I personally prefer building the UI with FXMLs, using for example the [Scene Builder](https://gluonhq.com/products/scene-builder/).
+
+The thing to keep in mind is that the controller class should be defined in the root FXML element and it should be `fx:controller="org.astonbitecode.j4rs.api.jfx.controllers.FxController"`
+
+Here is an FXML example; it creates a window with a label and a button:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="TOP_CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="725.0" spacing="33.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.astonbitecode.j4rs.api.jfx.controllers.FxController">
+   <children>
+      <Label text="JavaFX in Rust">
+         <font>
+            <Font size="65.0" />
+         </font>
+      </Label>
+      <Label text="This UI is loaded with a FXML file" />
+      <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="10.0">
+         <children>
+            <Button id="helloButton" mnemonicParsing="false" text="Say Hello" />
+         </children>
+      </HBox>
+   </children>
+</VBox>
+
+```
+
+The `id` of the elements can be used to retrieve the respective [Nodes](https://openjfx.io/javadoc/13/javafx.graphics/javafx/scene/Node.html) in Rust and act upon them (eg. adding Event Listeners, changing the texts or effects on them etc).
+
+```rust
+// Create a Jvm with JavaFX support
+let jvm = JvmBuilder::new().with_javafx_support().build()?;
+
+// Start the JavaFX application.
+// When the JavaFX application starts, the `InstanceReceiver` channel that is returned from the `start_javafx_app` invocation
+// will receive an Instance of `javafx.stage.Stage`.
+// The UI may start being built using the provided `Stage`.
+let stage = jvm.start_javafx_app()?.rx().recv()?;
+
+// Set the title for the scene. Java code: stage.setTitle("Hello Rust world!");
+jvm.invoke(&stage, "setTitle", &["Hello JavaFX from Rust!".try_into()?])?;
+// Show the stage. Java code: stage.show();
+jvm.invoke(&stage, "show", &[])?;
+
+// Load a fxml. This returns an `FxController` which can be used in order to find Nodes by their id,
+// add Event Listeners and more.
+let controller = jvm.load_fxml(&PathBuf::from("./fxml/jfx_in_rust.fxml"), &stage)?;
+
+// Wait for the controller to be initialized. This is not mandatory, it is here to shoe that the functionality exists.
+let _ = controller.on_initialized_callback(&jvm)?.rx().recv()?;
+println!("The controller is initialized!");
+
+// Get the InstanceReceiver to retrieve callbacks from the JavaFX button with id helloButton
+let hello_button_action_channel = controller.get_event_receiver_for_node("helloButton", FxEventType::ActionEvent_Action, &jvm)?;
+
+```
+
+For a complete example, please have a look [here](https://github.com/astonbitecode/j4rs-showcase).
+
 ## Java to Rust support
+
+(v0.12.0 onwards)
 
 * Add the two needed dependencies (`j4rs` and `j4rs_derive`) in the `Cargo.toml` 
 and mark the project as a `cdylib`, in order to have a shared library as output. 
@@ -345,6 +476,9 @@ fn my_function_with_no_args() {
 ```
 
 For a complete example, please have a look [here](https://github.com/astonbitecode/j4rs-java-call-rust).
+
+*Note: JNI is used behind the scenes, so, any [conventions in naming](https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/design.html#wp133) that hold for JNI, should hold for `j4rs` too. 
+For example, underscores (`_`) should be escaped and become `_1` in the `call_from_java` definition.*
 
 ## Licence
 
