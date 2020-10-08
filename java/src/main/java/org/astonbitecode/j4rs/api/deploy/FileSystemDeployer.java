@@ -26,5 +26,6 @@ public class FileSystemDeployer {
     }
 
     public void deploy(String path) {
+        throw new UnsupportedOperationException("Cannot deploy local artifacts in Java 7");
     }
 }

@@ -1237,17 +1237,7 @@ pub(crate) fn get_class_to_invoke_clone_and_cast() -> errors::Result<jclass> {
     get_cached!(
         CLASS_TO_INVOKE_CLONE_AND_CAST,
         {
-            // The class to invoke the cloneInstance into, is not the same in Android target os.
-            // The java_instance_base_class is used because of Java7 compatibility issues in Android.
-            // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
-            // and there is a base class created for this reason.
-            let j = if cfg!(target_os = "android") {
-                get_java_instance_base_class()?
-            } else {
-                get_java_instance_class()?
-            };
-
-            j
+            get_java_instance_base_class()?
         },
         set_class_to_invoke_clone_and_cast)
 }
