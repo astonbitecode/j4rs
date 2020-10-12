@@ -52,7 +52,7 @@
 
     <properties>
         <maven.surefire.version>2.19.1</maven.surefire.version>
-        <junit.version>4.13-beta-1</junit.version>
+        <junit.version>4.13.1</junit.version>
         <maven.jar.plugin.version>3.1.0</maven.jar.plugin.version>
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
         <maven.gpg.plugin.version>1.6</maven.gpg.plugin.version>
