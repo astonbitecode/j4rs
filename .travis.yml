@@ -8,6 +8,7 @@ matrix:
   include:
     - os: osx
       osx_image: xcode12.2
+      jdk: oraclejdk14
       script:
        - cargo clean --manifest-path=rust/Cargo.toml
        - cargo update --manifest-path=rust/Cargo.toml
