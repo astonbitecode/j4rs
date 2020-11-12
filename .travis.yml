@@ -4,14 +4,20 @@ language: java
 rust:
   - stable
 
-jdk:
-  - openjdk11
-  - openjdk14
-  - oraclejdk14
-
 matrix:
   include:
     - os: osx
+      jdk:
+        - oraclejdk14
+      osx_image: xcode12.2
+      script:
+        - echo $JAVA_HOME
+        - cargo clean --manifest-path=rust/Cargo.toml
+        - cargo update --manifest-path=rust/Cargo.toml
+        - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
+    - os: osx
+      jdk:
+        - openjdk14
       osx_image: xcode12.2
       script:
         - echo $JAVA_HOME
@@ -19,6 +25,9 @@ matrix:
         - cargo update --manifest-path=rust/Cargo.toml
         - J4RS_CONSOLE_LOG_LEVEL=debug cargo test --manifest-path=rust/Cargo.toml -- --nocapture
     - os: linux
+      jdk:
+        - openjdk14
+        - oraclejdk14
       script:
         - echo $JAVA_HOME
         - mvn -f java/pom.xml clean install
