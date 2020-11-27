@@ -480,6 +480,62 @@ For a complete example, please have a look [here](https://github.com/astonbiteco
 *Note: JNI is used behind the scenes, so, any [conventions in naming](https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/design.html#wp133) that hold for JNI, should hold for `j4rs` too. 
 For example, underscores (`_`) should be escaped and become `_1` in the `call_from_java` definition.*
 
+## Portability assumptions after Rust build (shipping a j4rs application)
+
+During build, `j4rs` creates a `jassets` directory which contains the "java world" that is needed for the crate to work.
+It is always automatically populated with Java libraries and can be considered something like a default classpath container that should always be available.
+
+By default, `jassets` lies in the same directory with the crate-generated artifacts (under [CARGO_TARGET_DIR](https://doc.rust-lang.org/cargo/reference/environment-variables.html)), so there should not be any issues during development.
+
+But how can the application be shipped after the implementation is done?
+
+Someone may specify a different [base_path](https://docs.rs/j4rs/0.13.0/j4rs/struct.JvmBuilder.html#method.with_base_path) for j4rs during the Jvm initialization, issuing something like:
+
+```rust
+let jvm_res = j4rs::JvmBuilder::new()
+        .with_base_path("/opt/myapp")
+        .build();
+```
+
+The `base_path` defines the location of two directories that are needed for j4rs to work;
+namely `jassets` and `deps`. 
+
+1. __jassets__ contains the j4rs jar and other jars that may be deployed using [Maven](https://github.com/astonbitecode/j4rs#Using-Maven-artifacts).
+2. __deps__ should contain the j4rs dynamic library. This is needed to achieve  [callbacks](https://github.com/astonbitecode/j4rs#Callback-support) from java to rust. 
+The `deps` dir is not needed if the application does not execute Java->Rust callbacks.
+
+So, someone may have their application binary under eg. `/usr/bin`, and the `jassets` and `deps` directories under `/opt/myapp/`, or `$HOME/.myapp`, or anywhere else.
+
+An example directory tree could be:
+
+```
+/ 
++ --- usr
+|      + --- bin
+|             + --- myapp
+| 
++ --- opt
+       + --- myapp 
+              + --- jassets
+              + --- deps
+```
+
+Moreover, there is also a [utility function](https://docs.rs/j4rs/0.13.0/j4rs/struct.Jvm.html#method.copy_j4rs_libs_under) that automatically performs copying of the two directories under a specific path.
+The `Jvm::copy_j4rs_libs_under` function can be called by the build script of the crate that is being shipped:
+
+```rust
+Jvm::copy_j4rs_libs_under("/opt/myapp")?;
+```
+
+After that, `/opt/myapp` will contain everything that is needed in order `j4rs` to work,
+ as long as the Jvm creation is done using the `with_base_path` method:
+
+```rust
+let jvm_res = j4rs::JvmBuilder::new()
+        .with_base_path("/opt/myapp")
+        .build();
+```
+
 ## Licence
 
 At your option, under: 
