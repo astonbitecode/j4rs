@@ -16,6 +16,7 @@ package org.astonbitecode.j4rs.api.instantiation;
 
 import java8.util.J8Arrays;
 import java8.util.stream.Collectors;
+import java8.util.stream.StreamSupport;
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
@@ -118,7 +119,7 @@ public class NativeInstantiationImpl {
                             matchedParams.add(true);
                         }
                     }
-                    return matchedParams.stream().allMatch(Boolean::booleanValue);
+                    return StreamSupport.stream(matchedParams).allMatch(Boolean::booleanValue);
                 })
                 .collect(Collectors.toList());
         if (!found.isEmpty()) {
