@@ -315,7 +315,7 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.13.0-java7</version>
+    <version>0.13.1-java7</version>
 </dependency>
 ```
 
