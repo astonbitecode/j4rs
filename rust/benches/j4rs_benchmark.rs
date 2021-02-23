@@ -3,7 +3,7 @@ extern crate criterion;
 
 use std::convert::TryFrom;
 
-use criterion::{black_box, BenchmarkId};
+use criterion::{BenchmarkId, black_box};
 use criterion::Criterion;
 
 use j4rs::{self, Instance, InvocationArg, Jvm};
@@ -22,6 +22,11 @@ fn do_invocation_w_string_args(jvm: &Jvm, instance: &Instance) -> Instance {
 
 fn do_invocation_w_integer_args(jvm: &Jvm, instance: &Instance) -> Instance {
     jvm.invoke(instance, "echo", &vec![InvocationArg::try_from(33_i32).unwrap()]).unwrap()
+}
+
+fn do_invocation_w_string_args_and_to_rust(jvm: &Jvm, instance: &Instance) {
+    let s_instance = jvm.invoke(instance, "getMyWithArgs", &vec![InvocationArg::try_from("a").unwrap()]).unwrap();
+    let _: String = jvm.to_rust(s_instance).unwrap();
 }
 
 fn use_to_rust_deserialized(jvm: &Jvm, instance: &Instance) {
@@ -65,6 +70,15 @@ fn j4rs_benchmark(c: &mut Criterion) {
         move |b| b.iter(|| {
             do_invocation_w_integer_args(black_box(&jvm), black_box(&instance))
         }));
+
+    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+    c.bench_function(
+        "invocations with String arg and String result transformed to Rust",
+        move |b| b.iter(|| {
+            do_invocation_w_string_args_and_to_rust(black_box(&jvm), black_box(&instance))
+        }));
+
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();

@@ -415,6 +415,21 @@ pub(crate) unsafe fn f64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
     }
 }
 
+pub(crate) unsafe fn string_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<String> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError("Attempt to create a String from null".to_string()))
+    } else {
+        let s = (opt_to_res(cache::get_jni_get_string_utf_chars())?)(
+            jni_env,
+            obj,
+            ptr::null_mut(),
+        ) as *mut c_char;
+        let rust_string = utils::to_rust_string(s);
+
+        Ok(rust_string)
+    }
+}
+
 pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
     unsafe {
         let s = (opt_to_res(cache::get_jni_get_string_utf_chars())?)(

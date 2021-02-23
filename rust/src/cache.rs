@@ -171,6 +171,7 @@ thread_local! {
     pub(crate) static DOUBLE_TO_DOUBLE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static DOUBLE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static INVOCATION_EXCEPTION_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static STRING_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
 }
 
 macro_rules! get_cached {
@@ -1788,4 +1789,28 @@ pub(crate) fn get_double_to_double_method() -> errors::Result<jmethodID> {
             j
         },
         set_double_to_double_method)
+}
+
+#[allow(dead_code)]
+pub(crate) fn set_string_class(j: jclass) {
+    debug("Called set_string_class");
+    STRING_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+#[allow(dead_code)]
+pub(crate) fn get_string_class() -> errors::Result<jclass> {
+    get_cached!(
+        STRING_CLASS,
+        {
+            let env = get_thread_local_env()?;
+
+            let c = tweaks::find_class(
+                env,
+                "java/lang/String",
+            )?;
+            jni_utils::create_global_ref_from_local_ref(c, env)?
+        },
+        set_string_class)
 }

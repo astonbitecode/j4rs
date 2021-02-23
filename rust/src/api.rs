@@ -198,53 +198,65 @@ impl Jvm {
     }
 
     pub fn try_from(jni_environment: *mut JNIEnv) -> errors::Result<Jvm> {
-        unsafe {
-            let _ = cache::get_jni_get_method_id().or_else(|| cache::set_jni_get_method_id((**jni_environment).GetMethodID));
-            let _ = cache::get_jni_get_static_method_id().or_else(|| cache::set_jni_get_static_method_id((**jni_environment).GetStaticMethodID));
-            let _ = cache::get_jni_new_object().or_else(|| cache::set_jni_new_object((**jni_environment).NewObject));
-            let _ = cache::get_jni_new_string_utf().or_else(|| cache::set_jni_new_string_utf((**jni_environment).NewStringUTF));
-            let _ = cache::get_jni_get_string_utf_chars().or_else(|| cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars));
-            let _ = cache::get_jni_release_string_utf_chars().or_else(|| cache::set_jni_release_string_utf_chars((**jni_environment).ReleaseStringUTFChars));
-            let _ = cache::get_jni_call_object_method().or_else(|| cache::set_jni_call_object_method((**jni_environment).CallObjectMethod));
-            let _ = cache::get_jni_call_float_method().or_else(|| cache::set_jni_call_float_method((**jni_environment).CallFloatMethod));
-            let _ = cache::get_jni_call_double_method().or_else(|| cache::set_jni_call_double_method((**jni_environment).CallDoubleMethod));
-            let _ = cache::get_jni_call_void_method().or_else(|| cache::set_jni_call_void_method((**jni_environment).CallVoidMethod));
-            let _ = cache::get_jni_call_static_object_method().or_else(|| cache::set_jni_call_static_object_method((**jni_environment).CallStaticObjectMethod));
-            let _ = cache::get_jni_new_object_array().or_else(|| cache::set_jni_new_object_array((**jni_environment).NewObjectArray));
-            let _ = cache::get_jni_set_object_array_element().or_else(|| cache::set_jni_set_object_array_element((**jni_environment).SetObjectArrayElement));
-            let ec = cache::get_jni_exception_check().or_else(|| cache::set_jni_exception_check((**jni_environment).ExceptionCheck));
-            let ed = cache::get_jni_exception_describe().or_else(|| cache::set_jni_exception_describe((**jni_environment).ExceptionDescribe));
-            let exclear = cache::get_jni_exception_clear().or_else(|| cache::set_jni_exception_clear((**jni_environment).ExceptionClear));
-            let _ = cache::get_jni_delete_local_ref().or_else(|| cache::set_jni_delete_local_ref((**jni_environment).DeleteLocalRef));
-            let _ = cache::get_jni_delete_global_ref().or_else(|| cache::set_jni_delete_global_ref((**jni_environment).DeleteGlobalRef));
-            let _ = cache::get_jni_new_global_ref().or_else(|| cache::set_jni_new_global_ref((**jni_environment).NewGlobalRef));
-            let _ = cache::get_jni_throw_new().or_else(|| cache::set_jni_throw_new((**jni_environment).ThrowNew));
-            let _ = cache::get_is_same_object().or_else(|| cache::set_is_same_object((**jni_environment).IsSameObject));
+        if cache::get_thread_local_env_opt().is_none() {
+            // Create and set the environment in Thread Local
+            unsafe {
+                let _ = cache::get_jni_get_method_id().or_else(|| {cache::set_jni_get_method_id((**jni_environment).GetMethodID)});
+                let _ = cache::get_jni_get_static_method_id().or_else(|| cache::set_jni_get_static_method_id((**jni_environment).GetStaticMethodID));
+                let _ = cache::get_jni_new_object().or_else(|| cache::set_jni_new_object((**jni_environment).NewObject));
+                let _ = cache::get_jni_new_string_utf().or_else(|| cache::set_jni_new_string_utf((**jni_environment).NewStringUTF));
+                let _ = cache::get_jni_get_string_utf_chars().or_else(|| cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars));
+                let _ = cache::get_jni_release_string_utf_chars().or_else(|| cache::set_jni_release_string_utf_chars((**jni_environment).ReleaseStringUTFChars));
+                let _ = cache::get_jni_call_object_method().or_else(|| cache::set_jni_call_object_method((**jni_environment).CallObjectMethod));
+                let _ = cache::get_jni_call_float_method().or_else(|| cache::set_jni_call_float_method((**jni_environment).CallFloatMethod));
+                let _ = cache::get_jni_call_double_method().or_else(|| cache::set_jni_call_double_method((**jni_environment).CallDoubleMethod));
+                let _ = cache::get_jni_call_void_method().or_else(|| cache::set_jni_call_void_method((**jni_environment).CallVoidMethod));
+                let _ = cache::get_jni_call_static_object_method().or_else(|| cache::set_jni_call_static_object_method((**jni_environment).CallStaticObjectMethod));
+                let _ = cache::get_jni_new_object_array().or_else(|| cache::set_jni_new_object_array((**jni_environment).NewObjectArray));
+                let _ = cache::get_jni_set_object_array_element().or_else(|| cache::set_jni_set_object_array_element((**jni_environment).SetObjectArrayElement));
+                let ec = cache::get_jni_exception_check().or_else(|| cache::set_jni_exception_check((**jni_environment).ExceptionCheck));
+                let ed = cache::get_jni_exception_describe().or_else(|| cache::set_jni_exception_describe((**jni_environment).ExceptionDescribe));
+                let exclear = cache::get_jni_exception_clear().or_else(|| cache::set_jni_exception_clear((**jni_environment).ExceptionClear));
+                let _ = cache::get_jni_delete_local_ref().or_else(|| cache::set_jni_delete_local_ref((**jni_environment).DeleteLocalRef));
+                let _ = cache::get_jni_delete_global_ref().or_else(|| cache::set_jni_delete_global_ref((**jni_environment).DeleteGlobalRef));
+                let _ = cache::get_jni_new_global_ref().or_else(|| cache::set_jni_new_global_ref((**jni_environment).NewGlobalRef));
+                let _ = cache::get_jni_throw_new().or_else(|| cache::set_jni_throw_new((**jni_environment).ThrowNew));
+                let _ = cache::get_is_same_object().or_else(|| cache::set_is_same_object((**jni_environment).IsSameObject));
 
-            match (ec, ed, exclear) {
-                (Some(ec), Some(ed), Some(exclear)) => {
-                    if (ec)(jni_environment) == JNI_TRUE {
-                        (ed)(jni_environment);
-                        (exclear)(jni_environment);
-                        Err(errors::J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_string()))
-                    } else {
-                        let jvm = Jvm {
-                            jni_env: jni_environment,
-                            detach_thread_on_drop: true,
-                        };
+                match (ec, ed, exclear) {
+                    (Some(ec), Some(ed), Some(exclear)) => {
+                        if (ec)(jni_environment) == JNI_TRUE {
+                            (ed)(jni_environment);
+                            (exclear)(jni_environment);
+                            Err(errors::J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_string()))
+                        } else {
+                            let jvm = Jvm {
+                                jni_env: jni_environment,
+                                detach_thread_on_drop: true,
+                            };
 
-                        if cache::get_thread_local_env_opt().is_none() {
                             cache::set_thread_local_env(Some(jni_environment));
-                        }
-                        cache::add_active_jvm();
+                            cache::add_active_jvm();
 
-                        Ok(jvm)
+                            Ok(jvm)
+                        }
+                    }
+                    (_, _, _) => {
+                        Err(errors::J4RsError::JniError(format!("Could not initialize the JVM: Error while trying to retrieve JNI functions.")))
                     }
                 }
-                (_, _, _) => {
-                    Err(errors::J4RsError::JniError(format!("Could not initialize the JVM: Error while trying to retrieve JNI functions.")))
-                }
             }
+        } else {
+            // Use the environment from the Thread Local
+            let jvm = Jvm {
+                jni_env: jni_environment,
+                detach_thread_on_drop: true,
+            };
+
+            cache::set_thread_local_env(Some(jni_environment));
+            cache::add_active_jvm();
+
+            Ok(jvm)
         }
     }
 
@@ -812,7 +824,9 @@ impl Jvm {
                 cache::get_get_object_class_method()?,
             );
             let object_class_instance = jni_utils::create_global_ref_from_local_ref(object_class_instance, self.jni_env)?;
-            let to_ret = if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
+            let to_ret = if jni_utils::is_same_object(object_class_instance, cache::get_string_class()?, self.jni_env)? {
+                rust_box_from_java_object!(jni_utils::string_from_jobject)
+            } else if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
                 rust_box_from_java_object!(jni_utils::i32_from_jobject)
             } else if jni_utils::is_same_object(object_class_instance, cache::get_byte_class()?, self.jni_env)? {
                 rust_box_from_java_object!(jni_utils::i8_from_jobject)
@@ -837,7 +851,6 @@ impl Jvm {
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned + Any {
         self.to_rust_boxed(instance).map(|v| *v)
-        // self.to_rust_deserialized(instance)
     }
 
     pub fn to_rust_deserialized<T>(&self, instance: Instance) -> errors::Result<T> where T: DeserializeOwned + Any {
