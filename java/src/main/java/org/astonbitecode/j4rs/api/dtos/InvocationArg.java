@@ -81,7 +81,8 @@ public class InvocationArg implements Instance {
      *
      * @return The classname
      */
-    public String getClassName() {
+    @Override
+    public String getObjectClassName() {
         return className;
     }
 

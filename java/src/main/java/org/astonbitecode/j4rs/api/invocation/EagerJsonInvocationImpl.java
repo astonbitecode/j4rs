@@ -72,6 +72,11 @@ public class EagerJsonInvocationImpl<T> implements Instance<T> {
     }
 
     @Override
+    public String getObjectClassName() {
+        throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
+    }
+
+    @Override
     public String getJson() {
         throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
     }

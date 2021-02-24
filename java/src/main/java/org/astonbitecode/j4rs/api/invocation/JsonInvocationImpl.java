@@ -135,6 +135,11 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     }
 
     @Override
+    public String getObjectClassName() {
+        return clazz != null ? clazz.getName() : "null";
+    }
+
+    @Override
     public String getJson() {
         JsonValue jsonValue = JsonValueFactory.create(this.object);
         return jsonValue.getJson();

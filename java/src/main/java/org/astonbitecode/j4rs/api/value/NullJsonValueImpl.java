@@ -43,4 +43,9 @@ public class NullJsonValueImpl implements JsonValue, ObjectValue {
     public Class<?> getObjectClass() {
         return NullObject.class;
     }
+
+    @Override
+    public String getObjectClassName() {
+        return NullObject.class.getName();
+    }
 }

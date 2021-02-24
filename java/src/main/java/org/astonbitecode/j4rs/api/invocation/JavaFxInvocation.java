@@ -96,4 +96,9 @@ public class JavaFxInvocation<T> implements Instance<T> {
     public Class<?> getObjectClass() {
         return jsonInvocation.getObjectClass();
     }
+
+    @Override
+    public String getObjectClassName() {
+        return jsonInvocation.getObjectClassName();
+    }
 }

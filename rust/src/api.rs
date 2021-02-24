@@ -60,6 +60,7 @@ use super::logger::{debug, error, info, warn};
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
+pub(crate) const CLASS_OBJECT: &'static str = "java.lang.Object";
 pub(crate) const CLASS_STRING: &'static str = "java.lang.String";
 pub(crate) const CLASS_BOOLEAN: &'static str = "java.lang.Boolean";
 pub(crate) const CLASS_BYTE: &'static str = "java.lang.Byte";
@@ -201,7 +202,7 @@ impl Jvm {
         if cache::get_thread_local_env_opt().is_none() {
             // Create and set the environment in Thread Local
             unsafe {
-                let _ = cache::get_jni_get_method_id().or_else(|| {cache::set_jni_get_method_id((**jni_environment).GetMethodID)});
+                let _ = cache::get_jni_get_method_id().or_else(|| { cache::set_jni_get_method_id((**jni_environment).GetMethodID) });
                 let _ = cache::get_jni_get_static_method_id().or_else(|| cache::set_jni_get_static_method_id((**jni_environment).GetStaticMethodID));
                 let _ = cache::get_jni_new_object().or_else(|| cache::set_jni_new_object((**jni_environment).NewObject));
                 let _ = cache::get_jni_new_string_utf().or_else(|| cache::set_jni_new_string_utf((**jni_environment).NewStringUTF));
@@ -817,33 +818,55 @@ impl Jvm {
         }
 
         unsafe {
-            // Call the getObjectClassMethod. This returns a localref
-            let object_class_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+            // Call the getClassName method. This returns a localref
+            let object_class_name_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
-                cache::get_get_object_class_method()?,
+                cache::get_get_object_class_name_method()?,
             );
-            let object_class_instance = jni_utils::create_global_ref_from_local_ref(object_class_instance, self.jni_env)?;
-            let to_ret = if jni_utils::is_same_object(object_class_instance, cache::get_string_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::string_from_jobject)
-            } else if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::i32_from_jobject)
-            } else if jni_utils::is_same_object(object_class_instance, cache::get_byte_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::i8_from_jobject)
-            } else if jni_utils::is_same_object(object_class_instance, cache::get_short_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::i16_from_jobject)
-            } else if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::i32_from_jobject)
-            } else if jni_utils::is_same_object(object_class_instance, cache::get_long_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::i64_from_jobject)
-            } else if jni_utils::is_same_object(object_class_instance, cache::get_float_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::f32_from_jobject)
-            } else if jni_utils::is_same_object(object_class_instance, cache::get_double_class()?, self.jni_env)? {
-                rust_box_from_java_object!(jni_utils::f64_from_jobject)
-            } else {
-                Ok(Box::new(self.to_rust_deserialized(instance)?))
+            let object_class_name_instance = jni_utils::create_global_ref_from_local_ref(object_class_name_instance, self.jni_env)?;
+            let class_name = jni_utils::string_from_jobject(object_class_name_instance, self.jni_env)?;
+            jni_utils::delete_java_ref(self.jni_env, object_class_name_instance);
+            let to_ret = match class_name.as_str() {
+                CLASS_STRING => rust_box_from_java_object!(jni_utils::string_from_jobject),
+                CLASS_INTEGER => rust_box_from_java_object!(jni_utils::i32_from_jobject),
+                CLASS_BYTE => rust_box_from_java_object!(jni_utils::i8_from_jobject),
+                CLASS_SHORT => rust_box_from_java_object!(jni_utils::i16_from_jobject),
+                CLASS_LONG => rust_box_from_java_object!(jni_utils::i64_from_jobject),
+                CLASS_FLOAT => rust_box_from_java_object!(jni_utils::f32_from_jobject),
+                CLASS_DOUBLE => rust_box_from_java_object!(jni_utils::f64_from_jobject),
+                CLASS_OBJECT => Ok(Box::new(self.to_rust_deserialized(instance)?)),
+                _ => {
+                    // Call the getObjectClass method. This returns a localref
+                    let object_class_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+                        self.jni_env,
+                        instance.jinstance,
+                        cache::get_get_object_class_method()?,
+                    );
+                    let object_class_instance = jni_utils::create_global_ref_from_local_ref(object_class_instance, self.jni_env)?;
+
+                    let to_ret_inner = if jni_utils::is_same_object(object_class_instance, cache::get_string_class()?, self.jni_env)? {
+                        rust_box_from_java_object!(jni_utils::string_from_jobject)
+                    } else if jni_utils::is_same_object(object_class_instance, cache::get_integer_class()?, self.jni_env)? {
+                        rust_box_from_java_object!(jni_utils::i32_from_jobject)
+                    } else if jni_utils::is_same_object(object_class_instance, cache::get_byte_class()?, self.jni_env)? {
+                        rust_box_from_java_object!(jni_utils::i8_from_jobject)
+                    } else if jni_utils::is_same_object(object_class_instance, cache::get_short_class()?, self.jni_env)? {
+                        rust_box_from_java_object!(jni_utils::i16_from_jobject)
+                    } else if jni_utils::is_same_object(object_class_instance, cache::get_long_class()?, self.jni_env)? {
+                        rust_box_from_java_object!(jni_utils::i64_from_jobject)
+                    } else if jni_utils::is_same_object(object_class_instance, cache::get_float_class()?, self.jni_env)? {
+                        rust_box_from_java_object!(jni_utils::f32_from_jobject)
+                    } else if jni_utils::is_same_object(object_class_instance, cache::get_double_class()?, self.jni_env)? {
+                        rust_box_from_java_object!(jni_utils::f64_from_jobject)
+                    } else {
+                        Ok(Box::new(self.to_rust_deserialized(instance)?))
+                    };
+                    jni_utils::delete_java_ref(self.jni_env, object_class_instance);
+                    to_ret_inner
+                }
             };
-            jni_utils::delete_java_ref(self.jni_env, object_class_instance);
+
             to_ret
         }
     }

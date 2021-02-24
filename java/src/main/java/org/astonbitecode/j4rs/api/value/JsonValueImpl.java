@@ -67,4 +67,9 @@ public class JsonValueImpl implements JsonValue {
     public Class<?> getObjectClass() {
         return this.obj.getClass();
     }
+
+    @Override
+    public String getObjectClassName() {
+        return this.obj.getClass().getName();
+    }
 }
