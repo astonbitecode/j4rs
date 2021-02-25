@@ -141,8 +141,6 @@ thread_local! {
     pub(crate) static CAST_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The get json method
     pub(crate) static GET_JSON_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    // The get object class method
-    pub(crate) static GET_OBJECT_CLASS_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The get object class name method
     pub(crate) static GET_OBJECT_CLASS_NAME_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The get object method
@@ -1065,40 +1063,6 @@ pub(crate) fn get_get_json_method() -> errors::Result<jmethodID> {
             j
         },
         set_get_json_method)
-}
-
-pub(crate) fn set_get_object_class_method(j: jmethodID) {
-    debug("Called set_get_object_class_method");
-    GET_OBJECT_CLASS_METHOD.with(|opt| {
-        *opt.borrow_mut() = Some(j);
-    });
-}
-
-pub(crate) fn get_get_object_class_method() -> errors::Result<jmethodID> {
-    get_cached!(
-        GET_OBJECT_CLASS_METHOD,
-        {
-            let env = get_thread_local_env()?;
-
-            let get_object_class_method_signature = "()Ljava/lang/Class;";
-            let cstr1 = utils::to_c_string("getObjectClass");
-            let cstr2 = utils::to_c_string(get_object_class_method_signature.as_ref());
-
-            // Get the method ID for the `Instance.getObjectClass`
-            let j = unsafe {
-                (opt_to_res(get_jni_get_method_id())?)(
-                    env,
-                    get_java_instance_class()?,
-                    cstr1,
-                    cstr2,
-                )
-            };
-            utils::drop_c_string(cstr1);
-            utils::drop_c_string(cstr2);
-
-            j
-        },
-        set_get_object_class_method)
 }
 
 pub(crate) fn set_get_object_class_name_method(j: jmethodID) {

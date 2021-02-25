@@ -458,14 +458,3 @@ pub(crate) fn throw_exception(message: &str, jni_env: *mut JNIEnv) -> errors::Re
         Ok(i)
     }
 }
-
-pub(crate) fn is_same_object(obj1: jobject, obj2: jobject, jni_env: *mut JNIEnv) -> errors::Result<bool> {
-    unsafe {
-        let b = (opt_to_res(cache::get_is_same_object())?)(
-            jni_env,
-            obj1,
-            obj2,
-        );
-        Ok(b == JNI_TRUE)
-    }
-}
