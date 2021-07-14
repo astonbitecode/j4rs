@@ -22,6 +22,7 @@ use std::sync::mpsc::RecvError;
 
 use fs_extra;
 use serde_json;
+use std::env::VarError;
 
 pub type Result<T> = result::Result<T, J4RsError>;
 
@@ -120,6 +121,12 @@ impl From<Infallible> for J4RsError {
 
 impl From<RecvError> for J4RsError {
     fn from(err: RecvError) -> J4RsError {
+        J4RsError::RustError(format!("{:?}", err))
+    }
+}
+
+impl From<VarError> for J4RsError {
+    fn from(err: VarError) -> J4RsError {
         J4RsError::RustError(format!("{:?}", err))
     }
 }

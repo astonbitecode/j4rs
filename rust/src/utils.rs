@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{self, fs, str};
+use std::{self, fs, str, env};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
@@ -91,7 +91,13 @@ pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
 }
 
 pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
-    let mut jassets_path = std::env::current_exe()?;
+    let is_build_script = env::var("OUT_DIR").is_ok();
+
+    let mut jassets_path = if is_build_script {
+        PathBuf::from(env::var("OUT_DIR")?)
+    } else {
+        std::env::current_exe()?
+    };
     let mut tmp_vec = Vec::new();
 
     while tmp_vec.is_empty() {

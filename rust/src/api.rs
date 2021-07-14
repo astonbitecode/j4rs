@@ -935,6 +935,12 @@ impl Jvm {
 
         // Copy the dynamic libraries
         let dynlibs: Vec<String> = utils::find_j4rs_dynamic_libraries_paths()?;
+        if dynlibs.is_empty() {
+            let message = format!("No j4rs dynamic libraries found for target triple {}. The host triple during build is {}.",
+                                  env::var("TARGET").unwrap_or("".to_string()),
+                                  env::var("HOST").unwrap_or("UNKNOWN".to_string()));
+            println!("cargo:warning={}", message);
+        }
 
         let _ = fs_extra::copy_items(&dynlibs, &pb, options)?;
 
