@@ -917,8 +917,10 @@ impl Jvm {
         }
     }
 
-    /// Copies the jassets default directory and the j4rs dynamic library under the specified location.
-    /// This is useful for cases when `with_base_path` method is used when building a Jvm with the JvmBuilder.
+    /// Copies the jassets default directory and the j4rs dynamic library under the specified
+    /// location.
+    /// This is useful for cases when `with_base_path` method is used when building a Jvm with
+    /// the JvmBuilder.
     /// Build scripts should use this method.
     pub fn copy_j4rs_libs_under(path: &str) -> errors::Result<()> {
         let mut pb = PathBuf::from(path);
@@ -934,13 +936,28 @@ impl Jvm {
         let _ = fs_extra::copy_items(vec![default_jassets_path_string].as_ref(), path, options)?;
 
         // Copy the dynamic libraries
-        let dynlibs: Vec<String> = utils::find_j4rs_dynamic_libraries_paths()?;
+        let dynlibs: Vec<String> = {
+            let mut dynlibs = vec![];
+            // We try every 1 second for 10 iterations because on most systems, cargo will
+            // parallelize the build and the dynlib might not be created yet.
+            for _i in 0..10 {
+                dynlibs = utils::find_j4rs_dynamic_libraries_paths()?;
+                if dynlibs.is_empty() {
+                    thread::sleep(time::Duration::from_millis(1000));
+                } else {
+                    break;
+                }
+            }
+            dynlibs
+        };
         if dynlibs.is_empty() {
-            let message = format!("No j4rs dynamic libraries found for target triple {}. The host triple during build is {}.",
+            let message = format!("No j4rs dynamic libraries found for target triple {}. \
+                                  The host triple during build is {}.",
                                   env::var("TARGET").unwrap_or("".to_string()),
                                   env::var("HOST").unwrap_or("UNKNOWN".to_string()));
             println!("cargo:warning={}", message);
         }
+
 
         let _ = fs_extra::copy_items(&dynlibs, &pb, options)?;
 
