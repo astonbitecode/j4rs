@@ -307,8 +307,37 @@ Note that the `scope` is `provided`. This is because the `j4rs` Java resources a
 
 Use like this in order to avoid possible classloading errors.
 
-## j4rs Java library in Android
+## j4rs in android
 
+### Rust side
+
+1. Define your crate as cdylib in the `Cargo.toml`:
+
+```toml
+[lib]
+name = "myandroidapp"
+crate-type = ["cdylib"]
+```
+
+2. Implement a `jni_onload` function and apply the provided `JavaVM`
+   to the `j4rs` like following:
+
+```rust
+const JNI_VERSION_1_6: jint = 0x00010006;
+
+#[allow(non_snake_case)]
+#[no_mangle]
+pub extern fn jni_onload(env: *mut JavaVM, _reserved: jobject) -> jint {
+    j4rs::set_java_vm(env);
+    jni_version_1_6
+}
+```
+
+### Java side
+
+Create an `Activity` and define your native methods normally, as described [here](#java-to-rust-support).
+
+Note:
 If you encounter any issues when using j4rs in Android, this may be caused by Java 8 compatibility problems. This is why there is a `Java 7` version of `j4rs`:
 
 ```xml
