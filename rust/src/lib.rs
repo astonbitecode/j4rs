@@ -641,7 +641,7 @@ mod lib_unit_tests {
     }
 
     #[test]
-    fn access_class_field() {
+    fn access_class_field_and_enum() {
         let jvm: Jvm = JvmBuilder::new()
             .build()
             .unwrap();
@@ -649,6 +649,10 @@ mod lib_unit_tests {
         let static_invocation = jvm.static_class("java.lang.System").unwrap();
         let field_instance_res = jvm.field(&static_invocation, "out");
         assert!(field_instance_res.is_ok());
+
+        let access_mode_enum = jvm.static_class("java.nio.file.AccessMode").unwrap();
+        let access_mode_write = jvm.field(&access_mode_enum, "WRITE");
+        assert!(access_mode_write.is_ok());
     }
 
     #[test]

@@ -61,6 +61,14 @@ let _static_invocation_result = jvm.invoke_static(
     &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
 )?;
 
+// Access a field of a class
+let system_class = jvm.static_class("java.lang.System")?;
+let system_out_field = jvm.field(&system_class, "out");
+
+// Retrieve an enum constant using the field
+let access_mode_enum = jvm.static_class("java.nio.file.AccessMode")?;
+let access_mode_write = jvm.field(&access_mode_enum, "WRITE")?;
+
 ```
 
 ### Passing arguments from Rust to Java
