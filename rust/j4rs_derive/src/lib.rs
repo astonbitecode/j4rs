@@ -114,7 +114,7 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
                 Err(error) => {
                     let message = format!("Could not attach to the JVM thread: {}", error);
                     println!("{}", message);
-                    panic!(message);
+                    panic!("{}", message);
                 },
             }
         }
