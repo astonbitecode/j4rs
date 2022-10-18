@@ -28,6 +28,13 @@ public class InvocationArgTest {
         ia.getInstance();
     }
 
+    @Test
+    public void getSerializedNativeInvocationOnAnArgCreatedByRust() {
+        InvocationArg ia = new InvocationArg("org.astonbitecode.j4rs.utils.Dummy", "{\"i\":3}");
+        Object dummyObj = ia.getOrDeserializeJavaObject();
+        assert (dummyObj instanceof Dummy);
+    }
+
     @Test(expected = InvalidArgumentException.class)
     public void getNativeInvocationOnAnArgCreatedByJava() {
         InvocationArg ia = new InvocationArg(CLASS_NAME, new JsonInvocationImpl(new Dummy(), Dummy.class));

@@ -15,7 +15,6 @@
 package org.astonbitecode.j4rs.api.java2rust;
 
 import org.astonbitecode.j4rs.api.Instance;
-import org.astonbitecode.j4rs.api.ObjectValue;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 
 public class Java2RustUtils {
@@ -26,6 +25,6 @@ public class Java2RustUtils {
 
     @SuppressWarnings("unchecked")
     public static <T> T getObjectCasted(Instance instance) {
-        return (T) instance.getObject();
+        return (T) instance.getOrDeserializeJavaObject();
     }
 }

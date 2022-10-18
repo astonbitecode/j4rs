@@ -16,6 +16,7 @@ package org.astonbitecode.j4rs.api;
 
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
+import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.utils.Utils;
 
@@ -55,20 +56,22 @@ public interface Instance<T> extends ObjectValue, JsonValue {
      * Any possible returned objects from the actual synchronous invocation of the defined method will be dropped.
      *
      * @param channelAddress The memory address of the channel
-     * @param methodName The method name
-     * @param args The arguments
+     * @param methodName     The method name
+     * @param args           The arguments
      */
     void invokeToChannel(long channelAddress, String methodName, InvocationArg... args);
 
     /**
      * Initialize a callback channel for this {@link Instance}.
      * The channel can be used by Java to send values to Rust using the doCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
+     *
      * @param channelAddress The memory address of the channel
      */
     void initializeCallbackChannel(long channelAddress);
 
     /**
      * Retrieves the instance held under the Field fieldName
+     *
      * @param fieldName The name of the field to retrieve
      * @return A {@link Instance} instance containing the defined field.
      */
@@ -100,5 +103,18 @@ public interface Instance<T> extends ObjectValue, JsonValue {
      */
     static <T> Instance cloneInstance(Instance from) {
         return new JsonInvocationImpl(from.getObject(), from.getObjectClass());
+    }
+
+    default T getOrDeserializeJavaObject() {
+        boolean isSerialized = false;
+        if (InvocationArg.class.isAssignableFrom(this.getClass())) {
+            isSerialized = ((InvocationArg)this).isSerialized();
+        }
+        if (!isSerialized) {
+            return (T) this.getObject();
+        } else {
+            ObjectValue objValue = JsonValueFactory.create(this.getJson(), this.getObjectClassName());
+            return (T) objValue.getObject();
+        }
     }
 }
