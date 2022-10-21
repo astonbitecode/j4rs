@@ -31,13 +31,13 @@
         <developerConnection>scm:git:git@github.com:astonbitecode/j4rs.git</developerConnection>
     </scm>
 
-    <repositories>
-        <repository>
-            <id>thenewmotion</id>
-            <name>The New Motion Repository</name>
-            <url>http://nexus.thenewmotion.com/content/repositories/releases-public</url>
-        </repository>
-    </repositories>
+<!--    <repositories>-->
+<!--        <repository>-->
+<!--            <id>thenewmotion</id>-->
+<!--            <name>The New Motion Repository</name>-->
+<!--            <url>http://nexus.thenewmotion.com/content/repositories/releases-public</url>-->
+<!--        </repository>-->
+<!--    </repositories>-->
 
     <distributionManagement>
         <snapshotRepository>
@@ -51,18 +51,18 @@
     </distributionManagement>
 
     <properties>
-        <maven.surefire.version>2.19.1</maven.surefire.version>
-        <junit.version>4.13.1</junit.version>
-        <maven.jar.plugin.version>3.1.0</maven.jar.plugin.version>
-        <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
-        <maven.gpg.plugin.version>1.6</maven.gpg.plugin.version>
-        <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
-        <maven.javadoc.plugin.version>3.1.1</maven.javadoc.plugin.version>
-        <maven.assembly.plugin.version>3.1.0</maven.assembly.plugin.version>
+        <maven.surefire.version>3.0.0-M6</maven.surefire.version>
+        <junit.version>4.13.2</junit.version>
+        <maven.jar.plugin.version>3.3.0</maven.jar.plugin.version>
+        <nexus.staging.plugin.version>1.6.13</nexus.staging.plugin.version>
+        <maven.gpg.plugin.version>3.0.1</maven.gpg.plugin.version>
+        <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
+        <maven.javadoc.plugin.version>3.4.1</maven.javadoc.plugin.version>
+        <maven.assembly.plugin.version>3.4.2</maven.assembly.plugin.version>
         <logback.version>1.2.3</logback.version>
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
-        <jackson.version>2.10.0.pr1</jackson.version>
-        <mockito.version>2.23.4</mockito.version>
+        <jackson.version>2.13.4</jackson.version>
+        <mockito.version>4.8.1</mockito.version>
         <javafx.version>13.0.2</javafx.version>
     </properties>
     <dependencies>
@@ -79,7 +79,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
+            <version>${jackson.version}.2</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
