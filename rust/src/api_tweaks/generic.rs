@@ -42,7 +42,9 @@ lazy_static! {
             MAIN_SEPARATOR,
             get_jvm_dyn_lib_file_name()
         );
-        libloading::Library::new(full_path).expect("Could not load the jvm dynamic library")
+        unsafe {
+            libloading::Library::new(full_path).expect("Could not load the jvm dynamic library")
+        }
     };
 
     static ref GET_CREATED_JVMS: libloading::Symbol<'static, JNIGetCreatedJavaVMs> = unsafe {

@@ -164,14 +164,14 @@ impl Default for MavenSettings {
 /// A repository from which Java artifacts can be fetched.
 #[derive(Debug, Clone)]
 pub struct MavenArtifactRepo {
-    pub(crate) id: String,
+    pub(crate) _id: String,
     pub(crate) uri: String,
 }
 
 impl From<&[&str]> for MavenArtifactRepo {
     fn from(slice: &[&str]) -> MavenArtifactRepo {
         MavenArtifactRepo {
-            id: slice.get(0).unwrap_or(&"").to_string(),
+            _id: slice.get(0).unwrap_or(&"").to_string(),
             uri: slice.get(1).unwrap_or(&"").to_string(),
         }
     }
@@ -234,7 +234,7 @@ mod provisioning_unit_tests {
     #[test]
     fn maven_artifact_repo_from() {
         let mar = MavenArtifactRepo::from("myrepo::https://myrepo.io");
-        assert_eq!(mar.id, "myrepo");
+        assert_eq!(mar._id, "myrepo");
         assert_eq!(mar.uri, "https://myrepo.io");
     }
 }
