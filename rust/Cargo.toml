@@ -1,6 +1,6 @@
 [package]
 name = "j4rs"
-version = "0.13.1"
+version = "0.14.0"
 authors = ["aston <astonbitecode@gmail.com>"]
 description = "j4rs stands for 'Java for Rust' and allows effortless calls to Java code, from Rust"
 keywords = ["java", "jni"]
