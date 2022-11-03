@@ -43,6 +43,7 @@ use jni_sys::{
     jsize,
     jstring,
 };
+use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json;
@@ -140,15 +141,16 @@ impl Jvm {
                 JNI_OK
             } else {
                 info("No JVMs exist. Creating a new one...");
+                let mut cstrings_to_drop: Vec<*mut c_char> = Vec::with_capacity(jvm_options.len());
                 let mut jvm_options_vec: Vec<JavaVMOption> = jvm_options
                     .iter()
                     .map(|opt| {
                         let cstr = utils::to_c_string(opt);
                         let jo = JavaVMOption {
-                            optionString: utils::to_c_string(opt),
+                            optionString: cstr,
                             extraInfo: ptr::null_mut() as *mut c_void,
                         };
-                        utils::drop_c_string(cstr);
+                        cstrings_to_drop.push(cstr);
                         jo
                     })
                     .collect();
@@ -160,11 +162,15 @@ impl Jvm {
                     ignoreUnrecognized: JNI_TRUE,
                 };
 
-                tweaks::create_java_vm(
+                let int_result = tweaks::create_java_vm(
                     &mut jvm,
                     (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
                     (&mut jvm_arguments as *mut JavaVMInitArgs) as *mut c_void,
-                )
+                );
+
+                cstrings_to_drop.into_iter().for_each(|cstr| utils::drop_c_string(cstr));
+
+                int_result
             };
 
             res_int
