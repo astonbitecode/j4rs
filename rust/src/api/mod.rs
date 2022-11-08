@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fs, mem, thread, time};
+use std::{fs, thread, time};
 use std::any::{Any, TypeId};
 use std::convert::TryFrom;
 use std::env;
@@ -20,7 +20,7 @@ use std::ops::Drop;
 use std::os::raw::c_void;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::ptr;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::channel;
 
 use fs_extra::dir::get_dir_content;
 use jni_sys::{
@@ -45,10 +45,11 @@ use jni_sys::{
 };
 use libc::c_char;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 use serde_json;
 
-use crate::{api_tweaks as tweaks, cache, MavenSettings};
+use instance::{ChainableInstance, Instance, InstanceReceiver};
+
+use crate::{api_tweaks as tweaks, cache, InvocationArg, MavenSettings};
 use crate::errors;
 use crate::errors::{J4RsError, opt_to_res};
 use crate::jni_utils;
@@ -57,6 +58,9 @@ use crate::provisioning;
 use crate::utils;
 
 use super::logger::{debug, error, info, warn};
+
+pub(crate) mod invocation_arg;
+pub(crate) mod instance;
 
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
@@ -187,7 +191,7 @@ impl Jvm {
                 _ => "unknown JNI error value",
             };
 
-            Err(errors::J4RsError::JavaError(format!("Could not create the JVM: {}", error_message).to_string()))
+            Err(J4RsError::JavaError(format!("Could not create the JVM: {}", error_message).to_string()))
         } else {
             let jvm = Self::try_from(jni_environment)?;
             if let Some(libname) = lib_name_to_load {
@@ -234,7 +238,7 @@ impl Jvm {
                         if (ec)(jni_environment) == JNI_TRUE {
                             (ed)(jni_environment);
                             (exclear)(jni_environment);
-                            Err(errors::J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_string()))
+                            Err(J4RsError::JavaError("The VM cannot be started... Please check the logs.".to_string()))
                         } else {
                             let jvm = Jvm {
                                 jni_env: jni_environment,
@@ -248,7 +252,7 @@ impl Jvm {
                         }
                     }
                     (_, _, _) => {
-                        Err(errors::J4RsError::JniError(format!("Could not initialize the JVM: Error while trying to retrieve JNI functions.")))
+                        Err(J4RsError::JniError(format!("Could not initialize the JVM: Error while trying to retrieve JNI functions.")))
                     }
                 }
             }
@@ -839,13 +843,13 @@ impl Jvm {
                 rust_box_from_java_object!(jni_utils::i32_from_jobject)
             } else if t_type == TypeId::of::<i8>() && CLASS_BYTE == class_name {
                 rust_box_from_java_object!(jni_utils::i8_from_jobject)
-            } else if t_type == TypeId::of::<i16>()  && CLASS_SHORT == class_name{
+            } else if t_type == TypeId::of::<i16>() && CLASS_SHORT == class_name {
                 rust_box_from_java_object!(jni_utils::i16_from_jobject)
             } else if t_type == TypeId::of::<i64>() && CLASS_LONG == class_name {
                 rust_box_from_java_object!(jni_utils::i64_from_jobject)
             } else if t_type == TypeId::of::<f32>() && CLASS_FLOAT == class_name {
                 rust_box_from_java_object!(jni_utils::f32_from_jobject)
-            } else if t_type ==  TypeId::of::<f64>() && CLASS_DOUBLE == class_name {
+            } else if t_type == TypeId::of::<f64>() && CLASS_DOUBLE == class_name {
                 rust_box_from_java_object!(jni_utils::f64_from_jobject)
             } else {
                 Ok(Box::new(self.to_rust_deserialized(instance)?))
@@ -991,7 +995,7 @@ impl Jvm {
             if (opt_to_res(cache::get_jni_exception_check())?)(jni_env) == JNI_TRUE {
                 (opt_to_res(cache::get_jni_exception_describe())?)(jni_env);
                 (opt_to_res(cache::get_jni_exception_clear())?)(jni_env);
-                Err(errors::J4RsError::JavaError("An Exception was thrown by Java... Please check the logs or the console.".to_string()))
+                Err(J4RsError::JavaError("An Exception was thrown by Java... Please check the logs or the console.".to_string()))
             } else {
                 Ok(to_return)
             }
@@ -1098,7 +1102,7 @@ impl Jvm {
                 }
             }
             if &start.elapsed() > timeout {
-                return Err(errors::J4RsError::Timeout);
+                return Err(J4RsError::Timeout);
             }
             thread::yield_now();
         }
@@ -1348,182 +1352,6 @@ impl<'a> JvmBuilder<'a> {
     }
 }
 
-/// Struct that carries an argument that is used for method invocations in Java.
-#[derive(Serialize)]
-pub enum InvocationArg {
-    /// An arg that is created in the Java world.
-    Java {
-        instance: Instance,
-        class_name: String,
-        serialized: bool,
-    },
-    /// A serialized arg that is created in the Rust world.
-    Rust {
-        json: String,
-        class_name: String,
-        serialized: bool,
-    },
-    /// An non-serialized arg created in the Rust world, that contains a Java instance.
-    ///
-    /// The instance is a Basic Java type, like Integer, Float, String etc.
-    RustBasic {
-        instance: Instance,
-        class_name: String,
-        serialized: bool,
-    },
-}
-
-impl InvocationArg {
-    /// Creates a InvocationArg::Rust.
-    /// This is default for the Args that are created from the Rust code.
-    pub fn new<T>(arg: &T, class_name: &str) -> InvocationArg
-        where T: Serialize + Any
-    {
-        Self::new_2(
-            arg,
-            class_name,
-            cache::get_thread_local_env().expect("Could not find the jni_env in the local cache. Please make sure that you created a Jvm before using Jvm::new"))
-            .expect("Could not create the InvocationArg. Please see the logs/console for more details.")
-    }
-
-    pub fn new_2<T>(arg: &T, class_name: &str, jni_env: *mut JNIEnv) -> errors::Result<InvocationArg>
-        where T: Serialize + Any
-    {
-        let arg_any = arg as &dyn Any;
-        if let Some(a) = arg_any.downcast_ref::<String>() {
-            Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_str(a, jni_env)?, class_name)?,
-                class_name: class_name.to_string(),
-                serialized: false,
-            })
-        } else if let Some(a) = arg_any.downcast_ref::<i8>() {
-            Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_i8(a, jni_env)?, class_name)?,
-                class_name: class_name.to_string(),
-                serialized: false,
-            })
-        } else if let Some(a) = arg_any.downcast_ref::<i16>() {
-            Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_i16(a, jni_env)?, class_name)?,
-                class_name: class_name.to_string(),
-                serialized: false,
-            })
-        } else if let Some(a) = arg_any.downcast_ref::<i32>() {
-            Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_i32(a, jni_env)?, class_name)?,
-                class_name: class_name.to_string(),
-                serialized: false,
-            })
-        } else if let Some(a) = arg_any.downcast_ref::<i64>() {
-            Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_i64(a, jni_env)?, class_name)?,
-                class_name: class_name.to_string(),
-                serialized: false,
-            })
-        } else if let Some(a) = arg_any.downcast_ref::<f32>() {
-            Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_f32(a, jni_env)?, class_name)?,
-                class_name: class_name.to_string(),
-                serialized: false,
-            })
-        } else if let Some(a) = arg_any.downcast_ref::<f64>() {
-            Ok(InvocationArg::RustBasic {
-                instance: Instance::new(jni_utils::global_jobject_from_f64(a, jni_env)?, class_name)?,
-                class_name: class_name.to_string(),
-                serialized: false,
-            })
-        } else {
-            let json = serde_json::to_string(arg)?;
-            Ok(InvocationArg::Rust {
-                json: json,
-                class_name: class_name.to_string(),
-                serialized: true,
-            })
-        }
-    }
-
-    fn make_primitive(&mut self) -> errors::Result<()> {
-        match utils::primitive_of(self) {
-            Some(primitive_repr) => {
-                match self {
-                    &mut InvocationArg::Java { instance: _, ref mut class_name, serialized: _ } => *class_name = primitive_repr,
-                    &mut InvocationArg::Rust { json: _, ref mut class_name, serialized: _ } => *class_name = primitive_repr,
-                    &mut InvocationArg::RustBasic { instance: _, ref mut class_name, serialized: _ } => *class_name = primitive_repr,
-                };
-                Ok(())
-            }
-            None => Err(errors::J4RsError::JavaError(format!("Cannot transform to primitive: {}", utils::get_class_name(&self))))
-        }
-    }
-
-    /// Consumes this InvocationArg and transforms it to an InvocationArg that contains a Java primitive, leveraging Java's autoboxing.
-    ///
-    /// This action can be done by calling `Jvm::cast` of Instances as well (e.g.: jvm.cast(&instance, "int"))
-    /// but calling `into_primitive` is faster, as it does not involve JNI calls.
-    pub fn into_primitive(self) -> errors::Result<InvocationArg> {
-        let mut ia = self;
-        ia.make_primitive()?;
-        Ok(ia)
-    }
-
-    /// Creates a `jobject` from this InvocationArg.
-    pub fn as_java_ptr_with_global_ref(&self, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-        match self {
-            _s @ &InvocationArg::Java { .. } => jni_utils::invocation_arg_jobject_from_java(&self, jni_env, true),
-            _s @ &InvocationArg::Rust { .. } => jni_utils::invocation_arg_jobject_from_rust_serialized(&self, jni_env, true),
-            _s @ &InvocationArg::RustBasic { .. } => jni_utils::invocation_arg_jobject_from_rust_basic(&self, jni_env, true),
-        }
-    }
-
-    /// Creates a `jobject` from this InvocationArg. The jobject contains a local reference.
-    pub fn as_java_ptr_with_local_ref(&self, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-        match self {
-            _s @ &InvocationArg::Java { .. } => jni_utils::invocation_arg_jobject_from_java(&self, jni_env, false),
-            _s @ &InvocationArg::Rust { .. } => jni_utils::invocation_arg_jobject_from_rust_serialized(&self, jni_env, false),
-            _s @ &InvocationArg::RustBasic { .. } => jni_utils::invocation_arg_jobject_from_rust_basic(&self, jni_env, false),
-        }
-    }
-
-    /// Consumes this invocation arg and returns its Instance
-    pub fn instance(self) -> errors::Result<Instance> {
-        match self {
-            InvocationArg::Java { instance: i, .. } => Ok(i),
-            InvocationArg::RustBasic { .. } => Err(errors::J4RsError::RustError(format!("Invalid operation: Cannot get the instance of an InvocationArg::RustBasic"))),
-            InvocationArg::Rust { .. } => Err(errors::J4RsError::RustError(format!("Cannot get the instance from an InvocationArg::Rust"))),
-        }
-    }
-
-    pub fn class_name(&self) -> &str {
-        match self {
-            &InvocationArg::Java { instance: _, ref class_name, serialized: _ } => class_name,
-            &InvocationArg::Rust { json: _, ref class_name, serialized: _ } => class_name,
-            &InvocationArg::RustBasic { instance: _, ref class_name, serialized: _ } => class_name,
-        }
-    }
-
-    /// Creates an InvocationArg that contains null
-    pub fn create_null(null: Null) -> errors::Result<InvocationArg> {
-        let class_name = match null {
-            Null::String => CLASS_STRING,
-            Null::Boolean => CLASS_BOOLEAN,
-            Null::Byte => CLASS_BYTE,
-            Null::Character => CLASS_CHARACTER,
-            Null::Short => CLASS_SHORT,
-            Null::Integer => CLASS_INTEGER,
-            Null::Long => CLASS_LONG,
-            Null::Float => CLASS_FLOAT,
-            Null::Double => CLASS_DOUBLE,
-            Null::List => CLASS_LIST,
-            Null::Of(class_name) => class_name,
-        };
-        Ok(InvocationArg::RustBasic {
-            instance: Instance::new(ptr::null_mut(), class_name)?,
-            class_name: class_name.to_string(),
-            serialized: false,
-        })
-    }
-}
-
 /// Represents Java's null. Use this to create null Objects. E.g.:
 ///
 /// let null_integer = InvocationArg::from(Null::Integer);
@@ -1540,465 +1368,6 @@ pub enum Null<'a> {
     Double,
     List,
     Of(&'a str),
-}
-
-impl From<Instance> for InvocationArg {
-    fn from(instance: Instance) -> InvocationArg {
-        let class_name = instance.class_name.to_owned();
-
-        InvocationArg::Java {
-            instance: instance,
-            class_name: class_name,
-            serialized: false,
-        }
-    }
-}
-
-impl<'a> TryFrom<Null<'a>> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(null: Null) -> errors::Result<InvocationArg> {
-        InvocationArg::create_null(null)
-    }
-}
-
-impl TryFrom<String> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: String) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_STRING, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [String]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [String]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl<'a> TryFrom<&'a str> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a str) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg.to_string(), CLASS_STRING, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [&'a str]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [&'a str]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|&elem| InvocationArg::try_from(elem)).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<bool> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: bool) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_BOOLEAN, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [bool]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [bool]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<i8> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: i8) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_BYTE, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [i8]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [i8]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<char> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: char) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_CHARACTER, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [char]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [char]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<i16> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: i16) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_SHORT, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [i16]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [i16]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<i32> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: i32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_INTEGER, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [i32]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [i32]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<i64> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: i64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_LONG, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [i64]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [i64]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<f32> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: f32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_FLOAT, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [f32]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [f32]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<f64> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: f64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_DOUBLE, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a [f64]> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(vec: &'a [f64]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl<'a, T: 'static> TryFrom<(&'a [T], &'a str)> for InvocationArg where T: Serialize {
-    type Error = errors::J4RsError;
-    fn try_from(vec: (&'a [T], &'a str)) -> errors::Result<InvocationArg> {
-        let (vec, elements_class_name) = vec;
-        let jni_env = cache::get_thread_local_env()?;
-        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::new_2(elem, elements_class_name, jni_env)).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
-impl TryFrom<()> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: ()) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, "void", cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a String> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a String) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_STRING, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a bool, > for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a bool) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_BOOLEAN, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a i8> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a i8) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_BYTE, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a char> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a char) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_CHARACTER, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a i16> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a i16) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_SHORT, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a, 'b> TryFrom<&'a i32> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a i32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_INTEGER, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a i64> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a i64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_LONG, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a f32> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a f32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_FLOAT, cache::get_thread_local_env()?)
-    }
-}
-
-impl<'a> TryFrom<&'a f64> for InvocationArg {
-    type Error = errors::J4RsError;
-    fn try_from(arg: &'a f64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_DOUBLE, cache::get_thread_local_env()?)
-    }
-}
-
-/// A receiver for Java Instances.
-///
-/// It keeps a channel Receiver to get callback Instances from the Java world
-/// and the address of a Box<Sender<Instance>> Box in the heap. This Box is used by Java to communicate
-/// asynchronously Instances to Rust.
-///
-/// On Drop, the InstanceReceiver removes the Box from the heap.
-pub struct InstanceReceiver {
-    rx: Box<Receiver<Instance>>,
-    tx_address: i64,
-}
-
-impl InstanceReceiver {
-    fn new(rx: Receiver<Instance>, tx_address: i64) -> InstanceReceiver {
-        InstanceReceiver {
-            rx: Box::new(rx),
-            tx_address,
-        }
-    }
-
-    pub fn rx(&self) -> &Receiver<Instance> {
-        &self.rx
-    }
-}
-
-impl Drop for InstanceReceiver {
-    fn drop(&mut self) {
-        if self.tx_address > 0 {
-            debug("Dropping an InstanceReceiver");
-            let p = self.tx_address as *mut Sender<Instance>;
-            unsafe {
-                let tx = Box::from_raw(p);
-                mem::drop(tx);
-            }
-        }
-    }
-}
-
-/// A Java instance
-#[derive(Serialize)]
-pub struct Instance {
-    /// The name of the class of this instance
-    class_name: String,
-    /// The JNI jobject that manipulates this instance.
-    ///
-    /// This object is an instance of `org/astonbitecode/j4rs/api/Instance`
-    #[serde(skip)]
-    pub(crate) jinstance: jobject,
-    #[serde(skip)]
-    skip_deleting_jobject: bool,
-}
-
-impl Instance {
-    /// Creates a new Instance, leaving the passed jobject as is.
-    /// In most cases, the jobject is already transformed to a global reference.
-    pub(crate) fn new(obj: jobject, classname: &str) -> errors::Result<Instance> {
-        Ok(Instance {
-            jinstance: obj,
-            class_name: classname.to_string(),
-            skip_deleting_jobject: false,
-        })
-    }
-
-    /// Returns the class name of this instance
-    pub fn class_name(&self) -> &str {
-        self.class_name.as_ref()
-    }
-
-    /// Consumes the Instance and returns its jobject
-    pub fn java_object(mut self) -> jobject {
-        self.skip_deleting_jobject = true;
-        self.jinstance
-    }
-
-    #[deprecated(since = "0.12.0", note = "Please use Instance::from_jobject or Instance::from_jobject_with_global_ref instead")]
-    pub fn from(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = cache::get_thread_local_env().map_err(|_| {
-            Jvm::attach_thread()
-        });
-
-        let global = jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
-        Ok(Instance {
-            jinstance: global,
-            class_name: cache::UNKNOWN_FOR_RUST.to_string(),
-            skip_deleting_jobject: false,
-        })
-    }
-
-    pub fn from_jobject(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = cache::get_thread_local_env().map_err(|_| {
-            Jvm::attach_thread()
-        });
-
-        Ok(Instance {
-            jinstance: obj,
-            class_name: cache::UNKNOWN_FOR_RUST.to_string(),
-            skip_deleting_jobject: false,
-        })
-    }
-
-    pub fn from_jobject_with_global_ref(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = cache::get_thread_local_env().map_err(|_| {
-            Jvm::attach_thread()
-        });
-
-        let global = jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
-        Ok(Instance {
-            jinstance: global,
-            class_name: cache::UNKNOWN_FOR_RUST.to_string(),
-            skip_deleting_jobject: false,
-        })
-    }
-
-    /// Creates a weak reference of this Instance.
-    fn _weak_ref(&self) -> errors::Result<Instance> {
-        Ok(Instance {
-            class_name: self.class_name.clone(),
-            jinstance: jni_utils::_create_weak_global_ref_from_global_ref(self.jinstance.clone(), cache::get_thread_local_env()?)?,
-            skip_deleting_jobject: false,
-        })
-    }
-}
-
-impl TryFrom<InvocationArg> for Instance {
-    type Error = errors::J4RsError;
-    fn try_from(invocation_arg: InvocationArg) -> errors::Result<Instance> {
-        let obj = invocation_arg.as_java_ptr_with_local_ref(cache::get_thread_local_env()?)?;
-        Instance::new(obj, invocation_arg.class_name())
-    }
-}
-
-impl Drop for Instance {
-    fn drop(&mut self) {
-        debug(&format!("Dropping an instance of {}", self.class_name));
-        if !self.skip_deleting_jobject {
-            if let Some(j_env) = cache::get_thread_local_env_opt() {
-                jni_utils::delete_java_ref(j_env, self.jinstance);
-            }
-        }
-    }
-}
-
-unsafe impl Send for Instance {}
-
-/// Allows chained Jvm calls to created Instances
-pub struct ChainableInstance<'a> {
-    instance: Instance,
-    jvm: &'a Jvm,
-}
-
-impl<'a> ChainableInstance<'a> {
-    fn new(instance: Instance, jvm: &'a Jvm) -> ChainableInstance {
-        ChainableInstance { instance, jvm }
-    }
-
-    fn new_with_instance_ref(instance: &Instance, jvm: &'a Jvm) -> errors::Result<ChainableInstance<'a>> {
-        let cloned = jvm.clone_instance(&instance)?;
-        Ok(ChainableInstance { instance: cloned, jvm })
-    }
-
-    pub fn collect(self) -> Instance {
-        self.instance
-    }
-
-    /// Invokes the method `method_name` of a this `Instance`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
-    pub fn invoke(&self, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<ChainableInstance> {
-        let instance = self.jvm.invoke(&self.instance, method_name, inv_args)?;
-        Ok(ChainableInstance::new(instance, self.jvm))
-    }
-
-    /// Creates a clone of the Instance
-    pub fn clone_instance(&self) -> errors::Result<ChainableInstance> {
-        let instance = self.jvm.clone_instance(&self.instance)?;
-        Ok(ChainableInstance::new(instance, self.jvm))
-    }
-
-    /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
-    pub fn cast(&self, to_class: &str) -> errors::Result<ChainableInstance> {
-        let instance = self.jvm.cast(&self.instance, to_class)?;
-        Ok(ChainableInstance::new(instance, self.jvm))
-    }
-
-    /// Retrieves the field `field_name` of the `Instance`.
-    pub fn field(&self, field_name: &str) -> errors::Result<ChainableInstance> {
-        let instance = self.jvm.field(&self.instance, field_name)?;
-        Ok(ChainableInstance::new(instance, self.jvm))
-    }
-
-    /// Returns the Rust representation of the provided instance
-    pub fn to_rust<T: Any>(self) -> errors::Result<T> where T: DeserializeOwned {
-        self.jvm.to_rust(self.instance)
-    }
-
-    /// Returns the Rust representation of the provided instance, boxed
-    pub fn to_rust_boxed<T: Any>(self) -> errors::Result<Box<T>> where T: DeserializeOwned {
-        self.jvm.to_rust_boxed(self.instance)
-    }
 }
 
 /// A classpath entry.
@@ -2035,9 +1404,6 @@ impl<'a> ToString for JavaOpt<'a> {
 
 #[cfg(test)]
 mod api_unit_tests {
-    use serde::Deserialize;
-    use serde_json;
-
     use super::*;
 
     #[test]
@@ -2046,62 +1412,6 @@ mod api_unit_tests {
         assert!(res.is_ok());
         let one_more_res = JvmBuilder::already_initialized();
         assert!(one_more_res.is_ok());
-    }
-
-    #[test]
-    fn new_invocation_arg() {
-        let _jvm = JvmBuilder::new().build().unwrap();
-        let _ = InvocationArg::new(&"something".to_string(), "somethingelse");
-
-        let gr = GuiResponse::ProvidedPassword { password: "passs".to_string(), number: 1 };
-        let json = serde_json::to_string(&gr).unwrap();
-        println!("{:?}", json);
-        let res: Result<GuiResponse, _> = serde_json::from_str(&json);
-        println!("{:?}", res);
-    }
-
-    #[derive(Serialize, Deserialize, Debug)]
-    enum GuiResponse {
-        ProvidedPassword { password: String, number: usize }
-    }
-
-    #[test]
-    fn invocation_arg_try_from_basic_types() {
-        let _jvm = JvmBuilder::new().build().unwrap();
-        validate_type(InvocationArg::try_from("str").unwrap(), "java.lang.String");
-        validate_type(InvocationArg::try_from("str".to_string()).unwrap(), "java.lang.String");
-        validate_type(InvocationArg::try_from(true).unwrap(), "java.lang.Boolean");
-        validate_type(InvocationArg::try_from(1_i8).unwrap(), "java.lang.Byte");
-        validate_type(InvocationArg::try_from('c').unwrap(), "java.lang.Character");
-        validate_type(InvocationArg::try_from(1_i16).unwrap(), "java.lang.Short");
-        validate_type(InvocationArg::try_from(1_i64).unwrap(), "java.lang.Long");
-        validate_type(InvocationArg::try_from(0.1_f32).unwrap(), "java.lang.Float");
-        validate_type(InvocationArg::try_from(0.1_f64).unwrap(), "java.lang.Double");
-        validate_type(InvocationArg::try_from(()).unwrap(), "void");
-
-        validate_type(InvocationArg::try_from(&"str".to_string()).unwrap(), "java.lang.String");
-        validate_type(InvocationArg::try_from(&true).unwrap(), "java.lang.Boolean");
-        validate_type(InvocationArg::try_from(&1_i8).unwrap(), "java.lang.Byte");
-        validate_type(InvocationArg::try_from(&'c').unwrap(), "java.lang.Character");
-        validate_type(InvocationArg::try_from(&1_i16).unwrap(), "java.lang.Short");
-        validate_type(InvocationArg::try_from(&1_i64).unwrap(), "java.lang.Long");
-        validate_type(InvocationArg::try_from(&0.1_f32).unwrap(), "java.lang.Float");
-        validate_type(InvocationArg::try_from(&0.1_f64).unwrap(), "java.lang.Double");
-    }
-
-    #[test]
-    fn invocation_into_primitive() {
-        let _jvm: Jvm = JvmBuilder::new().build().unwrap();
-        assert!(InvocationArg::try_from(false).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from(1_i8).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from(1_i16).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from(1_32).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from(1_i64).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from(0.1_f32).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from(0.1_f64).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from('c').unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from(()).unwrap().into_primitive().is_ok());
-        assert!(InvocationArg::try_from("string").unwrap().into_primitive().is_err());
     }
 
     #[test]
@@ -2160,18 +1470,5 @@ mod api_unit_tests {
         dbg!(index2);
         assert!(index1 == 0);
         assert!(index2 == 1);
-    }
-
-    fn validate_type(ia: InvocationArg, class: &str) {
-        let b = match ia {
-            _s @ InvocationArg::Java { .. } => false,
-            InvocationArg::Rust { class_name, json: _, .. } => {
-                class == class_name
-            }
-            InvocationArg::RustBasic { instance: _, class_name, serialized: _ } => {
-                class == class_name
-            }
-        };
-        assert!(b);
     }
 }

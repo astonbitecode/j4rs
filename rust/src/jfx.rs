@@ -15,8 +15,9 @@ use std::env;
 use std::convert::{TryFrom, TryInto};
 use std::path::PathBuf;
 
-use crate::{Instance, InstanceReceiver, InvocationArg, Jvm, MavenArtifact};
+use crate::{InvocationArg, Jvm, MavenArtifact};
 use crate::api::{CLASS_J4RS_EVENT_HANDLER, CLASS_J4RS_FXML_LOADER, CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT};
+use crate::api::instance::{Instance, InstanceReceiver};
 use crate::errors;
 use crate::errors::{J4RsError, opt_to_res};
 

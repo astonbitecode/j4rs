@@ -29,9 +29,9 @@ pub use jni_sys as jni_sys;
 
 pub use self::api::Callback as Callback;
 pub use self::api::ClasspathEntry as ClasspathEntry;
-pub use self::api::Instance as Instance;
-pub use self::api::InstanceReceiver as InstanceReceiver;
-pub use self::api::InvocationArg as InvocationArg;
+pub use api::instance::Instance as Instance;
+pub use api::instance::InstanceReceiver as InstanceReceiver;
+pub use self::api::invocation_arg::InvocationArg as InvocationArg;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
@@ -785,12 +785,12 @@ mod lib_unit_tests {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
         let null = InvocationArg::try_from(Null::Of("java.lang.Integer")).unwrap();
-        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[null]).unwrap();
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.is_empty());
 
         let null = InvocationArg::try_from(Null::Integer).unwrap();
-        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[InvocationArg::from(null)]).unwrap();
+        let list_instance = jvm.invoke(&test_instance, "getNumbersUntil", &[null]).unwrap();
         let vec: Vec<i32> = jvm.to_rust(list_instance).unwrap();
         assert!(vec.is_empty());
     }
