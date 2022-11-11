@@ -11,6 +11,7 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
 * **Rust to Java direction support (call Java from Rust).**
     * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
     * [Easily instantiate and invoke Java classes.](#Basics)
+    * [Support custom types via serialization.](#Passing-custom-arguments-from-Rust-to-Java)
     * [Casting support.](#Casting)
     * [Java arrays / variadic support.](#Java-arrays-and-variadics)
     * [Java generics support.](#Java-Generics)
@@ -34,17 +35,17 @@ let jvm = JvmBuilder::new().build()?;
 
 // Create a java.lang.String instance
 let string_instance = jvm.create_instance(
-    "java.lang.String",     // The Java class to create an instance for
-    &Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
+"java.lang.String",     // The Java class to create an instance for
+&Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
 )?;
 
 // The instances returned from invocations and instantiations can be viewed as pointers to Java Objects.
 // They can be used for further Java calls.
 // For example, the following invokes the `isEmpty` method of the created java.lang.String instance
 let boolean_instance = jvm.invoke(
-    &string_instance,       // The String instance created above
-    "isEmpty",              // The method of the String instance to invoke
-    &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
+&string_instance,       // The String instance created above
+"isEmpty",              // The method of the String instance to invoke
+&Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
 )?;
 
 // If we need to transform an `Instance` to Rust value, the `to_rust` should be called
@@ -55,9 +56,9 @@ println!("The isEmpty() method of the java.lang.String instance returned {}", ru
 
 // Static invocation
 let _static_invocation_result = jvm.invoke_static(
-    "java.lang.System",     // The Java class to invoke
-    "currentTimeMillis",    // The static method of the Java class to invoke
-    &Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
+"java.lang.System",     // The Java class to invoke
+"currentTimeMillis",    // The static method of the Java class to invoke
+&Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
 )?;
 
 // Access a field of a class
@@ -104,8 +105,8 @@ The `Instance`s returned by j4rs can be transformed to `InvocationArg`s and be f
 
 ```rust
 let one_more_string_instance = jvm.create_instance(
-    "java.lang.String",     // The Java class to create an instance for
-    &Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
+"java.lang.String",     // The Java class to create an instance for
+&Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
 )?;
 
 let i11 = InvocationArg::try_from(one_more_string_instance)?;
@@ -117,6 +118,63 @@ To create an `InvocationArg` that represents a `null` Java value, use the `From`
 let null_string = InvocationArg::from(Null::String);                // A null String
 let null_integer = InvocationArg::from(Null::Integer);              // A null Integer
 let null_obj = InvocationArg::from(Null::Of("java.util.List"));    // A null object of any other class. E.g. List
+```
+
+### Passing custom arguments from Rust to Java
+
+Custom types, for which there is no `TryFrom` implementation, are also supported via serialization.
+
+To use a custom struct `MyBean` as an `InvocationArg` it needs to be serializable:
+
+```rust
+#[derive(Serialize, Deserialize, Debug)]
+#[allow(non_snake_case)]
+struct MyBean {
+    someString: String,
+    someInteger: isize,
+}
+```
+
+Then, an `InvocationArg` can be created like:
+
+```rust
+let my_bean = MyBean {
+    someString: "My String In A Bean".to_string(),
+    someInteger: 33,
+};
+let ia = InvocationArg::new(&my_bean, "org.astonbitecode.j4rs.tests.MyBean");
+```
+
+And it can be used as an argument to a Java method that accepts `org.astonbitecode.j4rs.tests.MyBean` instances.
+
+Of course, there should exist a respective Java class in the classpath for the deserialization to work and the custom Java Object to be created:
+
+```java
+package org.astonbitecode.j4rs.tests;
+
+public class MyBean {
+    private String someString;
+    private Integer someInteger;
+
+    public MyBean() {
+    }
+
+    public String getSomeString() {
+        return someString;
+    }
+
+    public void setSomeString(String someString) {
+        this.someString = someString;
+    }
+
+    public Integer getSomeInteger() {
+        return someInteger;
+    }
+
+    public void setSomeInteger(Integer someInteger) {
+        this.someInteger = someInteger;
+    }
+}
 ```
 
 ### Casting
@@ -164,12 +222,12 @@ jvm.create_instance("java.lang.Integer", &[ia])?;
 It throws an _InstantiationException_ because the constructor of `Integer` takes a primitive `int` as an argument:
 
 >Exception in thread "main" org.astonbitecode.j4rs.errors.InstantiationException: Cannot create instance of java.lang.Integer
-  	at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.instantiate(NativeInstantiationImpl.java:37)
-  Caused by: java.lang.NoSuchMethodException: java.lang.Integer.<init>(java.lang.Integer)
-  	at java.base/java.lang.Class.getConstructor0(Class.java:3349)
-  	at java.base/java.lang.Class.getConstructor(Class.java:2151)
-  	at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.createInstance(NativeInstantiationImpl.java:69)
-  	at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.instantiate(NativeInstantiationImpl.java:34)
+at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.instantiate(NativeInstantiationImpl.java:37)
+Caused by: java.lang.NoSuchMethodException: java.lang.Integer.<init>(java.lang.Integer)
+at java.base/java.lang.Class.getConstructor0(Class.java:3349)
+at java.base/java.lang.Class.getConstructor(Class.java:2151)
+at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.createInstance(NativeInstantiationImpl.java:69)
+at org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl.instantiate(NativeInstantiationImpl.java:34)
 
 In situations like this, the `java.lang.Integer` instance should be transformed to a primitive `int` first:
 
@@ -187,15 +245,15 @@ let jvm = JvmBuilder::new().build()?;
 
 // Create an instance
 let string_instance = jvm.create_instance(
-    "java.lang.String",
-    &vec![InvocationArg::try_from(" a string ")?],
+"java.lang.String",
+&vec![InvocationArg::try_from(" a string ")?],
 )?;
 
 // Perform chained operations on the instance
 let string_size: isize = jvm.chain(string_instance)
-    .invoke("trim", &[])?
-    .invoke("length", &[])?
-    .to_rust()?;
+.invoke("trim", &[])?
+.invoke("length", &[])?
+.to_rust()?;
 
 // Assert that the string was trimmed
 assert!(string_size == 8);
@@ -205,7 +263,7 @@ assert!(string_size == 8);
 
 `j4rs` provides support for _Java to Rust callbacks_.
 
-These callbacks come to the Rust world via Rust [Channels](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html). 
+These callbacks come to the Rust world via Rust [Channels](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html).
 
 In order to initialize a channel that will provide Java callback values, the `Jvm::invoke_to_channel` should be called. It returns a result of `InstanceReceiver` struct, which contains a Channel [Receiver](https://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html):
 
@@ -216,14 +274,14 @@ In order to initialize a channel that will provide Java callback values, the `Jv
 // (the class just needs to extend the 
 // `org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport`)
 let i = jvm.create_instance(
-    "org.astonbitecode.j4rs.tests.MyTest",
-    &Vec::new())?;
+"org.astonbitecode.j4rs.tests.MyTest",
+&Vec::new())?;
 
 // Invoke the method
 let instance_receiver_res = jvm.invoke_to_channel(
-    &i,                         // The instance to invoke asynchronously
-    "performCallback",          // The method to invoke asynchronoysly
-    &Vec::new()                 // The `InvocationArg`s to use for the invocation - empty for this example
+&i,                         // The instance to invoke asynchronously
+"performCallback",          // The method to invoke asynchronoysly
+&Vec::new()                 // The `InvocationArg`s to use for the invocation - empty for this example
 );
 
 // Wait for the response to come
@@ -231,10 +289,10 @@ let instance_receiver = instance_receiver_res?;
 let _ = instance_receiver.rx().recv();
 ```
 
-In the Java world, a Class that can do __Native Callbacks__ must extend the 
+In the Java world, a Class that can do __Native Callbacks__ must extend the
 `org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport`
 
-For example, consider the following Java class. 
+For example, consider the following Java class.
 
 The `performCallback` method spawns a new Thread and invokes the `doCallback` method in this Thread. The `doCallback` method is inherited by the `NativeCallbackToRustChannelSupport` class.
 
@@ -270,12 +328,12 @@ Additional artifactories can be used as well:
 
 ```rust
 let jvm: Jvm = JvmBuilder::new()
-    .with_maven_settings(MavenSettings::new(vec![
-        MavenArtifactRepo::from("myrepo1::https://my.repo.io/artifacts"),
-        MavenArtifactRepo::from("myrepo2::https://my.other.repo.io/artifacts")])
-    )
-    .build()
-    ?;
+.with_maven_settings(MavenSettings::new(vec![
+    MavenArtifactRepo::from("myrepo1::https://my.repo.io/artifacts"),
+    MavenArtifactRepo::from("myrepo2::https://my.other.repo.io/artifacts")])
+)
+.build()
+?;
 
 jvm.deploy_artifact(&MavenArtifact::from("io.my:library:1.2.3"))?;
 ```
@@ -284,7 +342,7 @@ Maven artifacts are added automatically to the classpath and do not need to be e
 
 A good practice is that the deployment of maven artifacts is done by build scripts, during the crate's compilation. This ensures that the classpath is properly populated during the actual Rust code execution.
 
-_Note: the deployment does not take care the transitive dependencies yet._  
+_Note: the deployment does not take care the transitive dependencies yet._
 
 ### Adding jars to the classpath
 
@@ -293,8 +351,8 @@ If we have one jar that needs to be accessed using `j4rs`, we need to add it in 
 ```rust
 let entry = ClasspathEntry::new("/home/myuser/dev/myjar-1.0.0.jar");
 let jvm: Jvm = JvmBuilder::new()
-    .classpath_entry(entry)
-    .build()?;
+.classpath_entry(entry)
+.build()?;
 ```
 
 ## j4rs Java library
@@ -310,7 +368,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 </dependency>
 ```
 
-Note that the `scope` is `provided`. This is because the `j4rs` Java resources are always available with the `j4rs` crate. 
+Note that the `scope` is `provided`. This is because the `j4rs` Java resources are always available with the `j4rs` crate.
 
 Use like this in order to avoid possible classloading errors.
 
@@ -366,25 +424,25 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
 
 A good idea is that this happens during build time, in order the dependencies to be available when the actual Rust application starts and the JVM is initialized.
 This can happen by adding the following in a [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html?highlight=build,scrpit#build-scripts):
-	
+
 ```rust
 	use j4rs::JvmBuilder;
-	use j4rs::jfx::JavaFxSupport;
+use j4rs::jfx::JavaFxSupport;
 
-	fn main() {
-		let jvm = JvmBuilder::new().build().unwrap();
-		jvm.deploy_javafx_dependencies().unwrap();
-	}
+fn main() {
+    let jvm = JvmBuilder::new().build().unwrap();
+    jvm.deploy_javafx_dependencies().unwrap();
+}
 
 ```
 
 #### 3. Implement the UI:
 
-There are two choices here; either build the UI using FXML, or, build it traditionally, using Java code. 
+There are two choices here; either build the UI using FXML, or, build it traditionally, using Java code.
 In the code snippets below, you may find comments with a short description for each line.
 
 ##### 3.a Implement the UI with Java calls to the JavaFX API
-	
+
 ```rust
 // Create a Jvm with JavaFX support
 let jvm = JvmBuilder::new().with_javafx_support().build()?;
@@ -406,15 +464,15 @@ let btn_action_channel = jvm.get_javafx_event_receiver(&btn, FxEventType::Action
 jvm.invoke(&btn, "setText", &["A button that sends events to Rust".try_into()?])?;
 // Add the button to the GUI. Java code: root.getChildren().add(btn);
 jvm.chain(&root)?
-	.invoke("getChildren", &[])?
-	.invoke("add", &[btn.try_into()?])?
-	.collect();
+.invoke("getChildren", &[])?
+.invoke("add", &[btn.try_into()?])?
+.collect();
 
 // Create a new Scene. Java code: Scene scene = new Scene(root, 300, 250);
 let scene = jvm.create_instance("javafx.scene.Scene", &[
-	root.try_into()?,
-	InvocationArg::try_from(300_f64)?.into_primitive()?,
-	InvocationArg::try_from(250_f64)?.into_primitive()?])?;
+root.try_into()?,
+InvocationArg::try_from(300_f64)?.into_primitive()?,
+InvocationArg::try_from(250_f64)?.into_primitive()?])?;
 // Set the title for the scene. Java code: stage.setTitle("Hello Rust world!");
 jvm.invoke(&stage, "setTitle", &["Hello Rust world!".try_into()?])?;
 // Set the scene in the stage. Java code: stage.setScene(scene);
@@ -442,19 +500,19 @@ Here is an FXML example; it creates a window with a label and a button:
 <?import javafx.scene.text.Font?>
 
 <VBox alignment="TOP_CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="725.0" spacing="33.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.astonbitecode.j4rs.api.jfx.controllers.FxController">
-   <children>
-      <Label text="JavaFX in Rust">
-         <font>
-            <Font size="65.0" />
-         </font>
-      </Label>
-      <Label text="This UI is loaded with a FXML file" />
-      <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="10.0">
-         <children>
-            <Button id="helloButton" mnemonicParsing="false" text="Say Hello" />
-         </children>
-      </HBox>
-   </children>
+    <children>
+        <Label text="JavaFX in Rust">
+            <font>
+                <Font size="65.0" />
+            </font>
+        </Label>
+        <Label text="This UI is loaded with a FXML file" />
+        <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="10.0">
+            <children>
+                <Button id="helloButton" mnemonicParsing="false" text="Say Hello" />
+            </children>
+        </HBox>
+    </children>
 </VBox>
 
 ```
@@ -495,9 +553,9 @@ For a complete example, please have a look [here](https://github.com/astonbiteco
 
 (v0.12.0 onwards)
 
-* Add the two needed dependencies (`j4rs` and `j4rs_derive`) in the `Cargo.toml` 
-and mark the project as a `cdylib`, in order to have a shared library as output. 
-This library will be loaded and used by the Java code to achieve JNI calls.
+* Add the two needed dependencies (`j4rs` and `j4rs_derive`) in the `Cargo.toml`
+  and mark the project as a `cdylib`, in order to have a shared library as output.
+  This library will be loaded and used by the Java code to achieve JNI calls.
 
 * Annotate the functions that will be accessible from the Java code with the `call_from_java` attribute:
 
@@ -513,7 +571,7 @@ fn my_function_with_no_args() {
 
 For a complete example, please have a look [here](https://github.com/astonbitecode/j4rs-java-call-rust).
 
-*Note: JNI is used behind the scenes, so, any [conventions in naming](https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/design.html#wp133) that hold for JNI, should hold for `j4rs` too. 
+*Note: JNI is used behind the scenes, so, any [conventions in naming](https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/design.html#wp133) that hold for JNI, should hold for `j4rs` too.
 For example, underscores (`_`) should be escaped and become `_1` in the `call_from_java` definition.*
 
 ## Portability assumptions after Rust build (shipping a j4rs application)
@@ -529,16 +587,16 @@ Someone may specify a different [base_path](https://docs.rs/j4rs/0.13.0/j4rs/str
 
 ```rust
 let jvm_res = j4rs::JvmBuilder::new()
-        .with_base_path("/opt/myapp")
-        .build();
+.with_base_path("/opt/myapp")
+.build();
 ```
 
 The `base_path` defines the location of two directories that are needed for j4rs to work;
-namely `jassets` and `deps`. 
+namely `jassets` and `deps`.
 
 1. __jassets__ contains the j4rs jar and other jars that may be deployed using [Maven](https://github.com/astonbitecode/j4rs#Using-Maven-artifacts).
-2. __deps__ should contain the j4rs dynamic library. This is needed to achieve  [callbacks](https://github.com/astonbitecode/j4rs#Callback-support) from java to rust. 
-The `deps` dir is not needed if the application does not execute Java->Rust callbacks.
+2. __deps__ should contain the j4rs dynamic library. This is needed to achieve  [callbacks](https://github.com/astonbitecode/j4rs#Callback-support) from java to rust.
+   The `deps` dir is not needed if the application does not execute Java->Rust callbacks.
 
 So, someone may have their application binary under eg. `/usr/bin`, and the `jassets` and `deps` directories under `/opt/myapp/`, or `$HOME/.myapp`, or anywhere else.
 
@@ -564,17 +622,17 @@ Jvm::copy_j4rs_libs_under("/opt/myapp")?;
 ```
 
 After that, `/opt/myapp` will contain everything that is needed in order `j4rs` to work,
- as long as the Jvm creation is done using the `with_base_path` method:
+as long as the Jvm creation is done using the `with_base_path` method:
 
 ```rust
 let jvm_res = j4rs::JvmBuilder::new()
-        .with_base_path("/opt/myapp")
-        .build();
+.with_base_path("/opt/myapp")
+.build();
 ```
 
 ## Licence
 
-At your option, under: 
+At your option, under:
 
 * Apache License, Version 2.0, (http://www.apache.org/licenses/LICENSE-2.0)
 * MIT license (http://opensource.org/licenses/MIT)

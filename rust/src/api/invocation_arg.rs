@@ -457,6 +457,7 @@ impl<'a> TryFrom<&'a f64> for InvocationArg {
         InvocationArg::new_2(arg, CLASS_DOUBLE, cache::get_thread_local_env()?)
     }
 }
+
 #[cfg(test)]
 mod inv_arg_unit_tests {
     use serde::Deserialize;
@@ -467,17 +468,6 @@ mod inv_arg_unit_tests {
     fn new_invocation_arg() {
         let _jvm = JvmBuilder::new().build().unwrap();
         let _ = InvocationArg::new(&"something".to_string(), "somethingelse");
-
-        let gr = GuiResponse::ProvidedPassword { password: "passs".to_string(), number: 1 };
-        let json = serde_json::to_string(&gr).unwrap();
-        println!("{:?}", json);
-        let res: Result<GuiResponse, _> = serde_json::from_str(&json);
-        println!("{:?}", res);
-    }
-
-    #[derive(Serialize, Deserialize, Debug)]
-    enum GuiResponse {
-        ProvidedPassword { password: String, number: usize }
     }
 
     #[test]
@@ -520,6 +510,31 @@ mod inv_arg_unit_tests {
         assert!(InvocationArg::try_from("string").unwrap().into_primitive().is_err());
     }
 
+    #[test]
+    fn invocation_arg_for_custom_types() {
+        let jvm = JvmBuilder::new().build().unwrap();
+
+        let my_bean = MyBean {
+            someString: "My String In A Bean".to_string(),
+            someInteger: 33,
+        };
+        let ia = InvocationArg::new(&my_bean, "org.astonbitecode.j4rs.tests.MyBean");
+
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+        let string_instance = jvm.invoke(&test_instance, "getTheString", &[ia]).unwrap();
+
+        let rust_string: String = jvm.to_rust(string_instance).unwrap();
+
+        assert!(&rust_string == "My String In A Bean");
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    #[allow(non_snake_case)]
+    struct MyBean {
+        someString: String,
+        someInteger: isize,
+    }
+
     fn validate_type(ia: InvocationArg, class: &str) {
         let b = match ia {
             _s @ InvocationArg::Java { .. } => false,
@@ -532,5 +547,4 @@ mod inv_arg_unit_tests {
         };
         assert!(b);
     }
-
 }

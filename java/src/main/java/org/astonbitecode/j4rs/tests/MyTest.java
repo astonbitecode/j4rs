@@ -128,4 +128,12 @@ public class MyTest extends NativeCallbackSupport {
         return null;
     }
 
+    public String getTheString(MyBean myBean) {
+        return myBean.getSomeString();
+    }
+
+    public Integer getTheInteger(MyBean myBean) {
+        return myBean.getSomeInteger();
+    }
+
 }
