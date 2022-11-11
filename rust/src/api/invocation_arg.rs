@@ -227,7 +227,7 @@ impl TryFrom<String> for InvocationArg {
 impl<'a> TryFrom<&'a [String]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [String]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -259,7 +259,7 @@ impl TryFrom<bool> for InvocationArg {
 impl<'a> TryFrom<&'a [bool]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [bool]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -275,7 +275,7 @@ impl TryFrom<i8> for InvocationArg {
 impl<'a> TryFrom<&'a [i8]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [i8]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -291,7 +291,7 @@ impl TryFrom<char> for InvocationArg {
 impl<'a> TryFrom<&'a [char]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [char]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -307,7 +307,7 @@ impl TryFrom<i16> for InvocationArg {
 impl<'a> TryFrom<&'a [i16]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [i16]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -323,7 +323,7 @@ impl TryFrom<i32> for InvocationArg {
 impl<'a> TryFrom<&'a [i32]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [i32]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -339,7 +339,7 @@ impl TryFrom<i64> for InvocationArg {
 impl<'a> TryFrom<&'a [i64]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [i64]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -355,7 +355,7 @@ impl TryFrom<f32> for InvocationArg {
 impl<'a> TryFrom<&'a [f32]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [f32]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -371,7 +371,7 @@ impl TryFrom<f64> for InvocationArg {
 impl<'a> TryFrom<&'a [f64]> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(vec: &'a [f64]) -> errors::Result<InvocationArg> {
-        let args: errors::Result<Vec<InvocationArg>> = vec.into_iter().map(|elem| InvocationArg::try_from(elem.clone())).collect();
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::try_from(elem)).collect();
         let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
         Ok(InvocationArg::from(res?))
     }
@@ -402,7 +402,7 @@ impl<'a> TryFrom<&'a String> for InvocationArg {
     }
 }
 
-impl<'a> TryFrom<&'a bool, > for InvocationArg {
+impl<'a> TryFrom<&'a bool> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a bool) -> errors::Result<InvocationArg> {
         InvocationArg::new_2(arg, CLASS_BOOLEAN, cache::get_thread_local_env()?)
@@ -495,6 +495,7 @@ mod inv_arg_unit_tests {
         validate_type(InvocationArg::try_from(()).unwrap(), "void");
 
         validate_type(InvocationArg::try_from(&"str".to_string()).unwrap(), "java.lang.String");
+        validate_type(InvocationArg::try_from("str").unwrap(), "java.lang.String");
         validate_type(InvocationArg::try_from(&true).unwrap(), "java.lang.Boolean");
         validate_type(InvocationArg::try_from(&1_i8).unwrap(), "java.lang.Byte");
         validate_type(InvocationArg::try_from(&'c').unwrap(), "java.lang.Character");

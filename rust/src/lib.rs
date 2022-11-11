@@ -739,6 +739,7 @@ mod lib_unit_tests {
         let jvm: Jvm = JvmBuilder::new().build().unwrap();
         let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
 
+        // By values
         let arg = InvocationArg::try_from(33_i8).unwrap();
         let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
         let ret: i8 = jvm.to_rust(i).unwrap();
@@ -768,6 +769,73 @@ mod lib_unit_tests {
         let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
         let ret: f64 = jvm.to_rust(i).unwrap();
         assert!(ret == 33.33_f64);
+
+        // By reference
+        let arg = InvocationArg::try_from(&33_i8).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i8 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i8);
+
+        let arg = InvocationArg::try_from(&33_i16).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i16 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i16);
+
+        let arg = InvocationArg::try_from(&33_i32).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i32 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i32);
+
+        let arg = InvocationArg::try_from(&33_i64).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: i64 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33_i64);
+
+        let arg = InvocationArg::try_from(&33.33_f32).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: f32 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33.33_f32);
+
+        let arg = InvocationArg::try_from(&33.33_f64).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: f64 = jvm.to_rust(i).unwrap();
+        assert!(ret == 33.33_f64);
+    }
+
+    #[test]
+    fn vecs_arrays() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
+
+        let arg = InvocationArg::try_from([33_i8, 34_i8].as_slice()).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: Vec<i8> = jvm.to_rust(i).unwrap();
+        assert!(ret == vec![33_i8, 34_i8]);
+
+        let arg = InvocationArg::try_from([33_i16, 34_i16].as_slice()).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: Vec<i16> = jvm.to_rust(i).unwrap();
+        assert!(ret == vec![33_i16, 34_i16]);
+
+        let arg = InvocationArg::try_from([33_i32, 34_i32].as_slice()).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: Vec<i32> = jvm.to_rust(i).unwrap();
+        assert!(ret == vec![33_i32, 34_i32]);
+
+        let arg = InvocationArg::try_from([33_i64, 34_i64].as_slice()).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: Vec<i64> = jvm.to_rust(i).unwrap();
+        assert!(ret == vec![33_i64, 34_i64]);
+
+        let arg = InvocationArg::try_from([33_f32, 34_f32].as_slice()).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: Vec<f32> = jvm.to_rust(i).unwrap();
+        assert!(ret == vec![33_f32, 34_f32]);
+
+        let arg = InvocationArg::try_from([33_f64, 34_f64].as_slice()).unwrap();
+        let i = jvm.invoke(&test_instance, "echo", &[arg]).unwrap();
+        let ret: Vec<f64> = jvm.to_rust(i).unwrap();
+        assert!(ret == vec![33_f64, 34_f64]);
     }
 
     #[test]
