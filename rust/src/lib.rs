@@ -36,6 +36,7 @@ pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
 pub use self::api::Null as Null;
+pub use self::api::JavaClass as JavaClass;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 pub use self::jni_utils::jstring_to_rust_string as jstring_to_rust_string;
 pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
@@ -91,6 +92,7 @@ mod lib_unit_tests {
     use fs_extra::remove_items;
 
     use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings, Null};
+    use crate::api::JavaClass;
     use crate::provisioning::JavaArtifact;
 
     use super::{ClasspathEntry, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
@@ -401,14 +403,12 @@ mod lib_unit_tests {
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
-                let invocation_args = vec![InvocationArg::try_from(vec!["arg1", "arg2", "arg3", "arg33"].as_slice()).unwrap()];
-                let _ = jvm.invoke(&i, "list", &invocation_args);
-
-                let list = jvm.create_java_list(
-                    "java.lang.String",
-                    &[InvocationArg::try_from("arg1").unwrap(), InvocationArg::try_from("arg2").unwrap(), InvocationArg::try_from("arg3").unwrap()])
+                let list_instance = jvm.java_list(
+                    JavaClass::String,
+                    vec!["arg1", "arg2", "arg3", "arg33"])
                     .unwrap();
-                let _ = jvm.invoke(&i, "list", &[InvocationArg::from(list)]);
+                let res = jvm.invoke(&i, "list", &[InvocationArg::from(list_instance)]);
+                assert!(res.is_ok());
             }
             Err(error) => {
                 panic!("ERROR when creating Instance: {:?}", error);

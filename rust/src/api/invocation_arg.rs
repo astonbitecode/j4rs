@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::api::{CLASS_BOOLEAN, CLASS_BYTE, CLASS_CHARACTER, CLASS_DOUBLE, CLASS_FLOAT, CLASS_INTEGER, CLASS_LIST, CLASS_LONG, CLASS_SHORT, CLASS_STRING, Jvm, Null};
+use std::any::Any;
 use std::convert::TryFrom;
+use std::ptr;
+
+use jni_sys::{JNIEnv, jobject};
 use serde::Serialize;
 use serde_json;
-use std::any::Any;
-use jni_sys::{JNIEnv, jobject};
-use std::ptr;
+
 use crate::{cache, errors, jni_utils, utils};
+use crate::api::{JavaClass, Jvm, Null};
 use crate::api::instance::Instance;
 
 /// Struct that carries an argument that is used for method invocations in Java.
@@ -177,19 +179,19 @@ impl InvocationArg {
 
     /// Creates an InvocationArg that contains null
     pub fn create_null(null: Null) -> errors::Result<InvocationArg> {
-        let class_name = match null {
-            Null::String => CLASS_STRING,
-            Null::Boolean => CLASS_BOOLEAN,
-            Null::Byte => CLASS_BYTE,
-            Null::Character => CLASS_CHARACTER,
-            Null::Short => CLASS_SHORT,
-            Null::Integer => CLASS_INTEGER,
-            Null::Long => CLASS_LONG,
-            Null::Float => CLASS_FLOAT,
-            Null::Double => CLASS_DOUBLE,
-            Null::List => CLASS_LIST,
-            Null::Of(class_name) => class_name,
-        };
+        let class_name: &str = match null {
+            Null::String => JavaClass::String,
+            Null::Boolean => JavaClass::Boolean,
+            Null::Byte => JavaClass::Byte,
+            Null::Character => JavaClass::Character,
+            Null::Short => JavaClass::Short,
+            Null::Integer => JavaClass::Integer,
+            Null::Long => JavaClass::Long,
+            Null::Float => JavaClass::Float,
+            Null::Double => JavaClass::Double,
+            Null::List => JavaClass::List,
+            Null::Of(class_name) => JavaClass::Of(class_name),
+        }.into();
         Ok(InvocationArg::RustBasic {
             instance: Instance::new(ptr::null_mut(), class_name)?,
             class_name: class_name.to_string(),
@@ -220,7 +222,7 @@ impl<'a> TryFrom<Null<'a>> for InvocationArg {
 impl TryFrom<String> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: String) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_STRING, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::String.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -236,7 +238,7 @@ impl<'a> TryFrom<&'a [String]> for InvocationArg {
 impl<'a> TryFrom<&'a str> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a str) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg.to_string(), CLASS_STRING, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg.to_string(), JavaClass::String.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -252,7 +254,7 @@ impl<'a> TryFrom<&'a [&'a str]> for InvocationArg {
 impl TryFrom<bool> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: bool) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_BOOLEAN, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Boolean.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -268,7 +270,7 @@ impl<'a> TryFrom<&'a [bool]> for InvocationArg {
 impl TryFrom<i8> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: i8) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_BYTE, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Byte.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -284,7 +286,7 @@ impl<'a> TryFrom<&'a [i8]> for InvocationArg {
 impl TryFrom<char> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: char) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_CHARACTER, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Character.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -300,7 +302,7 @@ impl<'a> TryFrom<&'a [char]> for InvocationArg {
 impl TryFrom<i16> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: i16) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_SHORT, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Short.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -316,7 +318,7 @@ impl<'a> TryFrom<&'a [i16]> for InvocationArg {
 impl TryFrom<i32> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: i32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_INTEGER, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Integer.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -332,7 +334,7 @@ impl<'a> TryFrom<&'a [i32]> for InvocationArg {
 impl TryFrom<i64> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: i64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_LONG, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Long.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -348,7 +350,7 @@ impl<'a> TryFrom<&'a [i64]> for InvocationArg {
 impl TryFrom<f32> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: f32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_FLOAT, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Float.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -364,7 +366,7 @@ impl<'a> TryFrom<&'a [f32]> for InvocationArg {
 impl TryFrom<f64> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: f64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, CLASS_DOUBLE, cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Double.into(), cache::get_thread_local_env()?)
     }
 }
 
@@ -377,91 +379,94 @@ impl<'a> TryFrom<&'a [f64]> for InvocationArg {
     }
 }
 
-impl<'a, T: 'static> TryFrom<(&'a [T], &'a str)> for InvocationArg where T: Serialize {
-    type Error = errors::J4RsError;
-    fn try_from(vec: (&'a [T], &'a str)) -> errors::Result<InvocationArg> {
-        let (vec, elements_class_name) = vec;
-        let jni_env = cache::get_thread_local_env()?;
-        let args: errors::Result<Vec<InvocationArg>> = vec.iter().map(|elem| InvocationArg::new_2(elem, elements_class_name, jni_env)).collect();
-        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
-        Ok(InvocationArg::from(res?))
-    }
-}
-
 impl TryFrom<()> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: ()) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(&arg, "void", cache::get_thread_local_env()?)
+        InvocationArg::new_2(&arg, JavaClass::Void.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a String> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a String) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_STRING, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::String.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a bool> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a bool) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_BOOLEAN, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Boolean.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a i8> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a i8) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_BYTE, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Byte.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a char> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a char) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_CHARACTER, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Character.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a i16> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a i16) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_SHORT, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Short.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a, 'b> TryFrom<&'a i32> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a i32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_INTEGER, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Integer.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a i64> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a i64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_LONG, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Long.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a f32> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a f32) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_FLOAT, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Float.into(), cache::get_thread_local_env()?)
     }
 }
 
 impl<'a> TryFrom<&'a f64> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a f64) -> errors::Result<InvocationArg> {
-        InvocationArg::new_2(arg, CLASS_DOUBLE, cache::get_thread_local_env()?)
+        InvocationArg::new_2(arg, JavaClass::Double.into(), cache::get_thread_local_env()?)
+    }
+}
+
+impl<'a, T: 'static> TryFrom<(&'a [T], &'a str)> for InvocationArg where T: Serialize {
+    type Error = errors::J4RsError;
+    fn try_from(vec: (&'a [T], &'a str)) -> errors::Result<InvocationArg> {
+        let (vec, elements_class_name) = vec;
+        let jni_env = cache::get_thread_local_env()?;
+        let args: errors::Result<Vec<InvocationArg>> = vec.iter()
+            .map(|elem| InvocationArg::new_2(elem, JavaClass::Of(elements_class_name).into(), jni_env)).collect();
+        let res = Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
+        Ok(InvocationArg::from(res?))
     }
 }
 
 #[cfg(test)]
 mod inv_arg_unit_tests {
     use serde::Deserialize;
+
     use crate::JvmBuilder;
+
     use super::*;
 
     #[test]

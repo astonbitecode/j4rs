@@ -65,16 +65,16 @@ pub(crate) mod instance;
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
-pub(crate) const CLASS_STRING: &'static str = "java.lang.String";
-pub(crate) const CLASS_BOOLEAN: &'static str = "java.lang.Boolean";
-pub(crate) const CLASS_BYTE: &'static str = "java.lang.Byte";
-pub(crate) const CLASS_CHARACTER: &'static str = "java.lang.Character";
-pub(crate) const CLASS_SHORT: &'static str = "java.lang.Short";
-pub(crate) const CLASS_INTEGER: &'static str = "java.lang.Integer";
-pub(crate) const CLASS_LONG: &'static str = "java.lang.Long";
-pub(crate) const CLASS_FLOAT: &'static str = "java.lang.Float";
-pub(crate) const CLASS_DOUBLE: &'static str = "java.lang.Double";
-pub(crate) const CLASS_LIST: &'static str = "java.util.List";
+const CLASS_STRING: &'static str = "java.lang.String";
+const CLASS_BOOLEAN: &'static str = "java.lang.Boolean";
+const CLASS_BYTE: &'static str = "java.lang.Byte";
+const CLASS_CHARACTER: &'static str = "java.lang.Character";
+const CLASS_SHORT: &'static str = "java.lang.Short";
+const CLASS_INTEGER: &'static str = "java.lang.Integer";
+const CLASS_LONG: &'static str = "java.lang.Long";
+const CLASS_FLOAT: &'static str = "java.lang.Float";
+const CLASS_DOUBLE: &'static str = "java.lang.Double";
+const CLASS_LIST: &'static str = "java.util.List";
 pub(crate) const CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT: &'static str = "org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport";
 pub(crate) const CLASS_J4RS_EVENT_HANDLER: &'static str = "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
 pub(crate) const CLASS_J4RS_FXML_LOADER: &'static str = "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
@@ -424,8 +424,16 @@ impl Jvm {
     /// Creates a new Java List with elements of the class `class_name`.
     /// The array will have the `InvocationArg`s populated.
     /// The `InvocationArg`s __must__ be of type _class_name_.
+    #[deprecated(since="0.15.0", note="Please use `java_list` instead")]
     pub fn create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         Jvm::do_create_java_list(self.jni_env, class_name, inv_args)
+    }
+
+    /// Creates a new Java List with elements of the class `inner_class_name`.
+    /// The array will have the `InvocationArg`s populated.
+    pub fn java_list<'a>(&self, inner_class_name: impl Into<&'a str>, inv_args: Vec<impl TryInto<InvocationArg, Error=J4RsError>>) -> errors::Result<Instance> {
+        let v: Result<Vec<InvocationArg>, J4RsError> = inv_args.into_iter().map(|arg| arg.try_into()).collect();
+        Self::do_create_java_list(self.jni_env, inner_class_name.into(), v?.as_ref())
     }
 
     fn do_create_java_list(jni_env: *mut JNIEnv, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
@@ -1352,6 +1360,66 @@ impl<'a> JvmBuilder<'a> {
     }
 }
 
+/// Represents default, known Classes in Java. Can be used as class argument in `Jvm#java_list`, etc.
+pub enum JavaClass<'a> {
+    Void,
+    String,
+    Boolean,
+    Byte,
+    Character,
+    Short,
+    Integer,
+    Long,
+    Float,
+    Double,
+    List,
+    Of(&'a str),
+}
+
+impl<'a> JavaClass<'a> {
+    pub fn get_class_str(&self) -> &'a str {
+        match self {
+            Self::Void => "void",
+            Self::String => CLASS_STRING,
+            Self::Boolean => CLASS_BOOLEAN,
+            Self::Byte => CLASS_BYTE,
+            Self::Character => CLASS_CHARACTER,
+            Self::Short => CLASS_SHORT,
+            Self::Integer => CLASS_INTEGER,
+            Self::Long => CLASS_LONG,
+            Self::Float => CLASS_FLOAT,
+            Self::Double => CLASS_DOUBLE,
+            Self::List => CLASS_LIST,
+            Self::Of(str) => str,
+        }
+    }
+}
+
+impl<'a> From<JavaClass<'a>> for &'a str {
+    fn from(java_class: JavaClass<'a>) -> &'a str {
+        java_class.get_class_str()
+    }
+}
+
+impl <'a> From<&'a str> for JavaClass<'a> {
+    fn from(java_class: &'a str) -> JavaClass<'a> {
+        match java_class {
+            "void" => Self::Void,
+            CLASS_STRING => Self::String,
+            CLASS_BOOLEAN => Self::Boolean,
+            CLASS_BYTE => Self::Byte,
+            CLASS_CHARACTER => Self::Character,
+            CLASS_SHORT => Self::Short,
+            CLASS_INTEGER => Self::Integer,
+            CLASS_LONG => Self::Long,
+            CLASS_FLOAT => Self::Float,
+            CLASS_DOUBLE => Self::Double,
+            CLASS_LIST => Self::List,
+            str => Self::Of(str),
+        }
+    }
+}
+
 /// Represents Java's null. Use this to create null Objects. E.g.:
 ///
 /// let null_integer = InvocationArg::from(Null::Integer);
@@ -1470,5 +1538,21 @@ mod api_unit_tests {
         dbg!(index2);
         assert!(index1 == 0);
         assert!(index2 == 1);
+    }
+
+    #[test]
+    fn test_java_class_creation() {
+        assert_eq!(JavaClass::Void.get_class_str(), "void");
+        assert_eq!(JavaClass::String.get_class_str(), CLASS_STRING);
+        assert_eq!(JavaClass::Boolean.get_class_str(), CLASS_BOOLEAN);
+        assert_eq!(JavaClass::Byte.get_class_str(), CLASS_BYTE);
+        assert_eq!(JavaClass::Character.get_class_str(), CLASS_CHARACTER);
+        assert_eq!(JavaClass::Short.get_class_str(), CLASS_SHORT);
+        assert_eq!(JavaClass::Integer.get_class_str(), CLASS_INTEGER);
+        assert_eq!(JavaClass::Long.get_class_str(), CLASS_LONG);
+        assert_eq!(JavaClass::Float.get_class_str(), CLASS_FLOAT);
+        assert_eq!(JavaClass::Double.get_class_str(), CLASS_DOUBLE);
+        assert_eq!(JavaClass::List.get_class_str(), CLASS_LIST);
+        assert_eq!(JavaClass::Of("a.java.Class").get_class_str(), "a.java.Class");
     }
 }

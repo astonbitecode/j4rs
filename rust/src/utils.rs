@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{self, fs, str, env};
+use std::{self, env, fs, str};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
@@ -20,17 +20,7 @@ use cesu8::{from_java_cesu8, to_java_cesu8};
 use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
-use crate::{cache, errors, InvocationArg};
-use crate::api::{
-    CLASS_BOOLEAN,
-    CLASS_BYTE,
-    CLASS_CHARACTER,
-    CLASS_DOUBLE,
-    CLASS_FLOAT,
-    CLASS_INTEGER,
-    CLASS_LONG,
-    CLASS_SHORT,
-};
+use crate::{cache, errors, InvocationArg, JavaClass};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -155,16 +145,16 @@ fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>
 }
 
 pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
-    match get_class_name(inv_arg) {
-        CLASS_BOOLEAN => Some("boolean".to_string()),
-        CLASS_BYTE => Some("byte".to_string()),
-        CLASS_SHORT => Some("short".to_string()),
-        CLASS_INTEGER => Some("int".to_string()),
-        CLASS_LONG => Some("long".to_string()),
-        CLASS_FLOAT => Some("float".to_string()),
-        CLASS_DOUBLE => Some("double".to_string()),
-        CLASS_CHARACTER => Some("char".to_string()),
-        "void" => Some("void".to_string()),
+    match get_class_name(inv_arg).into() {
+        JavaClass::Boolean => Some("boolean".to_string()),
+        JavaClass::Byte => Some("byte".to_string()),
+        JavaClass::Short => Some("short".to_string()),
+        JavaClass::Integer => Some("int".to_string()),
+        JavaClass::Long => Some("long".to_string()),
+        JavaClass::Float => Some("float".to_string()),
+        JavaClass::Double => Some("double".to_string()),
+        JavaClass::Character => Some("char".to_string()),
+        JavaClass::Void => Some("void".to_string()),
         _ => None,
     }
 }
