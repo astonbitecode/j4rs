@@ -461,6 +461,13 @@ impl<'a, T: 'static> TryFrom<(&'a [T], &'a str)> for InvocationArg where T: Seri
     }
 }
 
+impl TryFrom<Result<InvocationArg, errors::J4RsError>> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(arg: Result<InvocationArg, errors::J4RsError>) -> errors::Result<InvocationArg> {
+        arg
+    }
+}
+
 #[cfg(test)]
 mod inv_arg_unit_tests {
     use serde::Deserialize;

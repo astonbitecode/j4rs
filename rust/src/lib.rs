@@ -403,6 +403,19 @@ mod lib_unit_tests {
 
         match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
             Ok(i) => {
+                // Test using InvocationArgs
+                let invocation_args = vec![
+                    InvocationArg::try_from("arg1"),
+                    InvocationArg::try_from("arg2"),
+                    InvocationArg::try_from("arg3"),
+                    InvocationArg::try_from("arg33")];
+                let list_instance = jvm.java_list(
+                    "java.lang.String",
+                    invocation_args)
+                    .unwrap();
+                let res = jvm.invoke(&i, "list", &[InvocationArg::from(list_instance)]);
+                assert!(res.is_ok());
+                // Test other types
                 let list_instance = jvm.java_list(
                     JavaClass::String,
                     vec!["arg1", "arg2", "arg3", "arg33"])
