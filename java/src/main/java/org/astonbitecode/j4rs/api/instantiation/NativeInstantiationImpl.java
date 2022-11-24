@@ -23,10 +23,17 @@ import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
 import org.astonbitecode.j4rs.errors.InstantiationException;
 import org.astonbitecode.j4rs.utils.Utils;
 
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class NativeInstantiationImpl {
@@ -65,6 +72,15 @@ public class NativeInstantiationImpl {
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create Java List of " + className, error);
+        }
+    }
+
+    public static Instance createJavaMap(String keyClassName, String valueClassName, InvocationArg... args) {
+        try {
+            CreatedInstance createdInstance = createMap(keyClassName, valueClassName, generateArgObjects(args));
+            return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
+        } catch (Exception error) {
+            throw new InstantiationException(String.format("Cannot create Java Map of keys %s and values %s", keyClassName, valueClassName), error);
         }
     }
 
@@ -161,6 +177,18 @@ public class NativeInstantiationImpl {
                 return new CreatedInstance(arrayObj.getClass(), arrayObj);
         }
 
+    }
+
+    static CreatedInstance createMap(String keyClassName, String valueClassName, GeneratedArg[] params) throws Exception {
+        Class<?> keyClazz = Utils.forNameEnhanced(keyClassName);
+        Map map = new HashMap();
+
+        int i = 0;
+        while (i < params.length) {
+            map.put(params[i].getObject(), params[i + 1].getObject());
+            i = i + 2;
+        }
+        return new CreatedInstance(map.getClass(), map);
     }
 
     static class CreatedInstance {

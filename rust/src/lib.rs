@@ -85,6 +85,7 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
 #[cfg(test)]
 mod lib_unit_tests {
     use std::{thread, time};
+    use std::collections::HashMap;
     use std::convert::TryFrom;
     use std::path::MAIN_SEPARATOR;
     use std::thread::JoinHandle;
@@ -421,6 +422,31 @@ mod lib_unit_tests {
                     vec!["arg1", "arg2", "arg3", "arg33"])
                     .unwrap();
                 let res = jvm.invoke(&i, "list", &[InvocationArg::from(list_instance)]);
+                assert!(res.is_ok());
+            }
+            Err(error) => {
+                panic!("ERROR when creating Instance: {:?}", error);
+            }
+        }
+    }
+
+    #[test]
+    fn invoke_map() {
+        let jvm: Jvm = JvmBuilder::new().build().unwrap();
+
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+            Ok(i) => {
+                let map = HashMap::from([
+                    ("Potatoes", 3),
+                    ("Tomatoes", 33),
+                    ("Carrotoes", 333),
+                ]);
+                let map_instance = jvm.java_map(
+                    JavaClass::String,
+                    JavaClass::Integer,
+                    map)
+                    .unwrap();
+                let res = jvm.invoke(&i, "map", &[InvocationArg::from(map_instance)]);
                 assert!(res.is_ok());
             }
             Err(error) => {

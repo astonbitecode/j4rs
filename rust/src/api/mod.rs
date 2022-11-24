@@ -14,6 +14,7 @@
 
 use std::{fs, thread, time};
 use std::any::{Any, TypeId};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::ops::Drop;
@@ -424,13 +425,12 @@ impl Jvm {
     /// Creates a new Java List with elements of the class `class_name`.
     /// The array will have the `InvocationArg`s populated.
     /// The `InvocationArg`s __must__ be of type _class_name_.
-    #[deprecated(since="0.15.0", note="Please use `java_list` instead")]
+    #[deprecated(since = "0.15.0", note = "Please use `java_list` instead")]
     pub fn create_java_list(&self, class_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
         Jvm::do_create_java_list(self.jni_env, class_name, inv_args)
     }
 
     /// Creates a new Java List with elements of the class `inner_class_name`.
-    /// The array will have the `InvocationArg`s populated.
     pub fn java_list<'a>(&self, inner_class_name: impl Into<&'a str>, inv_args: Vec<impl TryInto<InvocationArg, Error=J4RsError>>) -> errors::Result<Instance> {
         let v: Result<Vec<InvocationArg>, J4RsError> = inv_args.into_iter().map(|arg| arg.try_into()).collect();
         Self::do_create_java_list(self.jni_env, inner_class_name.into(), v?.as_ref())
@@ -493,6 +493,98 @@ impl Jvm {
             Self::do_return(jni_env, Instance {
                 jinstance: java_instance_global_instance,
                 class_name: class_name.to_string(),
+                skip_deleting_jobject: false,
+            })
+        }
+    }
+
+    /// Creates a new Java Map with keys of class `key_class_name` and values of class `value_class_name`.
+    pub fn java_map<'a>(&self,
+                        key_class_name: impl Into<&'a str>,
+                        value_class_name: impl Into<&'a str>,
+                        inv_args: HashMap<impl TryInto<InvocationArg, Error=J4RsError>, impl TryInto<InvocationArg, Error=J4RsError>>) -> errors::Result<Instance> {
+        let mut inv_args_results: Vec<Result<InvocationArg, J4RsError>> = Vec::with_capacity(inv_args.len() * 2);
+        let mut i = 0;
+        let mut inv_args = inv_args;
+
+        for (key, val) in inv_args.drain() {
+            inv_args_results.insert(i, key.try_into());
+            i = i + 1;
+            inv_args_results.insert(i, val.try_into());
+            i = i + 1;
+        }
+        let inv_args: Result<Vec<InvocationArg>, J4RsError> = inv_args_results.into_iter().map(|arg| arg.try_into()).collect();
+        Self::do_create_java_map(self.jni_env, key_class_name.into(), value_class_name.into(), inv_args?.as_ref())
+    }
+
+    fn do_create_java_map(jni_env: *mut JNIEnv,
+                          key_class_name: &str,
+                          value_class_name: &str,
+                          inv_args: &[InvocationArg]) -> errors::Result<Instance> {
+        debug(&format!("Creating a java map with keys of class {} and values of class {} with {} elements",
+                       key_class_name,
+                       value_class_name,
+                       inv_args.len() / 2));
+        unsafe {
+            // Factory invocation - first argument: create a jstring to pass as argument for the key_class_name
+            let key_class_name_jstring: jstring = jni_utils::global_jobject_from_str(&key_class_name, jni_env)?;
+            // Factory invocation - second argument: create a jstring to pass as argument for the value_class_name
+            let value_class_name_jstring: jstring = jni_utils::global_jobject_from_str(&value_class_name, jni_env)?;
+
+            // Factory invocation - rest of the arguments: Create a new object list of class InvocationArg
+            let size = inv_args.len() as i32;
+            let array_ptr = {
+                let j = (opt_to_res(cache::get_jni_new_object_array())?)(
+                    jni_env,
+                    size,
+                    cache::get_invocation_arg_class()?,
+                    ptr::null_mut(),
+                );
+                jni_utils::create_global_ref_from_local_ref(j, jni_env)?
+            };
+            let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
+
+            // Factory invocation - rest of the arguments: populate the array
+            for i in 0..size {
+                // Create an InvocationArg Java Object
+                let inv_arg_java = inv_args[i as usize].as_java_ptr_with_global_ref(jni_env)?;
+                // Set it in the array
+                (opt_to_res(cache::get_jni_set_object_array_element())?)(
+                    jni_env,
+                    array_ptr,
+                    i,
+                    inv_arg_java,
+                );
+                inv_arg_jobjects.push(inv_arg_java);
+            }
+            // Call the method of the factory that instantiates a new Java Map with keys of `key_class_name`
+            // and values of `value_class_name`.
+            // This returns a Instance that acts like a proxy to the Java world.
+            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+                jni_env,
+                cache::get_factory_class()?,
+                cache::get_factory_create_java_map_method()?,
+                key_class_name_jstring,
+                value_class_name_jstring,
+                array_ptr,
+            );
+
+            // Check for exceptions before creating the globalref
+            Self::do_return(jni_env, ())?;
+
+            let java_instance_global_instance = jni_utils::create_global_ref_from_local_ref(java_instance, jni_env)?;
+            // Prevent memory leaks from the created local references
+            for inv_arg_jobject in inv_arg_jobjects {
+                jni_utils::delete_java_ref(jni_env, inv_arg_jobject);
+            }
+            jni_utils::delete_java_ref(jni_env, array_ptr);
+            jni_utils::delete_java_ref(jni_env, value_class_name_jstring);
+            jni_utils::delete_java_ref(jni_env, key_class_name_jstring);
+
+            // Create and return the Instance
+            Self::do_return(jni_env, Instance {
+                jinstance: java_instance_global_instance,
+                class_name: "".to_string(),
                 skip_deleting_jobject: false,
             })
         }
@@ -1401,7 +1493,7 @@ impl<'a> From<JavaClass<'a>> for &'a str {
     }
 }
 
-impl <'a> From<&'a str> for JavaClass<'a> {
+impl<'a> From<&'a str> for JavaClass<'a> {
     fn from(java_class: &'a str) -> JavaClass<'a> {
         match java_class {
             "void" => Self::Void,

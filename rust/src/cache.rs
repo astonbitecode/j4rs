@@ -116,6 +116,8 @@ thread_local! {
     pub(crate) static FACTORY_CREATE_JAVA_ARRAY_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The method id of the `createJavaList` method of the `NativeInstantiation`.
     pub(crate) static FACTORY_CREATE_JAVA_LIST_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    // The method id of the `createJavaMap` method of the `NativeInstantiation`.
+    pub(crate) static FACTORY_CREATE_JAVA_MAP_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The `Instance` class.
     // This is optional because it exists only in Android for Java7 compatibility
     // because Java7 does not support static method implementations in interfaces.
@@ -737,6 +739,40 @@ pub(crate) fn get_factory_create_java_list_method() -> errors::Result<jmethodID>
             j
         },
         set_factory_create_java_list_method)
+}
+
+pub(crate) fn set_factory_create_java_map_method(j: jmethodID) {
+    debug("Called set_factory_create_java_map_method");
+    FACTORY_CREATE_JAVA_MAP_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_factory_create_java_map_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        FACTORY_CREATE_JAVA_MAP_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let create_java_map_method_signature = format!(
+                "(Ljava/lang/String;Ljava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)L{};",
+                INVO_IFACE_NAME);
+            let cstr1 = utils::to_c_string("createJavaMap");
+            let cstr2 = utils::to_c_string(&create_java_map_method_signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_static_method_id())?)(
+                    env,
+                    get_factory_class()?,
+                    cstr1,
+                    cstr2,
+                )
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_factory_create_java_map_method)
 }
 
 pub(crate) fn set_java_instance_base_class(j: jclass) {
