@@ -16,20 +16,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use jni_sys::{
-    self,
-    jboolean,
-    jclass,
-    jdouble,
-    jfloat,
-    jint,
-    jmethodID,
-    JNIEnv,
-    jobject,
-    jobjectArray,
-    jsize,
-    jstring,
-};
+use jni_sys::{self, jboolean, jbyte, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jobjectArray, jshort, jsize, jstring};
 use libc::c_char;
 
 use crate::{api_tweaks as tweaks, errors, jni_utils, utils};
@@ -53,6 +40,14 @@ pub(crate) type JniGetStringUTFChars = unsafe extern "system" fn(env: *mut JNIEn
 pub(crate) type JniReleaseStringUTFChars = unsafe extern "system" fn(env: *mut JNIEnv, str: jstring, utf: *const c_char);
 #[allow(non_snake_case)]
 pub(crate) type JniCallObjectMethod = unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
+#[allow(non_snake_case)]
+pub(crate) type JniCallIntMethod = unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jint;
+#[allow(non_snake_case)]
+pub(crate) type JniCallByteMethod = unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jbyte;
+#[allow(non_snake_case)]
+pub(crate) type JniCallShortMethod = unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jshort;
+#[allow(non_snake_case)]
+pub(crate) type JniCallLongMethod = unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jlong;
 #[allow(non_snake_case)]
 pub(crate) type JniCallFloatMethod = unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jfloat;
 #[allow(non_snake_case)]
@@ -90,6 +85,10 @@ thread_local! {
     pub(crate) static JNI_GET_STRING_UTF_CHARS: RefCell<Option<JniGetStringUTFChars>> = RefCell::new(None);
     pub(crate) static JNI_RELEASE_STRING_UTF_CHARS: RefCell<Option<JniReleaseStringUTFChars>> = RefCell::new(None);
     pub(crate) static JNI_CALL_OBJECT_METHOD: RefCell<Option<JniCallObjectMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_INT_METHOD: RefCell<Option<JniCallIntMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_BYTE_METHOD: RefCell<Option<JniCallByteMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_SHORT_METHOD: RefCell<Option<JniCallShortMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_LONG_METHOD: RefCell<Option<JniCallLongMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_FLOAT_METHOD: RefCell<Option<JniCallFloatMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_DOUBLE_METHOD: RefCell<Option<JniCallDoubleMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_VOID_METHOD: RefCell<Option<JniCallVoidMethod>> = RefCell::new(None);
@@ -347,6 +346,61 @@ pub(crate) fn set_jni_call_void_method(j: Option<JniCallVoidMethod>) -> Option<J
     get_jni_call_void_method()
 }
 
+pub(crate) fn set_jni_call_byte_method(j: Option<JniCallByteMethod>) -> Option<JniCallByteMethod> {
+    debug("Called set_jni_call_byte_method");
+    JNI_CALL_BYTE_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_byte_method()
+}
+
+pub(crate) fn get_jni_call_byte_method() -> Option<JniCallByteMethod> {
+    JNI_CALL_BYTE_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_jni_call_short_method(j: Option<JniCallShortMethod>) -> Option<JniCallShortMethod> {
+    debug("Called set_jni_call_short_method");
+    JNI_CALL_SHORT_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_short_method()
+}
+
+pub(crate) fn get_jni_call_short_method() -> Option<JniCallShortMethod> {
+    JNI_CALL_SHORT_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_jni_call_int_method(j: Option<JniCallIntMethod>) -> Option<JniCallIntMethod> {
+    debug("Called set_jni_call_int_method");
+    JNI_CALL_INT_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_int_method()
+}
+
+pub(crate) fn get_jni_call_int_method() -> Option<JniCallIntMethod> {
+    JNI_CALL_INT_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
+
+pub(crate) fn set_jni_call_long_method(j: Option<JniCallLongMethod>) -> Option<JniCallLongMethod> {
+    debug("Called set_jni_call_long_method");
+    JNI_CALL_LONG_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_long_method()
+}
+
+pub(crate) fn get_jni_call_long_method() -> Option<JniCallLongMethod> {
+    JNI_CALL_LONG_METHOD.with(|opt| {
+        *opt.borrow()
+    })
+}
 
 pub(crate) fn set_jni_call_float_method(j: Option<JniCallFloatMethod>) -> Option<JniCallFloatMethod> {
     debug("Called set_jni_call_float_method");
@@ -361,7 +415,6 @@ pub(crate) fn get_jni_call_float_method() -> Option<JniCallFloatMethod> {
         *opt.borrow()
     })
 }
-
 
 pub(crate) fn set_jni_call_double_method(j: Option<JniCallDoubleMethod>) -> Option<JniCallDoubleMethod> {
     debug("Called set_jni_call_double_method");

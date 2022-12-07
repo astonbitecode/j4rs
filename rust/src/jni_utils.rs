@@ -276,7 +276,7 @@ pub(crate) unsafe fn i8_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> erro
     if obj.is_null() {
         Err(errors::J4RsError::JniError("Attempt to create an i8 from null".to_string()))
     } else {
-        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+        let v = (opt_to_res(cache::get_jni_call_byte_method())?)(
             jni_env,
             obj,
             cache::get_byte_to_byte_method()?,
@@ -302,7 +302,7 @@ pub(crate) unsafe fn i16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
     if obj.is_null() {
         Err(errors::J4RsError::JniError("Attempt to create an i16 from null".to_string()))
     } else {
-        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+        let v = (opt_to_res(cache::get_jni_call_short_method())?)(
             jni_env,
             obj,
             cache::get_short_to_short_method()?,
@@ -328,7 +328,7 @@ pub(crate) unsafe fn i32_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
     if obj.is_null() {
         Err(errors::J4RsError::JniError("Attempt to create an i32 from null".to_string()))
     } else {
-        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+        let v = (opt_to_res(cache::get_jni_call_int_method())?)(
             jni_env,
             obj,
             cache::get_integer_to_int_method()?,
@@ -354,7 +354,7 @@ pub(crate) unsafe fn i64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
     if obj.is_null() {
         Err(errors::J4RsError::JniError("Attempt to create an i64 from null".to_string()))
     } else {
-        let v = (opt_to_res(cache::get_jni_call_object_method())?)(
+        let v = (opt_to_res(cache::get_jni_call_long_method())?)(
             jni_env,
             obj,
             cache::get_long_to_long_method()?,

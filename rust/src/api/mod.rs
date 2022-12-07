@@ -76,6 +76,14 @@ const CLASS_LONG: &'static str = "java.lang.Long";
 const CLASS_FLOAT: &'static str = "java.lang.Float";
 const CLASS_DOUBLE: &'static str = "java.lang.Double";
 const CLASS_LIST: &'static str = "java.util.List";
+pub(crate) const PRIMITIVE_BOOLEAN: &'static str = "boolean";
+pub(crate) const PRIMITIVE_BYTE: &'static str = "byte";
+pub(crate) const PRIMITIVE_SHORT: &'static str = "short";
+pub(crate) const PRIMITIVE_INT: &'static str = "int";
+pub(crate) const PRIMITIVE_LONG: &'static str = "long";
+pub(crate) const PRIMITIVE_FLOAT: &'static str = "float";
+pub(crate) const PRIMITIVE_DOUBLE: &'static str = "double";
+pub(crate) const PRIMITIVE_CHAR: &'static str = "char";
 pub(crate) const CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT: &'static str = "org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport";
 pub(crate) const CLASS_J4RS_EVENT_HANDLER: &'static str = "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
 pub(crate) const CLASS_J4RS_FXML_LOADER: &'static str = "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
@@ -219,6 +227,10 @@ impl Jvm {
                 let _ = cache::get_jni_get_string_utf_chars().or_else(|| cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars));
                 let _ = cache::get_jni_release_string_utf_chars().or_else(|| cache::set_jni_release_string_utf_chars((**jni_environment).ReleaseStringUTFChars));
                 let _ = cache::get_jni_call_object_method().or_else(|| cache::set_jni_call_object_method((**jni_environment).CallObjectMethod));
+                let _ = cache::get_jni_call_byte_method().or_else(|| cache::set_jni_call_byte_method((**jni_environment).CallByteMethod));
+                let _ = cache::get_jni_call_short_method().or_else(|| cache::set_jni_call_short_method((**jni_environment).CallShortMethod));
+                let _ = cache::get_jni_call_int_method().or_else(|| cache::set_jni_call_int_method((**jni_environment).CallIntMethod));
+                let _ = cache::get_jni_call_long_method().or_else(|| cache::set_jni_call_long_method((**jni_environment).CallLongMethod));
                 let _ = cache::get_jni_call_float_method().or_else(|| cache::set_jni_call_float_method((**jni_environment).CallFloatMethod));
                 let _ = cache::get_jni_call_double_method().or_else(|| cache::set_jni_call_double_method((**jni_environment).CallDoubleMethod));
                 let _ = cache::get_jni_call_void_method().or_else(|| cache::set_jni_call_void_method((**jni_environment).CallVoidMethod));
@@ -937,19 +949,19 @@ impl Jvm {
             let object_class_name_instance = jni_utils::create_global_ref_from_local_ref(object_class_name_instance, self.jni_env)?;
             let ref class_name = jni_utils::string_from_jobject(object_class_name_instance, self.jni_env)?;
             jni_utils::delete_java_ref(self.jni_env, object_class_name_instance);
-            if t_type == TypeId::of::<String>() && CLASS_STRING == class_name {
+            if t_type == TypeId::of::<String>() && JavaClass::String.get_class_str() == class_name {
                 rust_box_from_java_object!(jni_utils::string_from_jobject)
-            } else if t_type == TypeId::of::<i32>() && CLASS_INTEGER == class_name {
+            } else if t_type == TypeId::of::<i32>() && (JavaClass::Integer.get_class_str() == class_name || PRIMITIVE_INT == class_name) {
                 rust_box_from_java_object!(jni_utils::i32_from_jobject)
-            } else if t_type == TypeId::of::<i8>() && CLASS_BYTE == class_name {
+            } else if t_type == TypeId::of::<i8>() && (JavaClass::Byte.get_class_str() == class_name || PRIMITIVE_BYTE == class_name) {
                 rust_box_from_java_object!(jni_utils::i8_from_jobject)
-            } else if t_type == TypeId::of::<i16>() && CLASS_SHORT == class_name {
+            } else if t_type == TypeId::of::<i16>() && (JavaClass::Short.get_class_str() == class_name || PRIMITIVE_SHORT == class_name) {
                 rust_box_from_java_object!(jni_utils::i16_from_jobject)
-            } else if t_type == TypeId::of::<i64>() && CLASS_LONG == class_name {
+            } else if t_type == TypeId::of::<i64>() && (JavaClass::Long.get_class_str() == class_name || PRIMITIVE_LONG == class_name) {
                 rust_box_from_java_object!(jni_utils::i64_from_jobject)
-            } else if t_type == TypeId::of::<f32>() && CLASS_FLOAT == class_name {
+            } else if t_type == TypeId::of::<f32>() && (JavaClass::Float.get_class_str() == class_name || PRIMITIVE_FLOAT == class_name) {
                 rust_box_from_java_object!(jni_utils::f32_from_jobject)
-            } else if t_type == TypeId::of::<f64>() && CLASS_DOUBLE == class_name {
+            } else if t_type == TypeId::of::<f64>() && (JavaClass::Double.get_class_str() == class_name || PRIMITIVE_DOUBLE == class_name) {
                 rust_box_from_java_object!(jni_utils::f64_from_jobject)
             } else {
                 Ok(Box::new(self.to_rust_deserialized(instance)?))
@@ -1626,8 +1638,6 @@ mod api_unit_tests {
         let (index1, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
         let (index2, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
         assert!(Jvm::select_timeout(&[&ir1, &ir2], &d).is_err());
-        dbg!(index1);
-        dbg!(index2);
         assert!(index1 == 0);
         assert!(index2 == 1);
     }
@@ -1646,5 +1656,83 @@ mod api_unit_tests {
         assert_eq!(JavaClass::Double.get_class_str(), CLASS_DOUBLE);
         assert_eq!(JavaClass::List.get_class_str(), CLASS_LIST);
         assert_eq!(JavaClass::Of("a.java.Class").get_class_str(), "a.java.Class");
+    }
+
+    #[test]
+    fn test_int_to_rust() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        let rust_value: i32 = 3;
+        let ia = InvocationArg::try_from(rust_value).unwrap().into_primitive().unwrap();
+        let java_instance = jvm.create_instance(CLASS_INTEGER, &[ia]).unwrap();
+        let java_primitive_instance = jvm.invoke(&java_instance, "intValue", &[]).unwrap();
+        let rust_value_from_java: i32 = jvm.to_rust(java_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+        let rust_value_from_java: i32 = jvm.to_rust(java_primitive_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+    }
+
+    #[test]
+    fn test_byte_to_rust() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        let rust_value: i8 = 3;
+        let ia = InvocationArg::try_from(rust_value).unwrap().into_primitive().unwrap();
+        let java_instance = jvm.create_instance(CLASS_BYTE, &[ia]).unwrap();
+        let java_primitive_instance = jvm.invoke(&java_instance, "byteValue", &[]).unwrap();
+        let rust_value_from_java: i8 = jvm.to_rust(java_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+        let rust_value_from_java: i8 = jvm.to_rust(java_primitive_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+    }
+
+    #[test]
+    fn test_short_to_rust() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        let rust_value: i16 = 3;
+        let ia = InvocationArg::try_from(rust_value).unwrap().into_primitive().unwrap();
+        let java_instance = jvm.create_instance(CLASS_SHORT, &[ia]).unwrap();
+        let java_primitive_instance = jvm.invoke(&java_instance, "shortValue", &[]).unwrap();
+        let rust_value_from_java: i16 = jvm.to_rust(java_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+        let rust_value_from_java: i16 = jvm.to_rust(java_primitive_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+    }
+
+    #[test]
+    fn test_long_to_rust() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        let rust_value: i64 = 3;
+        let ia = InvocationArg::try_from(rust_value).unwrap().into_primitive().unwrap();
+        let java_instance = jvm.create_instance(CLASS_LONG, &[ia]).unwrap();
+        let java_primitive_instance = jvm.invoke(&java_instance, "longValue", &[]).unwrap();
+        let rust_value_from_java: i64 = jvm.to_rust(java_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+        let rust_value_from_java: i64 = jvm.to_rust(java_primitive_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+    }
+
+    #[test]
+    fn test_float_to_rust() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        let rust_value: f32 = 3.3;
+        let ia = InvocationArg::try_from(rust_value).unwrap().into_primitive().unwrap();
+        let java_instance = jvm.create_instance(CLASS_FLOAT, &[ia]).unwrap();
+        let java_primitive_instance = jvm.invoke(&java_instance, "floatValue", &[]).unwrap();
+        let rust_value_from_java: f32 = jvm.to_rust(java_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+        let rust_value_from_java: f32 = jvm.to_rust(java_primitive_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+    }
+
+    #[test]
+    fn test_double_to_rust() {
+        let jvm = JvmBuilder::new().build().unwrap();
+        let rust_value: f64 = 3.3;
+        let ia = InvocationArg::try_from(rust_value).unwrap().into_primitive().unwrap();
+        let java_instance = jvm.create_instance(CLASS_DOUBLE, &[ia]).unwrap();
+        let java_primitive_instance = jvm.invoke(&java_instance, "doubleValue", &[]).unwrap();
+        let rust_value_from_java: f64 = jvm.to_rust(java_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
+        let rust_value_from_java: f64 = jvm.to_rust(java_primitive_instance).unwrap();
+        assert_eq!(rust_value_from_java, rust_value);
     }
 }

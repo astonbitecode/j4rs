@@ -21,6 +21,7 @@ use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
 use crate::{cache, errors, InvocationArg, JavaClass};
+use crate::api::{PRIMITIVE_BOOLEAN, PRIMITIVE_BYTE, PRIMITIVE_CHAR, PRIMITIVE_DOUBLE, PRIMITIVE_FLOAT, PRIMITIVE_INT, PRIMITIVE_LONG, PRIMITIVE_SHORT};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -86,7 +87,7 @@ pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
     let mut jassets_path = if is_build_script {
         PathBuf::from(env::var("OUT_DIR")?)
     } else {
-        std::env::current_exe()?
+        env::current_exe()?
     };
     let mut tmp_vec = Vec::new();
 
@@ -146,14 +147,14 @@ fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>
 
 pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
     match get_class_name(inv_arg).into() {
-        JavaClass::Boolean => Some("boolean".to_string()),
-        JavaClass::Byte => Some("byte".to_string()),
-        JavaClass::Short => Some("short".to_string()),
-        JavaClass::Integer => Some("int".to_string()),
-        JavaClass::Long => Some("long".to_string()),
-        JavaClass::Float => Some("float".to_string()),
-        JavaClass::Double => Some("double".to_string()),
-        JavaClass::Character => Some("char".to_string()),
+        JavaClass::Boolean => Some(PRIMITIVE_BOOLEAN.to_string()),
+        JavaClass::Byte => Some(PRIMITIVE_BYTE.to_string()),
+        JavaClass::Short => Some(PRIMITIVE_SHORT.to_string()),
+        JavaClass::Integer => Some(PRIMITIVE_INT.to_string()),
+        JavaClass::Long => Some(PRIMITIVE_LONG.to_string()),
+        JavaClass::Float => Some(PRIMITIVE_FLOAT.to_string()),
+        JavaClass::Double => Some(PRIMITIVE_DOUBLE.to_string()),
+        JavaClass::Character => Some(PRIMITIVE_CHAR.to_string()),
         JavaClass::Void => Some("void".to_string()),
         _ => None,
     }
