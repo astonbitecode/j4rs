@@ -30,12 +30,18 @@ fn do_invocation_w_string_args_and_to_rust(jvm: &Jvm, instance: &Instance) {
 }
 
 fn use_to_rust_deserialized(jvm: &Jvm, instance: &Instance) {
-    let i_instance = jvm.invoke(instance, "echo", &vec![InvocationArg::try_from(33_i32).unwrap()]).unwrap();
+    let i_instance = jvm.invoke(instance, "addInts", &vec![
+        InvocationArg::try_from(30_i32).unwrap().into_primitive().unwrap(),
+        InvocationArg::try_from(3_i32).unwrap().into_primitive().unwrap(),
+    ]).unwrap();
     let _: i32 = jvm.to_rust_deserialized(i_instance).unwrap();
 }
 
 fn use_to_rust_boxed(jvm: &Jvm, instance: &Instance) {
-    let i_instance = jvm.invoke(instance, "echo", &vec![InvocationArg::try_from(33_i32).unwrap()]).unwrap();
+    let i_instance = jvm.invoke(instance, "addInts", &vec![
+        InvocationArg::try_from(30_i32).unwrap().into_primitive().unwrap(),
+        InvocationArg::try_from(3_i32).unwrap().into_primitive().unwrap(),
+    ]).unwrap();
     let _: Box<i32> = jvm.to_rust_boxed(i_instance).unwrap();
 }
 
@@ -89,23 +95,23 @@ fn j4rs_benchmark(c: &mut Criterion) {
         }));
 }
 
-fn bench_to_rust(c: &mut Criterion) {
-    let mut group = c.benchmark_group("to_rust");
+fn bench_create_java_objects_and_to_rust(c: &mut Criterion) {
+    let mut group = c.benchmark_group("create_java_objects_and_to_rust");
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[]).unwrap();
 
     for i in 0..2 {
         group.bench_function(
-            BenchmarkId::new("to_rust_new", i),
+            BenchmarkId::new("to_rust_boxed", i),
             |b| b.iter(|| use_to_rust_boxed(black_box(&jvm), black_box(&instance))));
         group.bench_function(
-            BenchmarkId::new("to_rust_old", i),
+            BenchmarkId::new("to_rust_deserialized", i),
             |b| b.iter(|| use_to_rust_deserialized(black_box(&jvm), black_box(&instance))));
 
     }
     group.finish();
 }
 
-criterion_group!(benches, j4rs_benchmark, bench_to_rust);
+criterion_group!(benches, /*j4rs_benchmark,*/ bench_create_java_objects_and_to_rust);
 criterion_main!(benches);
