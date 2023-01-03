@@ -30,6 +30,8 @@ java-locator = "0.1"
 fs_extra = "1.2"
 libloading = "0.7"
 cesu8 = "1.1.0"
+directories = "4.0"
+reqwest = { version = "0.11", features = ["blocking"] }
 
 [build-dependencies]
 fs_extra = "1.2"

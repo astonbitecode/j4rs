@@ -19,6 +19,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::ops::Drop;
 use std::os::raw::c_void;
+use std::io::{Write};
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::channel;
@@ -47,6 +48,7 @@ use jni_sys::{
 use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde_json;
+use directories::BaseDirs;
 
 use instance::{ChainableInstance, Instance, InstanceReceiver};
 
@@ -1460,6 +1462,76 @@ impl<'a> JvmBuilder<'a> {
                 Ok(pb)
             }
             None => utils::default_jassets_path(),
+        }
+    }
+
+    /// Deploys an artifact in the default j4rs jars location.
+    ///
+    /// This is useful for build scripts that need jars for the runtime that can be downloaded from e.g. Maven.
+    ///
+    /// The function deploys __only__ the specified artifact, not its transitive dependencies.
+    pub fn deploy_artifact<T: Any + JavaArtifact>(&self, artifact: &T) -> errors::Result<()> {
+        let artifact = artifact as &dyn Any;
+        if let Some(maven_artifact) = artifact.downcast_ref::<MavenArtifact>() {
+            let mut base = PathBuf::from(&maven_artifact.base);
+            let jar_name = format!("{}-{}{}{}.jar",
+                maven_artifact.id, maven_artifact.version,
+                if maven_artifact.qualifier.is_empty() { "" } else { "-" },
+                maven_artifact.qualifier
+            );
+
+            base.push(&jar_name);
+
+            if base.exists() {
+                return Ok(());
+            }
+
+            // check cache
+            if let Some(base_dirs) = BaseDirs::new() {
+                let mut path = base_dirs.home_dir().to_path_buf();
+                path.push(".m2");
+                path.push("repositories");
+                for p in maven_artifact.group.split('.') {
+                    path.push(p);
+                }
+                path.push(&maven_artifact.id);
+                path.push(&maven_artifact.version);
+                path.push(&jar_name);
+
+                if path.exists() {
+                    let mut base = PathBuf::from(&maven_artifact.base);
+                    fs::create_dir_all(&base)?;
+                    base.push(&jar_name);
+                    std::fs::copy(path, base)?;
+                    return Ok(());
+                }
+            }
+
+            for repo in get_maven_settings().repos.into_iter() {
+                let url = format!("{}/{}/{}/{}/{}", repo.uri, maven_artifact.group.replace('.', "/"), maven_artifact.id, maven_artifact.version, jar_name);
+
+                if let Ok(response) = reqwest::blocking::get(url) {
+                    if let Ok(bytes) = response.bytes() {
+                        let mut base = PathBuf::from(&maven_artifact.base);
+                        fs::create_dir_all(&base)?;
+                        base.push(&jar_name);
+                        let mut file = fs::File::create(base)?;
+                        file.write_all(&bytes)?;
+                        return Ok(());
+                    }
+                }
+            }
+
+            Ok(())
+        } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
+            let mut base = PathBuf::from(&local_jar_artifact.base);
+            let path = PathBuf::from(&local_jar_artifact.path);
+            fs::create_dir_all(&base)?;
+            base.push(path.file_name().unwrap());
+            std::fs::copy(&local_jar_artifact.path, &local_jar_artifact.base)?;
+            Ok(())
+        } else {
+            Err(J4RsError::GeneralError(format!("Don't know how to deploy artifacts of {:?}", artifact.type_id())))
         }
     }
 }
