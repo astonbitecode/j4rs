@@ -1243,6 +1243,7 @@ pub struct JvmBuilder<'a> {
     base_path: Option<String>,
     maven_settings: MavenSettings,
     javafx: bool,
+    default_classloader: bool,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1258,6 +1259,7 @@ impl<'a> JvmBuilder<'a> {
             base_path: None,
             maven_settings: MavenSettings::default(),
             javafx: false,
+            default_classloader: false,
         }
     }
 
@@ -1341,8 +1343,41 @@ impl<'a> JvmBuilder<'a> {
         self
     }
 
+    /// `j4rs` uses a custom ClassLoader (namely the `J4rsClassLoader`),
+    /// that allows adding jars to the classpath during runtime, after the underlying `JVM` is initialized.
+    ///
+    /// This function instructs the builder not to use this custom classloader, but use the default one.
+    ///
+    /// Please note that the `J4rsClassLoader` needs Java 9 or higher. If you use an older Java version,
+    /// you __must__ call this function in order for `j4rs` to work.
+    ///
+    /// If not, you will get exceptions like the following:
+    ///
+    /// java.lang.NoSuchMethodError: java.net.URLClassLoader.<init>(Ljava/lang/String;[Ljava/net/URL;Ljava/lang/ClassLoader;)V
+    //         at org.astonbitecode.j4rs.api.deploy.J4rsClassLoader.<init>(J4rsClassLoader.java:22)
+    //         at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+    //         at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
+    //         at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+    //         at java.lang.reflect.Constructor.newInstance(Constructor.java:423)
+    //         at java.lang.SystemClassLoaderAction.run(ClassLoader.java:2204)
+    //         at java.lang.SystemClassLoaderAction.run(ClassLoader.java:2188)
+    //         at java.security.AccessController.doPrivileged(Native Method)
+    //         at java.lang.ClassLoader.initSystemClassLoader(ClassLoader.java:1449)
+    //         at java.lang.ClassLoader.getSystemClassLoader(ClassLoader.java:1429)
+    pub fn with_default_classloader(&'a mut self) -> &'a mut JvmBuilder {
+        self.default_classloader = true;
+        self
+    }
+
     /// Creates a Jvm
     pub fn build(&mut self) -> errors::Result<Jvm> {
+        if !self.default_classloader {
+            // Define the system classloader
+            self.java_opts.push(JavaOpt::new("-Djava.system.class.loader=org.astonbitecode.j4rs.api.deploy.J4rsClassLoader"));
+            self.java_opts.push(JavaOpt::new("-Xshare:off"));
+            self.java_opts.push(JavaOpt::new("-Djdk.net.URLClassPath.showIgnoredClassPathEntries=true"));
+        }
+
         let classpath = if self.no_implicit_classpath {
             self.classpath_entries
                 .iter()

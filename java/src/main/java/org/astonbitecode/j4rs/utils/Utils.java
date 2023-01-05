@@ -40,7 +40,7 @@ public class Utils {
             case "void":
                 return void.class;
             default:
-                return Class.forName(className);
+                return Class.forName(className, true, ClassLoader.getSystemClassLoader());
         }
     }
 

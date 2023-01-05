@@ -55,6 +55,7 @@ public class SimpleMavenDeployer {
         boolean searchRemoteRepo = true;
 
         if (!artifactExists(groupId, artifactId, version, qualifier)) {
+            String fullJarDeployPath = deployTarget + File.separator + jarName;
             if (checkLocalCache) {
                 try {
                     deployFromLocalCache(groupId, artifactId, version, qualifier);
@@ -65,9 +66,12 @@ public class SimpleMavenDeployer {
             }
             if (searchRemoteRepo) {
                 ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(urlString).openStream());
-                FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
-                fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
+                try (FileOutputStream fileOutputStream = new FileOutputStream(fullJarDeployPath)) {
+                    fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
+                }
             }
+
+            DeployUtils.addToClasspath(fullJarDeployPath);
         }
     }
 
