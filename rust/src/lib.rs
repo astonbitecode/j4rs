@@ -416,6 +416,14 @@ mod lib_unit_tests {
                     .unwrap();
                 let res = jvm.invoke(&i, "list", &[InvocationArg::from(list_instance)]);
                 assert!(res.is_ok());
+                // Test using instances
+                let instance = jvm.create_instance("java.lang.String", &[InvocationArg::try_from("astring").unwrap()]);
+                let list_instance = jvm.java_list(
+                    "java.lang.String",
+                    vec![instance])
+                    .unwrap();
+                let res = jvm.invoke(&i, "list", &[InvocationArg::from(list_instance)]);
+                assert!(res.is_ok());
                 // Test other types
                 let list_instance = jvm.java_list(
                     JavaClass::String,

@@ -212,6 +212,21 @@ impl From<Instance> for InvocationArg {
     }
 }
 
+impl TryFrom<Result<Instance, errors::J4RsError>> for InvocationArg {
+    type Error = errors::J4RsError;
+
+    fn try_from(instance_res: Result<Instance, errors::J4RsError>) -> errors::Result<InvocationArg> {
+        let instance = instance_res?;
+        let class_name = instance.class_name.to_owned();
+
+        Ok(InvocationArg::Java {
+            instance: instance,
+            class_name: class_name,
+            serialized: false,
+        })
+    }
+}
+
 impl<'a> TryFrom<Null<'a>> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(null: Null) -> errors::Result<InvocationArg> {
