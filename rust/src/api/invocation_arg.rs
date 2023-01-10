@@ -216,14 +216,7 @@ impl TryFrom<Result<Instance, errors::J4RsError>> for InvocationArg {
     type Error = errors::J4RsError;
 
     fn try_from(instance_res: Result<Instance, errors::J4RsError>) -> errors::Result<InvocationArg> {
-        let instance = instance_res?;
-        let class_name = instance.class_name.to_owned();
-
-        Ok(InvocationArg::Java {
-            instance: instance,
-            class_name: class_name,
-            serialized: false,
-        })
+        Ok(InvocationArg::from(instance_res?))
     }
 }
 
