@@ -61,7 +61,7 @@
         <maven.assembly.plugin.version>3.4.2</maven.assembly.plugin.version>
         <logback.version>1.4.4</logback.version>
         <build.plugins.plugin.version>2.0.2</build.plugins.plugin.version>
-        <jackson.version>2.13.4</jackson.version>
+        <jackson.version>2.14.1</jackson.version>
         <mockito.version>4.8.1</mockito.version>
         <javafx.version>13.0.2</javafx.version>
     </properties>
@@ -79,7 +79,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}.2</version>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
