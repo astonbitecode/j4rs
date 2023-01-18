@@ -22,6 +22,7 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+use glob::glob;
 use java_locator;
 use sha2::{Digest, Sha256};
 
@@ -128,7 +129,6 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError>
     let jassets_output = exec_dir_path_buf.clone();
     let jassets_output_dir = jassets_output.to_str().unwrap();
 
-
     let home = env::var("CARGO_MANIFEST_DIR")?;
     let jassets_path_buf = Path::new(&home).join("jassets");
     let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
@@ -136,6 +136,14 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError>
 
     let ref options = fs_extra::dir::CopyOptions::new();
     let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options)?;
+
+    let jassets_files = glob(format!("{}/jassets/**/*", jassets_output_dir).as_str()).expect("failed to read jassets directory");
+    for glob_res in jassets_files {
+        match glob_res {
+            Ok(path) => println!("cargo:rerun-if-changed={}", path.to_str().unwrap()),
+            Err(e) => panic!("{:?}", e),
+        }
+    }
     Ok(exec_dir_path_buf)
 }
 
