@@ -132,24 +132,41 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError>
     let home = env::var("CARGO_MANIFEST_DIR")?;
     let jassets_path_buf = Path::new(&home).join("jassets");
     let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
-    fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref())?;
 
-    let ref options = fs_extra::dir::CopyOptions::new();
-    let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options)?;
+    let jassets_jar_file_res = {
+        let japb = Path::new(&jassets_path).join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
+        File::open(japb)
+    };
+    let jassets_output_file_res = {
+        let jaopb = Path::new(&jassets_output_dir).join("jassets").join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
+        File::open(jaopb)
+    };
 
-    let jassets_files = glob(format!("{}/jassets/**/*", jassets_output_dir).as_str()).expect("failed to read jassets directory");
-    for glob_res in jassets_files {
-        match glob_res {
-            Ok(path) => println!("cargo:rerun-if-changed={}", path.to_str().unwrap()),
-            Err(e) => panic!("{:?}", e),
-        }
+    // Delete the target jassets and copy only if the files are not the same
+    let do_copy = if jassets_jar_file_res.is_ok() && jassets_output_file_res.is_ok() {
+        let mut jassets_jar_file = jassets_jar_file_res.unwrap();
+        let mut jassets_output_jar_file = jassets_output_file_res.unwrap();
+
+        !are_same_files(&mut jassets_jar_file, &mut jassets_output_jar_file).unwrap_or(true)
+    } else { true };
+
+    if do_copy {
+        fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref())?;
+
+        let ref options = fs_extra::dir::CopyOptions::new();
+        let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options)?;
+    }
+
+    let jassets_output_files = glob(format!("{}/jassets/**/*", jassets_output_dir).as_str())?;
+    for glob_res in jassets_output_files {
+        println!("cargo:rerun-if-changed={}", glob_res?.to_str().unwrap());
     }
     Ok(exec_dir_path_buf)
 }
 
 #[derive(Debug)]
 struct J4rsBuildError {
-    description: String
+    description: String,
 }
 
 impl fmt::Display for J4rsBuildError {
@@ -184,6 +201,18 @@ impl From<java_locator::errors::JavaLocatorError> for J4rsBuildError {
 
 impl From<fs_extra::error::Error> for J4rsBuildError {
     fn from(err: fs_extra::error::Error) -> J4rsBuildError {
+        J4rsBuildError { description: format!("{:?}", err) }
+    }
+}
+
+impl From<glob::PatternError> for J4rsBuildError {
+    fn from(err: glob::PatternError) -> J4rsBuildError {
+        J4rsBuildError { description: format!("{:?}", err) }
+    }
+}
+
+impl From<glob::GlobError> for J4rsBuildError {
+    fn from(err: glob::GlobError) -> J4rsBuildError {
         J4rsBuildError { description: format!("{:?}", err) }
     }
 }
