@@ -94,17 +94,25 @@ impl JavaFxSupport for Jvm {
                 return Ok(());
             }
 
+            let classifier = if target_os == "windows" {
+                "win"
+            } else if target_os == "macos"{
+                "mac"
+            } else {
+                target_os
+            };
+
             println!("cargo:warning=javafx dependencies deployment...");
             maven("org.openjfx:javafx-base:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-base:13.0.2:{}", target_os), self);
+            maven(&format!("org.openjfx:javafx-base:13.0.2:{}", classifier), self);
             maven("org.openjfx:javafx-controls:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-controls:13.0.2:{}", target_os), self);
+            maven(&format!("org.openjfx:javafx-controls:13.0.2:{}", classifier), self);
             maven("org.openjfx:javafx-fxml:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-fxml:13.0.2:{}", target_os), self);
+            maven(&format!("org.openjfx:javafx-fxml:13.0.2:{}", classifier), self);
             maven("org.openjfx:javafx-graphics:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-graphics:13.0.2:{}", target_os), self);
+            maven(&format!("org.openjfx:javafx-graphics:13.0.2:{}", classifier), self);
             maven("org.openjfx:javafx-media:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-media:13.0.2:{}", target_os), self);
+            maven(&format!("org.openjfx:javafx-media:13.0.2:{}", classifier), self);
             println!("cargo:warning=javafx dependencies deployment completed...");
 
             Ok(())
