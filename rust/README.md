@@ -1,7 +1,7 @@
 # j4rs
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.15.2-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.15.3-blue.svg)](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22io.github.astonbitecode%22%20AND%20a%3A%22j4rs%22)
 ![Build](https://github.com/astonbitecode/j4rs/actions/workflows/ci-workflow.yml/badge.svg)
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
@@ -9,16 +9,16 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
 ## Features
 
 * **Rust to Java direction support (call Java from Rust).**
-    * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
-    * [Easily instantiate and invoke Java classes.](#Basics)
-    * [Support custom types via serialization.](#Passing-custom-arguments-from-Rust-to-Java)
-    * [Casting support.](#Casting)
-    * [Java arrays / variadic support.](#Java-arrays-and-variadics)
-    * [Java generics support.](#Java-Generics)
-    * [Java primitives support.](#Java-primitives)
-    * [Java instances invocations chaining.](#Java-instances-chaining)
-    * [Java -> Rust callbacks support.](#Callback-support)
-    * [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
+  * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
+  * [Easily instantiate and invoke Java classes.](#Basics)
+  * [Support custom types via serialization.](#Passing-custom-arguments-from-Rust-to-Java)
+  * [Casting support.](#Casting)
+  * [Java arrays / variadic support.](#Java-arrays-and-variadics)
+  * [Java generics support.](#Java-Generics)
+  * [Java primitives support.](#Java-primitives)
+  * [Java instances invocations chaining.](#Java-instances-chaining)
+  * [Java -> Rust callbacks support.](#Callback-support)
+  * [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
 * **[JavaFX support](#JavaFX-support) (including FXML support).**
 * **[Java -> Rust support](#Java-to-Rust-support) (Call Rust from Java).**
 * **Tested on Linux, Windows and Android.**
@@ -68,7 +68,29 @@ let system_out_field = jvm.field(&system_class, "out");
 // Retrieve an enum constant using the field
 let access_mode_enum = jvm.static_class("java.nio.file.AccessMode")?;
 let access_mode_write = jvm.field(&access_mode_enum, "WRITE")?;
+```
 
+`Instances`s of Java `List`s and `Map`s can be created with the `java_list` and `java_map` functions:
+
+```rust
+let rust_vec = vec!["arg1", "arg2", "arg3", "arg33"];
+
+// Generate a Java List. The Java List implementation is the one that is returned by java.util.Arrays#asList
+let java_list_instance = jvm.java_list(
+    JavaClass::String,
+    rust_vec)?;
+
+let rust_map = HashMap::from([
+    ("Potatoes", 3),
+    ("Tomatoes", 33),
+    ("Carrotoes", 333),
+]);
+
+// Generate a java.util.HashMap.
+let java_map_instance = jvm.java_map(
+    JavaClass::String,
+    JavaClass::Integer,
+    map)?;
 ```
 
 ### Passing arguments from Rust to Java
@@ -363,7 +385,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.13.0</version>
+    <version>0.15.3</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -629,6 +651,21 @@ let jvm_res = j4rs::JvmBuilder::new()
 .with_base_path("/opt/myapp")
 .build();
 ```
+
+## FAQ
+
+### I get `java.lang.NoSuchMethodError: java.net.URLClassLoader.<init>(Ljava/lang/String;[Ljava/net/URL;Ljava/lang/ClassLoader;)V`
+
+`j4rs` uses a custom ClassLoader, that needs minimum Java version 9. In order to use the default classloader that supports
+older Java versions, invoke the `JvmBuilder::with_default_classloader` when building the `Jvm`.
+
+### How can I enable debug logging?
+
+`j4rs` uses the [log crate](https://docs.rs/log/latest/log/), so, logging may be configured accordingly, depending on the chosen implementation.
+
+However, it also supports console logging, which is configured with setting the env var `J4RS_CONSOLE_LOG_LEVEL`.
+
+Accepted values are `debug`, `info`, `warn`, `error` and `disabled`.
 
 ## Licence
 
