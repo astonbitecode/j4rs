@@ -30,6 +30,7 @@ java-locator = "0.1"
 fs_extra = "1.2"
 libloading = "0.7"
 cesu8 = "1.1.0"
+dunce = "1.0"
 
 [build-dependencies]
 fs_extra = "1.2"

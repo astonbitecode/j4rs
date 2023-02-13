@@ -17,6 +17,7 @@ use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
 use cesu8::{from_java_cesu8, to_java_cesu8};
+use dunce::canonicalize;
 use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
@@ -89,6 +90,8 @@ pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
     } else {
         env::current_exe()?
     };
+    jassets_path = canonicalize(jassets_path)?;
+
     let mut tmp_vec = Vec::new();
 
     while tmp_vec.is_empty() {
