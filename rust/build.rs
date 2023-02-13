@@ -27,7 +27,7 @@ use java_locator;
 use sha2::{Digest, Sha256};
 
 // This is the version of the jar that should be used
-const VERSION: &'static str = "0.15.3";
+const VERSION: &'static str = "0.15.4-SNAPSHOT";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
