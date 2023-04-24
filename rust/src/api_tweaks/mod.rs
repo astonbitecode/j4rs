@@ -16,27 +16,52 @@ use std::os::raw::c_void;
 use jni_sys::{JavaVM, jclass, jint, JNIEnv, jsize};
 use crate::errors;
 
-#[cfg(not(any(target_os = "android")))]
+#[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 mod generic;
 
-#[cfg(not(any(target_os = "android")))]
+#[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms: *mut jsize) -> jint {
     generic::get_created_java_vms(vm_buf, buf_len, n_vms)
 }
 
-#[cfg(not(any(target_os = "android")))]
+#[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 pub fn set_java_vm(_: *mut JavaVM) {}
 
-#[cfg(not(any(target_os = "android")))]
+#[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 pub fn create_java_vm(
     pvm: *mut *mut JavaVM,
     penv: *mut *mut c_void,
     args: *mut c_void,
 ) -> jint { generic::create_java_vm(pvm, penv, args) }
 
-#[cfg(not(any(target_os = "android")))]
+#[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     generic::find_class(env, classname)
+}
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ //
+
+#[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
+mod no_runtime_lib_loading;
+
+#[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
+pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms: *mut jsize) -> jint {
+    no_runtime_lib_loading::get_created_java_vms(vm_buf, buf_len, n_vms)
+}
+
+#[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
+pub fn set_java_vm(_: *mut JavaVM) {}
+
+#[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
+pub fn create_java_vm(
+    pvm: *mut *mut JavaVM,
+    penv: *mut *mut c_void,
+    args: *mut c_void,
+) -> jint { no_runtime_lib_loading::create_java_vm(pvm, penv, args) }
+
+#[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
+pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
+    no_runtime_lib_loading::find_class(env, classname)
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ //
