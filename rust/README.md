@@ -12,6 +12,7 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
   * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
   * [Easily instantiate and invoke Java classes.](#Basics)
   * [Support custom types via serialization.](#Passing-custom-arguments-from-Rust-to-Java)
+  * [.async/.await support]((#Async-support))
   * [Casting support.](#Casting)
   * [Java arrays / variadic support.](#Java-arrays-and-variadics)
   * [Java generics support.](#Java-Generics)
@@ -19,8 +20,8 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
   * [Java instances invocations chaining.](#Java-instances-chaining)
   * [Java -> Rust callbacks support.](#Callback-support)
   * [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
-* **[JavaFX support](#JavaFX-support) (including FXML support).**
 * **[Java -> Rust support](#Java-to-Rust-support) (Call Rust from Java).**
+* **[JavaFX support](#JavaFX-support) (including FXML support).**
 * **Tested on Linux, Windows and Android.**
 
 ## Usage
@@ -198,6 +199,55 @@ public class MyBean {
     }
 }
 ```
+
+### Async support
+(v0.16.0 onwards)
+
+`j4rs` supports `.async/.await` via`Jvm::invoke_async` function.
+The function returns a [Future](https://docs.rs/futures/latest/futures/future/trait.Future.html), which is completed via the `Receiver` of a [oneshot channel](https://docs.rs/futures/latest/futures/channel/oneshot/fn.channel.html).
+
+In Java side, the methods that can be invoked by `invoke_async`, __must__ return a Java [Future](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Future.html).
+When the Java Future completes, the Java side of `j4rs` invokes native Rust code that completes the pending Rust `Future`
+with either success or failure, using the `Sender` of the oneshot channel that was created when the `invoke_async` was called.
+
+For example, assuming we have a Java method that returns a Future:
+
+```java
+package org.astonbitecode.j4rs.tests;
+
+public class MyTest {
+  private static ExecutorService executor = Executors.newSingleThreadExecutor();
+
+  // Just return the passed String in a Future
+  public Future<String> getStringWithFuture(String string) {
+    CompletableFuture<String> completableFuture = new CompletableFuture<>();
+    executor.submit(() -> {
+      completableFuture.complete(string);
+      return null;
+    });
+    return completableFuture;
+  }
+}
+```
+
+We can invoke it like following:
+
+```rust
+let s_test = "j4rs_rust";
+let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+let instance = jvm.invoke_async(&my_test, "getStringWithFuture", &[InvocationArg::try_from(s_test)?]).await?;
+let string: String = jvm.to_rust(instance)?;
+assert_eq!(s_test, string);
+```
+
+Please note that it is better for the Java methods that are invoked by the `invoke_async` function
+to return a [CompletableFuture](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/CompletableFuture.html),
+as this improves performance.
+
+`j4rs` handles simple Java Futures that are not `CompletableFuture`s with [polling](https://github.com/astonbitecode/j4rs/blob/86a2cb7bee10e5941fd0cada00afc355ea9e3ebb/java/src/main/java/org/astonbitecode/j4rs/api/async/J4rsPolledFuture.java#L25),
+using an internal one-threaded `ScheduledExecutorService`.
+
+This has apparent performance issues.
 
 ### Casting
 
