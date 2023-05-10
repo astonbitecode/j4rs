@@ -12,7 +12,7 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
   * No special configuration needed (no need to tweak LD_LIBRARY_PATH, PATH etc).
   * [Easily instantiate and invoke Java classes.](#Basics)
   * [Support custom types via serialization.](#Passing-custom-arguments-from-Rust-to-Java)
-  * [.async/.await support]((#Async-support))
+  * [.async/.await support](#Async-support)
   * [Casting support.](#Casting)
   * [Java arrays / variadic support.](#Java-arrays-and-variadics)
   * [Java generics support.](#Java-Generics)
