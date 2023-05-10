@@ -14,6 +14,7 @@
 
 use std::{fmt, result};
 use std::convert::Infallible;
+use std::env::VarError;
 use std::error::Error;
 use std::ffi::NulError;
 use std::io;
@@ -22,7 +23,8 @@ use std::sync::mpsc::RecvError;
 
 use fs_extra;
 use serde_json;
-use std::env::VarError;
+
+use futures::channel::oneshot::Canceled;
 
 pub type Result<T> = result::Result<T, J4RsError>;
 
@@ -127,6 +129,12 @@ impl From<RecvError> for J4RsError {
 
 impl From<VarError> for J4RsError {
     fn from(err: VarError) -> J4RsError {
+        J4RsError::RustError(format!("{:?}", err))
+    }
+}
+
+impl From<Canceled> for J4RsError {
+    fn from(err: Canceled) -> J4RsError {
         J4RsError::RustError(format!("{:?}", err))
     }
 }

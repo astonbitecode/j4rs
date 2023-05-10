@@ -42,7 +42,7 @@ public class EagerJsonInvocationImpl<T> implements Instance<T> {
     }
 
     @Override
-    public void invokeAsync(long functionPointer, String methodName, InvocationArg... args) {
+    public void invokeAsyncToChannel(long channelAddress, String methodName, InvocationArg... args) {
         throw new RuntimeException("Not implemented yet. Please use the JsonInvocationImpl instead");
     }
 

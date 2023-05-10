@@ -131,6 +131,8 @@ thread_local! {
     pub(crate) static INVOKE_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The invoke to channel method
     pub(crate) static INVOKE_TO_CHANNEL_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    // The method that invokes a Java method that returns Future
+    pub(crate) static INVOKE_ASYNC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The init callback channel method
     pub(crate) static INIT_CALLBACK_CHANNEL_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The field method
@@ -978,6 +980,40 @@ pub(crate) fn get_invoke_to_channel_method() -> errors::Result<jmethodID> {
         },
         set_invoke_to_channel_method)
 }
+
+pub(crate) fn set_invoke_async_method(j: jmethodID) {
+    debug("Called set_invoke_async_method");
+    INVOKE_ASYNC_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_invoke_async_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        INVOKE_ASYNC_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let invoke_to_channel_method_signature = "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
+            let cstr1 = utils::to_c_string("invokeAsyncToChannel");
+            let cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
+            // Get the method ID for the `Instance.invokeToChannel`
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_java_instance_class()?,
+                    cstr1,
+                    cstr2,
+                )
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_invoke_async_method)
+}
+
 
 pub(crate) fn set_init_callback_channel_method(j: jmethodID) {
     debug("Called set_init_callback_channel_method");

@@ -126,9 +126,9 @@ public class InvocationArg implements Instance {
     }
 
     @Override
-    public void invokeAsync(long functionPointerAddress, String methodName, InvocationArg... args) {
+    public void invokeAsyncToChannel(long channelAddress, String methodName, InvocationArg... args) {
         if (getInstance() != null) {
-            getInstance().invokeAsync(functionPointerAddress, methodName, args);
+            getInstance().invokeAsyncToChannel(channelAddress, methodName, args);
         }
     }
 

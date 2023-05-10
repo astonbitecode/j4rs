@@ -18,8 +18,13 @@ import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
+import org.astonbitecode.j4rs.tests.MyTest;
 import org.astonbitecode.j4rs.utils.*;
 import org.junit.Test;
+
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.mockito.Mockito.*;
 
 public class JsonInvocationImplTest {
 
@@ -233,5 +238,55 @@ public class JsonInvocationImplTest {
 
         Instance otherChildDummyInstance = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
         instance.invoke("replaceDummy", new InvocationArg(otherChildDummyInstance));
+    }
+
+    @Test
+    public void invokeAsyncSuccess() throws InterruptedException {
+        JsonInvocationImpl instance = spy(new JsonInvocationImpl(new MyTest(), MyTest.class));
+        TestCallback callback = new TestCallback();
+        doReturn(callback).when(instance).newCallbackForAsyncToChannel(anyLong());
+        String testString = "j4rs";
+        instance.invokeAsyncToChannel(123, "getStringWithFuture", new InvocationArg(new JsonInvocationImpl(testString, String.class)));
+
+        int i = 1000;
+        while (callback.getString() == null && --i > 0) {
+            Thread.sleep(100);
+        }
+
+        assert (testString.equals(callback.getString()));
+    }
+
+    @Test
+    public void invokeAsyncFailure() throws InterruptedException {
+        JsonInvocationImpl instance = spy(new JsonInvocationImpl(new MyTest(), MyTest.class));
+        TestCallback callback = new TestCallback();
+        doReturn(callback).when(instance).newCallbackForAsyncToChannel(anyLong());
+        String errorString = "Boom!";
+        instance.invokeAsyncToChannel(123, "getErrorWithFuture", new InvocationArg(new JsonInvocationImpl(errorString, String.class)));
+
+        int i = 1000;
+        while (callback.getString() == null && --i > 0) {
+            Thread.sleep(100);
+        }
+
+        assert (errorString.equals(callback.getString()));
+    }
+
+    private class TestCallback extends NativeCallbackToRustFutureSupport {
+        private AtomicReference<String> s = new AtomicReference<>(null);
+
+        @Override
+        public void doCallbackSuccess(Object obj) {
+            this.s.getAndSet(obj.toString());
+        }
+
+        @Override
+        public void doCallbackFailure(Throwable error) {
+            this.s.getAndSet(error.getMessage());
+        }
+
+        public String getString() {
+            return this.s.get();
+        }
     }
 }

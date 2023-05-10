@@ -14,18 +14,23 @@
  */
 package org.astonbitecode.j4rs.tests;
 
-import org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport;
+import org.astonbitecode.j4rs.errors.InvocationException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class MyTest extends NativeCallbackSupport {
+public class MyTest {
     private String string;
     public static String StaticString = "This is a static String from Java";
+
+    private static ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public MyTest() {
         this.string = "THE DEFAULT CONSTRUCTOR WAS CALLED";
@@ -105,7 +110,7 @@ public class MyTest extends NativeCallbackSupport {
 
     public void map(Map<String, Integer> m) {
         m.entrySet().stream()
-                .map( entry -> entry.getKey().getClass().isAssignableFrom(String.class) &&
+                .map(entry -> entry.getKey().getClass().isAssignableFrom(String.class) &&
                         entry.getValue().getClass().isAssignableFrom(Integer.class))
                 .collect(Collectors.toList());
     }
@@ -116,12 +121,6 @@ public class MyTest extends NativeCallbackSupport {
 
     public static void StaticMethod() {
         System.out.println("Static");
-    }
-
-    public void performCallback() {
-        new Thread(() -> {
-            doCallback("THIS IS FROM CALLBACK!");
-        }).start();
     }
 
     public <T> T echo(T o) {
@@ -144,4 +143,17 @@ public class MyTest extends NativeCallbackSupport {
         return myBean.getSomeInteger();
     }
 
+    public Future<String> getStringWithFuture(String string) {
+        return executor.submit(() -> string);
+    }
+
+    public Future<String> getErrorWithFuture(String message) {
+        return executor.submit(() -> {
+            throw new InvocationException(message);
+        });
+    }
+
+    public static Future<String> getErrorWithFutureStatic(String string) {
+        return executor.submit(() -> string);
+    }
 }

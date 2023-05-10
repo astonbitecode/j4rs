@@ -41,14 +41,19 @@ public interface Instance<T> extends ObjectValue, JsonValue {
 
     /**
      * Invokes asynchronously a method of the instance of the class that is set for this {@link Instance}.
-     * The result of the invocation should be provided later using the performCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackSupport} class.
-     * Any possible returned objects from the actual synchronous invocation of the defined method will be dropped.
+     * The result of the invocation must be a {@link java.util.concurrent.Future}.
+     * When the Future returned from the invocation completes, j4rs will invoke native Rust code to either send a success value or a failure.
+     * <p>
+     * Please note that it is best that this function returns a {@link java.util.concurrent.CompletableFuture}, as this improves performance.
+     * j4rs handles simple {@link java.util.concurrent.Future}s with polling using an internal {@link java.util.concurrent.ScheduledExecutorService} with one thread and this has apparent performance issues.
+     * You may have a look at {@link org.astonbitecode.j4rs.api.async.J4rsPolledFuture} for more details.
      *
-     * @param functionPointerAddress The address of the function pointer that will be used later in the native side in order to actually paerform the callback.
+     * @param functionPointerAddress The address of the function pointer that will be used when the {@link java.util.concurrent.Future} completes, in the native side, in order to actually perform the callback
+     *                               and complete a Future that is created in Rust and awaits for the Java Future to complete.
      * @param methodName             The method name
      * @param args                   The arguments to use when invoking the callback method (the functionPointer)
      */
-    void invokeAsync(long functionPointerAddress, String methodName, InvocationArg... args);
+    void invokeAsyncToChannel(long functionPointerAddress, String methodName, InvocationArg... args);
 
     /**
      * Invokes a method of the instance of the class that is set for this {@link Instance}.
@@ -108,7 +113,7 @@ public interface Instance<T> extends ObjectValue, JsonValue {
     default T getOrDeserializeJavaObject() {
         boolean isSerialized = false;
         if (InvocationArg.class.isAssignableFrom(this.getClass())) {
-            isSerialized = ((InvocationArg)this).isSerialized();
+            isSerialized = ((InvocationArg) this).isSerialized();
         }
         if (!isSerialized) {
             return (T) this.getObject();

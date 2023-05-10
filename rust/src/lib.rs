@@ -23,20 +23,22 @@ extern crate serde_json;
 use std::mem;
 use std::os::raw::c_void;
 use std::sync::mpsc::Sender;
+use futures::channel::oneshot;
 
-use jni_sys::{jlong, JNIEnv, jobject};
+use jni_sys::{jlong, JNIEnv, jobject, jstring};
 pub use jni_sys as jni_sys;
+
+pub use api::instance::Instance as Instance;
+pub use api::instance::InstanceReceiver as InstanceReceiver;
 
 pub use self::api::Callback as Callback;
 pub use self::api::ClasspathEntry as ClasspathEntry;
-pub use api::instance::Instance as Instance;
-pub use api::instance::InstanceReceiver as InstanceReceiver;
 pub use self::api::invocation_arg::InvocationArg as InvocationArg;
+pub use self::api::JavaClass as JavaClass;
 pub use self::api::JavaOpt as JavaOpt;
 pub use self::api::Jvm as Jvm;
 pub use self::api::JvmBuilder as JvmBuilder;
 pub use self::api::Null as Null;
-pub use self::api::JavaClass as JavaClass;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 pub use self::jni_utils::jstring_to_rust_string as jstring_to_rust_string;
 pub use self::provisioning::LocalJarArtifact as LocalJarArtifact;
@@ -45,6 +47,7 @@ pub use self::provisioning::MavenArtifactRepo as MavenArtifactRepo;
 pub use self::provisioning::MavenSettings as MavenSettings;
 
 mod api;
+pub mod async_api;
 pub(crate) mod api_tweaks;
 pub mod errors;
 mod jni_utils;
@@ -79,6 +82,42 @@ pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustCha
         }
     } else {
         panic!("Could not create Rust Instance from the Java Instance object...");
+    }
+}
+
+#[no_mangle]
+pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustFutureSupport_docallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, java_instance: jobject) {
+    let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel for completing a Future.");
+    jvm.detach_thread_on_drop(false);
+    let instance_res = Instance::from_jobject_with_global_ref(java_instance);
+    if let Ok(instance) = instance_res {
+        let p = ptr_address as *mut oneshot::Sender<errors::Result<Instance>>;
+        let tx = unsafe { Box::from_raw(p) };
+
+        let result = tx.send(Ok(instance));
+        if let Err(_) = result {
+            panic!("Could not send to the defined callback channel to complete the future");
+        }
+    } else {
+        panic!("Could not create Rust Instance from the Java Instance object...");
+    }
+}
+
+#[no_mangle]
+pub extern fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustFutureSupport_failcallbacktochannel(_jni_env: *mut JNIEnv, _class: *const c_void, ptr_address: jlong, stacktrace: jstring) {
+    let mut jvm = Jvm::attach_thread().expect("Could not create a j4rs Jvm while invoking callback to channel for failing a Future.");
+    jvm.detach_thread_on_drop(false);
+    let stacktrace = jstring_to_rust_string(&jvm, stacktrace);
+    if let Ok(st) = stacktrace {
+        let p = ptr_address as *mut oneshot::Sender<errors::Result<Instance>>;
+        let tx = unsafe { Box::from_raw(p) };
+
+        let result = tx.send(Err(errors::J4RsError::JavaError(st)));
+        if let Err(_) = result {
+            panic!("Could not send to the defined callback channel to fail a future");
+        }
+    } else {
+        panic!("Could not create Rust String from the Java jstring while invoking callback to channel for failing a Future...");
     }
 }
 

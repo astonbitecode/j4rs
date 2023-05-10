@@ -16,6 +16,7 @@ package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.JsonValue;
+import org.astonbitecode.j4rs.api.async.J4rsPolledFuture;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
@@ -34,6 +35,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 public class JsonInvocationImpl<T> implements Instance<T> {
@@ -65,7 +68,6 @@ public class JsonInvocationImpl<T> implements Instance<T> {
 
     @Override
     public Instance invoke(String methodName, InvocationArg... args) {
-        // Invoke the instance
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
             return InstanceGenerator.create(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
@@ -85,16 +87,30 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     }
 
     @Override
-    public void invokeAsync(long functionPointerAddress, String methodName, InvocationArg... args) {
-        // Check that the class of the invocation extends the NativeCallbackSupport
-        if (!NativeCallbackSupport.class.isAssignableFrom(this.clazz)) {
-            throw new InvocationException("Cannot invoke asynchronously the class " + this.clazz.getName() + ". The class does not extend the class " + NativeCallbackSupport.class.getName());
-        } else {
-            // Initialize the pointer
-            ((NativeCallbackSupport) object).initPointer(new RustPointer(functionPointerAddress));
-            // Invoke (any possible returned objects will be dropped)
-            invoke(methodName, args);
+    public void invokeAsyncToChannel(final long channelAddress, final String methodName, final InvocationArg... args) {
+        try {
+            NativeCallbackToRustFutureSupport callback = newCallbackForAsyncToChannel(channelAddress);
+            invokeAsyncMethod(methodName, gen.generateArgObjects(args)).handle((o, t) -> {
+                if (o != null) {
+                    callback.doCallbackSuccess(o);
+                } else if (t != null) {
+                    callback.doCallbackFailure(t);
+                } else {
+                    String message = String.format("Error while handling the future returned by the invocation of method %s of class %s",
+                            methodName, getObjectClassName());
+                    throw new InvocationException(message);
+                }
+                return Void.TYPE;
+            });
+        } catch (Exception error) {
+            throw new InvocationException("While invoking method " + methodName + " of Class " + getObjectClassName(), error);
         }
+    }
+
+    NativeCallbackToRustFutureSupport newCallbackForAsyncToChannel(long channelAddress) {
+        NativeCallbackToRustFutureSupport callback = new NativeCallbackToRustFutureSupport();
+        callback.initPointer(new RustPointer(channelAddress));
+        return callback;
     }
 
     @Override
@@ -183,6 +199,56 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
         Object returnedObject = methodToInvoke.invoke(this.object, argObjects);
         return new CreatedInstance(invokedMethodReturnType, returnedObject, retClassGenTypes);
+    }
+
+    CompletableFuture<Object> invokeAsyncMethod(String methodName, GeneratedArg[] generatedArgs) throws Exception {
+        Class[] argTypes = Arrays.stream(generatedArgs)
+                .map(invGeneratedArg -> {
+                    try {
+                        return invGeneratedArg.getClazz();
+                    } catch (Exception error) {
+                        throw new InvocationException("Cannot parse the parameter types while invoking async method", error);
+                    }
+                })
+                .toArray(size -> new Class[size]);
+        Object[] argObjects = Arrays.stream(generatedArgs)
+                .map(invGeneratedArg -> {
+                    try {
+                        return invGeneratedArg.getObject();
+                    } catch (Exception error) {
+                        throw new InvocationException("Cannot parse the parameter objects while invoking async method", error);
+                    }
+                })
+                .toArray(size -> new Object[size]);
+
+        Method methodToInvoke = findMethodInHierarchy(this.clazz, methodName, argTypes);
+        List<Type> retClassGenTypes = new ArrayList<>();
+
+        Type returnType = methodToInvoke.getGenericReturnType();
+
+        if (returnType instanceof ParameterizedType) {
+            ParameterizedType type = (ParameterizedType) returnType;
+            retClassGenTypes = Arrays.asList(type.getActualTypeArguments());
+        }
+
+        CompletableFuture<Object> future;
+        Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
+        if (!invokedMethodReturnType.isAssignableFrom(Future.class)) {
+            String message = String.format("Attempted to asynchronously invoke method %s of class %s that returns %s instead of returning Future",
+                    methodName,
+                    this.clazz.getName(),
+                    returnType.getTypeName());
+            throw new InvocationException(message);
+        }
+        Future<Object> invocationReturnedFuture = (Future<Object>) methodToInvoke.invoke(this.object, argObjects);
+
+        if (invocationReturnedFuture instanceof CompletableFuture) {
+            future = (CompletableFuture<Object>) invocationReturnedFuture;
+        } else {
+            future = new J4rsPolledFuture<>(invocationReturnedFuture);
+        }
+
+        return future;
     }
 
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
