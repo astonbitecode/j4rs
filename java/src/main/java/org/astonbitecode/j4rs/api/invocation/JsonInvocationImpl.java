@@ -103,7 +103,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                 return Void.TYPE;
             });
         } catch (Exception error) {
-            throw new InvocationException("While invoking method " + methodName + " of Class " + getObjectClassName(), error);
+            throw new InvocationException("While invoking async method " + methodName + " of Class " + getObjectClassName(), error);
         }
     }
 
@@ -233,7 +233,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
 
         CompletableFuture<Object> future;
         Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
-        if (!invokedMethodReturnType.isAssignableFrom(Future.class)) {
+        if (!Future.class.isAssignableFrom(invokedMethodReturnType)) {
             String message = String.format("Attempted to asynchronously invoke method %s of class %s that returns %s instead of returning Future",
                     methodName,
                     this.clazz.getName(),
