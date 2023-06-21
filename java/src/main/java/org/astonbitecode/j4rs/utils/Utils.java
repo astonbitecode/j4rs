@@ -19,6 +19,18 @@ import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import java.util.Arrays;
 
 public class Utils {
+
+    private static boolean IsAndroid;
+
+    static {
+        try {
+            Class.forName("android.os.Build");
+            IsAndroid = true;
+        } catch (ClassNotFoundException e) {
+            IsAndroid = false;
+        }
+    }
+
     public static Class<?> forNameEnhanced(final String className) throws ClassNotFoundException {
         switch (className) {
             case "boolean":
@@ -40,7 +52,11 @@ public class Utils {
             case "void":
                 return void.class;
             default:
-                return Class.forName(className, true, ClassLoader.getSystemClassLoader());
+                if (!IsAndroid) {
+                    return Class.forName(className, true, ClassLoader.getSystemClassLoader());
+                } else {
+                    return Class.forName(className);
+                }
         }
     }
 
