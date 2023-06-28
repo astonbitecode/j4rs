@@ -153,6 +153,12 @@ public class MyTest {
         });
     }
 
+    public Future<Void> executeVoidFuture(String message) {
+        return executor.submit(() -> {
+            return null;
+        });
+    }
+
     public static Future<String> getErrorWithFutureStatic(String string) {
         return executor.submit(() -> string);
     }

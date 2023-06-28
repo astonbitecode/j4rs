@@ -15,6 +15,7 @@
 package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.api.Instance;
+import org.astonbitecode.j4rs.api.value.NullObject;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
@@ -46,10 +47,14 @@ class NativeCallbackToRustFutureSupport {
      * @param obj The {@link Object} to pass in the callback.
      */
     public void doCallbackSuccess(Object obj) {
-        if (channelPointerOpt.isPresent() && obj != null) {
-            docallbacktochannel(channelPointerOpt.get().getAddress(), InstanceGenerator.create(obj, obj.getClass()));
+        if (channelPointerOpt.isPresent()) {
+            if (obj != null) {
+                docallbacktochannel(channelPointerOpt.get().getAddress(), InstanceGenerator.create(obj, obj.getClass()));
+            } else {
+                docallbacktochannel(channelPointerOpt.get().getAddress(), InstanceGenerator.create(null, NullObject.class));
+            }
         } else {
-            throw new InvocationException("Cannot do callback. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackSupport)");
+            throw new InvocationException("Cannot do callback. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackToRustFutureSupport)");
         }
     }
 

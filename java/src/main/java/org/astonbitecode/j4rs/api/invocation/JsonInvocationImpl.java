@@ -91,14 +91,10 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         try {
             NativeCallbackToRustFutureSupport callback = newCallbackForAsyncToChannel(channelAddress);
             invokeAsyncMethod(methodName, gen.generateArgObjects(args)).handle((o, t) -> {
-                if (o != null) {
-                    callback.doCallbackSuccess(o);
-                } else if (t != null) {
+                if (t != null) {
                     callback.doCallbackFailure(t);
                 } else {
-                    String message = String.format("Error while handling the future returned by the invocation of method %s of class %s",
-                            methodName, getObjectClassName());
-                    throw new InvocationException(message);
+                    callback.doCallbackSuccess(o);
                 }
                 return Void.TYPE;
             });

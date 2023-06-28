@@ -183,6 +183,16 @@ mod api_unit_tests {
         Ok(())
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn invoke_void_future() -> errors::Result<()> {
+        let s_test = "j4rs_rust";
+        let jvm = JvmBuilder::new().build()?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let instance_res = jvm.invoke_async(&my_test, "executeVoidFuture", &[InvocationArg::try_from(s_test)?]).await;
+        assert!(instance_res.is_ok());
+        Ok(())
+    }
+
     // #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn _memory_leaks_invoke_async_instances() -> errors::Result<()> {
         let jvm = JvmBuilder::new().build()?;
