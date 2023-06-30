@@ -14,39 +14,39 @@
  */
 package org.astonbitecode.j4rs.api.value;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
-import org.astonbitecode.j4rs.errors.JsonCodecException;
-import org.astonbitecode.j4rs.json.Codec;
-
-import java.io.IOException;
+import org.astonbitecode.j4rs.api.services.json.Codec;
+import org.astonbitecode.j4rs.api.services.json.exceptions.JsonCodecException;
+import org.astonbitecode.j4rs.json.JsonCodecService;
 
 public class JsonValueImpl implements JsonValue {
-    private Codec codec = new Codec();
+    private final Codec jsonCodec;
     private Object obj;
     private String json;
     @SuppressWarnings("unused")
     private String className;
 
     JsonValueImpl(Object obj) {
+        this.jsonCodec = JsonCodecService.getJsonCodec();
         this.obj = obj;
         try {
-            this.json = codec.encode(obj);
-        } catch (JsonProcessingException error) {
+            this.json = jsonCodec.encode(obj);
+        } catch (JsonCodecException error) {
             throw new JsonCodecException("While creating JsonValueCallbackImpl for instance of " + obj.getClass().getName(), error);
         }
         this.className = obj.getClass().getName();
     }
 
     JsonValueImpl(String json, String className) {
+        this.jsonCodec = JsonCodecService.getJsonCodec();
         try {
             if (className.equals(InvocationArg.CONTENTS_ARRAY)) {
-                this.obj = codec.decodeArrayContents(json);
+                this.obj = jsonCodec.decodeArrayContents(json);
             } else {
-                this.obj = codec.decode(json, className);
+                this.obj = jsonCodec.decode(json, className);
             }
-        } catch (ClassNotFoundException | IOException error) {
+        } catch (JsonCodecException error) {
             throw new JsonCodecException("While creating JsonValueCallbackImpl: Could not decode " + json, error);
         }
         this.json = json;

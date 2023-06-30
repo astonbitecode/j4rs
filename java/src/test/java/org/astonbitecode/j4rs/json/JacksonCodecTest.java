@@ -14,65 +14,60 @@
  */
 package org.astonbitecode.j4rs.json;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import org.astonbitecode.j4rs.api.dtos.InvocationArg;
-import org.astonbitecode.j4rs.errors.JsonCodecException;
+import org.astonbitecode.j4rs.api.services.json.exceptions.JsonCodecException;
 import org.astonbitecode.j4rs.utils.Dummy;
 import org.astonbitecode.j4rs.utils.OtherDummy;
 import org.junit.Test;
 
-import java.util.Arrays;
-
-public class CodecTest {
-    private Codec codec = new Codec();
+public class JacksonCodecTest {
+    private JacksonCodec jacksonCodec = new JacksonCodec();
 
     @Test
-    public void decodeSuccess() throws Exception {
+    public void decodeSuccess() {
         String json = "{\"i\":3}";
-        Dummy dummy = codec.decode(json, "org.astonbitecode.j4rs.utils.Dummy");
+        Dummy dummy = jacksonCodec.decode(json, "org.astonbitecode.j4rs.utils.Dummy");
         assert (dummy.getI() == 3);
     }
 
-    @Test(expected = ClassNotFoundException.class)
-    public void decodeFailureWrongClassName() throws Exception {
+    @Test(expected = JsonCodecException.class)
+    public void decodeFailureWrongClassName() {
         String json = "{\"i\":3}";
-        codec.decode(json, "org.astonbitecode.j4rs.utils.Nothing");
+        jacksonCodec.decode(json, "org.astonbitecode.j4rs.utils.Nothing");
     }
 
-    @Test(expected = JsonParseException.class)
-    public void decodeFailureInvalidJson() throws Exception {
+    @Test(expected = JsonCodecException.class)
+    public void decodeFailureInvalidJson() {
         String json = "{mb}";
-        codec.decode(json, "org.astonbitecode.j4rs.utils.Dummy");
+        jacksonCodec.decode(json, "org.astonbitecode.j4rs.utils.Dummy");
     }
 
-    @Test(expected = JsonMappingException.class)
-    public void decodeFailureInvalidMapping() throws Exception {
+    @Test(expected = JsonCodecException.class)
+    public void decodeFailureInvalidMapping() {
         String json = "{\"i\":3}";
-        codec.decode(json, "org.astonbitecode.j4rs.utils.OtherDummy");
+        jacksonCodec.decode(json, "org.astonbitecode.j4rs.utils.OtherDummy");
     }
 
     @Test
-    public void encodeSuccess() throws Exception {
+    public void encodeSuccess() {
         String json = "{\"i\":3,\"j\":33}";
         OtherDummy person = new OtherDummy(3, 33);
-        assert (codec.encode(person).equals(json));
+        assert (jacksonCodec.encode(person).equals(json));
     }
 
     @Test
-    public void encodeJ4rsArray() throws Exception {
+    public void encodeJ4rsArray() {
         String json = "[\n" +
                 "     {\"Rust\":{\"json\":\"\\\"arg1\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}},\n" +
                 "     {\"Rust\":{\"json\":\"\\\"arg2\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}},\n" +
                 "     {\"Rust\":{\"json\":\"\\\"arg3\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}}\n" +
                 "     ]";
-        Object[] ret = codec.decodeArrayContents(json);
+        Object[] ret = jacksonCodec.decodeArrayContents(json);
     }
 
     @Test(expected = JsonCodecException.class)
-    public void encodeJ4rsArrayError() throws Exception {
+    public void encodeJ4rsArrayError() {
         String json = "[{\"i\":3,\"j\":33}, {\"i\":333,\"j\":3333}]";
-        codec.decodeArrayContents(json);
+        jacksonCodec.decodeArrayContents(json);
     }
 }
 

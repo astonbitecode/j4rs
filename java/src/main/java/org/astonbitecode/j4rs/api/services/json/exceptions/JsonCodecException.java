@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.errors;
+package org.astonbitecode.j4rs.api.services.json.exceptions;
 
 public class JsonCodecException extends RuntimeException {
     public JsonCodecException(String message) {
@@ -21,5 +21,9 @@ public class JsonCodecException extends RuntimeException {
 
     public JsonCodecException(String message, Exception nestedException) {
         super(message, nestedException);
+    }
+
+    public JsonCodecException(Exception nestedException) {
+        super(nestedException);
     }
 }
