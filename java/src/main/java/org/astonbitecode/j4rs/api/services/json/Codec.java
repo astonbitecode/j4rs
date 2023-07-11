@@ -22,7 +22,7 @@ public interface Codec {
     <T> T decode(String json, String className) throws JsonCodecException;
 
 
-    String encode(Object obj) throws JsonCodecException;
+    <T> String encode(T obj) throws JsonCodecException;
 
 
     Object[] decodeArrayContents(String json) throws JsonCodecException;

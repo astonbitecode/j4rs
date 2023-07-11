@@ -17,7 +17,7 @@ package org.astonbitecode.j4rs.api.value;
 import org.astonbitecode.j4rs.api.JsonValue;
 
 public class JsonValueFactory {
-    public static JsonValue create(Object obj) {
+    public static <T> JsonValue create(T obj) {
         return obj != null ? new JsonValueImpl(obj) : new NullJsonValueImpl();
     }
 

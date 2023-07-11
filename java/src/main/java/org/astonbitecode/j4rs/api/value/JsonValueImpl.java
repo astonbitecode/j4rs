@@ -27,7 +27,7 @@ public class JsonValueImpl implements JsonValue {
     @SuppressWarnings("unused")
     private String className;
 
-    JsonValueImpl(Object obj) {
+    <T> JsonValueImpl(T obj) {
         this.jsonCodec = JsonCodecService.getJsonCodec();
         this.obj = obj;
         try {
