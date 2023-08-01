@@ -140,7 +140,7 @@ impl Jvm {
         let _g = cache::MUTEX.lock()?;
 
         let result = if let Some(env) = cache::get_thread_local_env_opt() {
-            info("A JVM is already created for this thread. Retrieving it...");
+            debug("A JVM is already created for this thread. Retrieving it...");
             jni_environment = env;
 
             JNI_OK
