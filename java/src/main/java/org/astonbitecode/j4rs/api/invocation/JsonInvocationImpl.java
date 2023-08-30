@@ -30,11 +30,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
@@ -250,7 +246,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
         // Get the declared and methods defined in the interfaces of the class.
         Set<Method> methods = new HashSet<>(Arrays.asList(clazz.getDeclaredMethods()));
-        Set<Method> interfacesMethods = Arrays.stream(clazz.getInterfaces())
+        Set<Method> interfacesMethods = getInterfaces(clazz).stream()
                 .map(c -> c.getDeclaredMethods())
                 .flatMap(m -> Arrays.stream(m))
                 .collect(Collectors.toSet());
@@ -305,6 +301,21 @@ public class JsonInvocationImpl<T> implements Instance<T> {
             }
             return findMethodInHierarchy(superclass, methodName, argTypes);
         }
+    }
+
+    private Set<Class<?>> getInterfaces(Class<?> clazz) {
+        final LinkedHashSet<Class<?>> interfacesFound = new LinkedHashSet<>();
+        if(clazz != null) {
+            doGetInterfaces(clazz, interfacesFound);
+        }
+        return interfacesFound;
+    }
+
+    private void doGetInterfaces(Class<?> clazz, LinkedHashSet<Class<?>> interfacesFound) {
+        Arrays.stream(clazz.getInterfaces()).forEach(iface -> {
+            interfacesFound.add(iface);
+            doGetInterfaces(iface, interfacesFound);
+        });
     }
 
     private boolean validateSomeTypeSafety(Class c) {

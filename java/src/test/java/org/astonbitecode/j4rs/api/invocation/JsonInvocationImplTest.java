@@ -160,6 +160,13 @@ public class JsonInvocationImplTest {
         ni.invoke("doSomething");
     }
 
+    @Test
+    public void invokeMethodInInterfaceHierarchy() {
+        Instance ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        ni.invoke("doSomethingMoreMom");
+        ni.invoke("doSomethingMoreDad");
+    }
+
     @Test(expected = Exception.class)
     public void invokeMethodNotFoundInHierarchy() {
         Instance ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);

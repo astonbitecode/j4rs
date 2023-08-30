@@ -14,6 +14,6 @@
  */
 package org.astonbitecode.j4rs.utils;
 
-public interface DummyInterface {
+public interface DummyInterface extends DummyInterfaceFather, DummyInterfaceMother {
     void doSomething();
 }
