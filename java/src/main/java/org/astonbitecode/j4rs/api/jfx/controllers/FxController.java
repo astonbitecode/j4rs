@@ -25,20 +25,23 @@ import org.astonbitecode.j4rs.api.jfx.errors.ComponentNotFoundException;
 
 public interface FxController extends Initializable {
     /**
-     * This will be called when the initialize method of {@link Initializable} is called.
+     * This will be called when the initialize method of {@link Initializable} is
+     * called.
      *
      * @param callback The callback to add.
      */
     void addControllerInitializedCallback(NativeCallbackToRustChannelSupport callback);
 
     /**
-     * Add a handler for an {@link javafx.event.ActionEvent} that comes from a component with a specific id.
+     * Add a handler for an {@link javafx.event.ActionEvent} that comes from a
+     * component with a specific id.
      *
      * @param id        The id of the callback.
      * @param handler   The handler to add.
      * @param eventType The EventType for Event to handle.
      */
-    void addEventHandler(String id, EventHandler<Event> handler, EventType<?> eventType) throws ComponentNotFoundException;
+    void addEventHandler(String id, EventHandler<Event> handler, EventType<?> eventType)
+            throws ComponentNotFoundException;
 
     /**
      * Retrieves a node given its ID.

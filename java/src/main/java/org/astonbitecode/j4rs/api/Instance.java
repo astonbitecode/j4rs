@@ -22,7 +22,8 @@ import org.astonbitecode.j4rs.utils.Utils;
 
 public interface Instance<T> extends ObjectValue, JsonValue {
     /**
-     * Invokes a method of the instance of the class that is set for this {@link Instance}
+     * Invokes a method of the instance of the class that is set for this
+     * {@link Instance}
      *
      * @param methodName The method name
      * @param args       The arguments to use for invoking the method
@@ -40,25 +41,39 @@ public interface Instance<T> extends ObjectValue, JsonValue {
     Instance invokeStatic(String methodName, InvocationArg... args);
 
     /**
-     * Invokes asynchronously a method of the instance of the class that is set for this {@link Instance}.
-     * The result of the invocation must be a {@link java.util.concurrent.Future}.
-     * When the Future returned from the invocation completes, j4rs will invoke native Rust code to either send a success value or a failure.
+     * Invokes asynchronously a method of the instance of the class that is set for
+     * this {@link Instance}. The result of the invocation must be a
+     * {@link java.util.concurrent.Future}. When the Future returned from the
+     * invocation completes, j4rs will invoke native Rust code to either send a
+     * success value or a failure.
      * <p>
-     * Please note that it is best that this function returns a {@link java.util.concurrent.CompletableFuture}, as this improves performance.
-     * j4rs handles simple {@link java.util.concurrent.Future}s with polling using an internal {@link java.util.concurrent.ScheduledExecutorService} with one thread and this has apparent performance issues.
-     * You may have a look at {@link org.astonbitecode.j4rs.api.async.J4rsPolledFuture} for more details.
+     * Please note that it is best that this function returns a
+     * {@link java.util.concurrent.CompletableFuture}, as this improves performance.
+     * j4rs handles simple {@link java.util.concurrent.Future}s with polling using
+     * an internal {@link java.util.concurrent.ScheduledExecutorService} with one
+     * thread and this has apparent performance issues. You may have a look at
+     * {@link org.astonbitecode.j4rs.api.async.J4rsPolledFuture} for more details.
      *
-     * @param functionPointerAddress The address of the function pointer that will be used when the {@link java.util.concurrent.Future} completes, in the native side, in order to actually perform the callback
-     *                               and complete a Future that is created in Rust and awaits for the Java Future to complete.
+     * @param functionPointerAddress The address of the function pointer that will
+     *                               be used when the
+     *                               {@link java.util.concurrent.Future} completes,
+     *                               in the native side, in order to actually
+     *                               perform the callback and complete a Future that
+     *                               is created in Rust and awaits for the Java
+     *                               Future to complete.
      * @param methodName             The method name
-     * @param args                   The arguments to use when invoking the callback method (the functionPointer)
+     * @param args                   The arguments to use when invoking the callback
+     *                               method (the functionPointer)
      */
     void invokeAsyncToChannel(long functionPointerAddress, String methodName, InvocationArg... args);
 
     /**
-     * Invokes a method of the instance of the class that is set for this {@link Instance}.
-     * The result of the invocation should be provided later using the doCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
-     * Any possible returned objects from the actual synchronous invocation of the defined method will be dropped.
+     * Invokes a method of the instance of the class that is set for this
+     * {@link Instance}. The result of the invocation should be provided later using
+     * the doCallback method of a
+     * {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport}
+     * class. Any possible returned objects from the actual synchronous invocation
+     * of the defined method will be dropped.
      *
      * @param channelAddress The memory address of the channel
      * @param methodName     The method name
@@ -67,8 +82,10 @@ public interface Instance<T> extends ObjectValue, JsonValue {
     void invokeToChannel(long channelAddress, String methodName, InvocationArg... args);
 
     /**
-     * Initialize a callback channel for this {@link Instance}.
-     * The channel can be used by Java to send values to Rust using the doCallback method of a {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport} class.
+     * Initialize a callback channel for this {@link Instance}. The channel can be
+     * used by Java to send values to Rust using the doCallback method of a
+     * {@link org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport}
+     * class.
      *
      * @param channelAddress The memory address of the channel
      */
@@ -83,11 +100,13 @@ public interface Instance<T> extends ObjectValue, JsonValue {
     Instance field(String fieldName);
 
     /**
-     * Casts a the object that is contained in a Instance to an object of class clazz.
+     * Casts a the object that is contained in a Instance to an object of class
+     * clazz.
      *
      * @param <T>     Generically defined return type
      * @param from    The {@link Instance} to cast.
-     * @param toClass The class that the provided {@link Instance} should be casted to
+     * @param toClass The class that the provided {@link Instance} should be casted
+     *                to
      * @return A {@link Instance} instance containing the result of the cast.
      */
     static <T> Instance cast(Instance from, String toClass) {
@@ -95,7 +114,8 @@ public interface Instance<T> extends ObjectValue, JsonValue {
             Class<T> clazz = (Class<T>) Utils.forNameEnhanced(toClass);
             return new JsonInvocationImpl(clazz.cast(from.getObject()), clazz);
         } catch (Exception error) {
-            throw new InvocationException("Cannot cast instance of " + from.getObject().getClass().getName() + " to " + toClass, error);
+            throw new InvocationException(
+                    "Cannot cast instance of " + from.getObject().getClass().getName() + " to " + toClass, error);
         }
     }
 

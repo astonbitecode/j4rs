@@ -41,8 +41,10 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     private T object;
     // The class of the instance that this JsonInvocationImpl holds
     private Class<T> clazz;
-    // A list of Types that may have been defined for the instance that this JsonInvocationImpl holds.
-    // It is non empty in the case that the instance that this JsonInvocationImpl holds is created using generics.
+    // A list of Types that may have been defined for the instance that this
+    // JsonInvocationImpl holds.
+    // It is non empty in the case that the instance that this JsonInvocationImpl
+    // holds is created using generics.
     private List<Type> classGenTypes = new ArrayList<>();
     private InvocationArgGenerator gen = new InvocationArgGenerator();
 
@@ -66,9 +68,11 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     public Instance invoke(String methodName, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz,
+                    createdInstance.classGenTypes);
         } catch (Exception error) {
-            throw new InvocationException("While invoking method " + methodName + " of Class " + this.clazz.getName(), error);
+            throw new InvocationException("While invoking method " + methodName + " of Class " + this.clazz.getName(),
+                    error);
         }
     }
 
@@ -76,9 +80,11 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     public Instance invokeStatic(String methodName, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz,
+                    createdInstance.classGenTypes);
         } catch (Exception error) {
-            throw new InvocationException("Error while invoking method " + methodName + " of Class " + this.clazz.getName(), error);
+            throw new InvocationException(
+                    "Error while invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }
     }
 
@@ -95,7 +101,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                 return Void.TYPE;
             });
         } catch (Exception error) {
-            throw new InvocationException("While invoking async method " + methodName + " of Class " + getObjectClassName(), error);
+            throw new InvocationException(
+                    "While invoking async method " + methodName + " of Class " + getObjectClassName(), error);
         }
     }
 
@@ -113,9 +120,11 @@ public class JsonInvocationImpl<T> implements Instance<T> {
 
     @Override
     public void initializeCallbackChannel(long channelAddress) {
-        // Check that the class of the invocation extends the NativeCallbackToRustChannelSupport
+        // Check that the class of the invocation extends the
+        // NativeCallbackToRustChannelSupport
         if (!NativeCallbackToRustChannelSupport.class.isAssignableFrom(this.clazz)) {
-            throw new InvocationException("Cannot initialize callback channel for class " + this.clazz.getName() + ". The class does not extend the class " + NativeCallbackToRustChannelSupport.class.getName());
+            throw new InvocationException("Cannot initialize callback channel for class " + this.clazz.getName()
+                    + ". The class does not extend the class " + NativeCallbackToRustChannelSupport.class.getName());
         } else {
             // Initialize the pointer
             ((NativeCallbackToRustChannelSupport) object).initPointer(new RustPointer(channelAddress));
@@ -128,7 +137,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
             CreatedInstance createdInstance = getField(fieldName);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
-            throw new InvocationException("Error while accessing field " + fieldName + " of Class " + this.clazz.getName(), error);
+            throw new InvocationException(
+                    "Error while accessing field " + fieldName + " of Class " + this.clazz.getName(), error);
         }
     }
 
@@ -160,24 +170,20 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     }
 
     CreatedInstance invokeMethod(String methodName, GeneratedArg[] generatedArgs) throws Exception {
-        Class[] argTypes = Arrays.stream(generatedArgs)
-                .map(invGeneratedArg -> {
-                    try {
-                        return invGeneratedArg.getClazz();
-                    } catch (Exception error) {
-                        throw new InvocationException("Cannot parse the parameter types while invoking method", error);
-                    }
-                })
-                .toArray(size -> new Class[size]);
-        Object[] argObjects = Arrays.stream(generatedArgs)
-                .map(invGeneratedArg -> {
-                    try {
-                        return invGeneratedArg.getObject();
-                    } catch (Exception error) {
-                        throw new InvocationException("Cannot parse the parameter objects while invoking method", error);
-                    }
-                })
-                .toArray(size -> new Object[size]);
+        Class[] argTypes = Arrays.stream(generatedArgs).map(invGeneratedArg -> {
+            try {
+                return invGeneratedArg.getClazz();
+            } catch (Exception error) {
+                throw new InvocationException("Cannot parse the parameter types while invoking method", error);
+            }
+        }).toArray(size -> new Class[size]);
+        Object[] argObjects = Arrays.stream(generatedArgs).map(invGeneratedArg -> {
+            try {
+                return invGeneratedArg.getObject();
+            } catch (Exception error) {
+                throw new InvocationException("Cannot parse the parameter objects while invoking method", error);
+            }
+        }).toArray(size -> new Object[size]);
 
         Method methodToInvoke = findMethodInHierarchy(this.clazz, methodName, argTypes);
         List<Type> retClassGenTypes = new ArrayList<>();
@@ -194,24 +200,20 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     }
 
     CompletableFuture<Object> invokeAsyncMethod(String methodName, GeneratedArg[] generatedArgs) throws Exception {
-        Class[] argTypes = Arrays.stream(generatedArgs)
-                .map(invGeneratedArg -> {
-                    try {
-                        return invGeneratedArg.getClazz();
-                    } catch (Exception error) {
-                        throw new InvocationException("Cannot parse the parameter types while invoking async method", error);
-                    }
-                })
-                .toArray(size -> new Class[size]);
-        Object[] argObjects = Arrays.stream(generatedArgs)
-                .map(invGeneratedArg -> {
-                    try {
-                        return invGeneratedArg.getObject();
-                    } catch (Exception error) {
-                        throw new InvocationException("Cannot parse the parameter objects while invoking async method", error);
-                    }
-                })
-                .toArray(size -> new Object[size]);
+        Class[] argTypes = Arrays.stream(generatedArgs).map(invGeneratedArg -> {
+            try {
+                return invGeneratedArg.getClazz();
+            } catch (Exception error) {
+                throw new InvocationException("Cannot parse the parameter types while invoking async method", error);
+            }
+        }).toArray(size -> new Class[size]);
+        Object[] argObjects = Arrays.stream(generatedArgs).map(invGeneratedArg -> {
+            try {
+                return invGeneratedArg.getObject();
+            } catch (Exception error) {
+                throw new InvocationException("Cannot parse the parameter objects while invoking async method", error);
+            }
+        }).toArray(size -> new Object[size]);
 
         Method methodToInvoke = findMethodInHierarchy(this.clazz, methodName, argTypes);
         List<Type> retClassGenTypes = new ArrayList<>();
@@ -226,10 +228,9 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         CompletableFuture<Object> future;
         Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
         if (!Future.class.isAssignableFrom(invokedMethodReturnType)) {
-            String message = String.format("Attempted to asynchronously invoke method %s of class %s that returns %s instead of returning Future",
-                    methodName,
-                    this.clazz.getName(),
-                    returnType.getTypeName());
+            String message = String.format(
+                    "Attempted to asynchronously invoke method %s of class %s that returns %s instead of returning Future",
+                    methodName, this.clazz.getName(), returnType.getTypeName());
             throw new InvocationException(message);
         }
         Future<Object> invocationReturnedFuture = (Future<Object>) methodToInvoke.invoke(this.object, argObjects);
@@ -246,10 +247,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
         // Get the declared and methods defined in the interfaces of the class.
         Set<Method> methods = new HashSet<>(Arrays.asList(clazz.getDeclaredMethods()));
-        Set<Method> interfacesMethods = getInterfaces(clazz).stream()
-                .map(c -> c.getDeclaredMethods())
-                .flatMap(m -> Arrays.stream(m))
-                .collect(Collectors.toSet());
+        Set<Method> interfacesMethods = getInterfaces(clazz).stream().map(c -> c.getDeclaredMethods())
+                .flatMap(m -> Arrays.stream(m)).collect(Collectors.toSet());
         methods.addAll(interfacesMethods);
 
         List<Method> found = methods.stream()
@@ -259,7 +258,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                 .filter(m -> m.getGenericParameterTypes().length == argTypes.length)
                 // Match the actual parameters
                 .filter(m -> {
-                    // Each element of the matchedParams list shows whether a parameter is matched or not
+                    // Each element of the matchedParams list shows whether a parameter is matched
+                    // or not
                     List<Boolean> matchedParams = new ArrayList<>();
 
                     // Get the parameter types of the method to check if matches
@@ -269,7 +269,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                         Type typ = pts[i];
 
                         if (typ instanceof ParameterizedType || typ instanceof WildcardType) {
-                            // For generic parameters, the type erasure makes the parameter be an Object.class
+                            // For generic parameters, the type erasure makes the parameter be an
+                            // Object.class
                             // Therefore, the argument is always matched
                             matchedParams.add(true);
                         } else if (typ instanceof GenericArrayType) {
@@ -279,25 +280,30 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                             // In case of TypeVariable, the arg matches via the equals method
                             matchedParams.add(((Class<?>) typ).isAssignableFrom(argTypes[i]));
                         } else {
-                            // We get to this point if the TypeVariable is a generic, which is defined with a name like T, U etc.
-                            // The type erasure makes the parameter be an Object.class. Therefore, the argument is always matched.
+                            // We get to this point if the TypeVariable is a generic, which is defined with
+                            // a name like T, U etc.
+                            // The type erasure makes the parameter be an Object.class. Therefore, the
+                            // argument is always matched.
                             // TODO:
-                            // We may have some info about the generic types (if they are defined in the Class scope).
-                            // Can we use this info to provide some type safety? Use matchedParams.add(validateSomeTypeSafety(argTypes[i]));
-                            // In that case however, we don't catch the situation where a class is defined with a generic T in the class scope,
+                            // We may have some info about the generic types (if they are defined in the
+                            // Class scope).
+                            // Can we use this info to provide some type safety? Use
+                            // matchedParams.add(validateSomeTypeSafety(argTypes[i]));
+                            // In that case however, we don't catch the situation where a class is defined
+                            // with a generic T in the class scope,
                             // but there is a method that defines another generic U in the method scope.
                             matchedParams.add(true);
                         }
                     }
                     return matchedParams.stream().allMatch(Boolean::booleanValue);
-                })
-                .collect(Collectors.toList());
+                }).collect(Collectors.toList());
         if (!found.isEmpty()) {
             return found.get(0);
         } else {
             Class<?> superclass = clazz.getSuperclass();
             if (superclass == null) {
-                throw new NoSuchMethodException("Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
+                throw new NoSuchMethodException(
+                        "Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
             }
             return findMethodInHierarchy(superclass, methodName, argTypes);
         }
@@ -305,7 +311,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
 
     private Set<Class<?>> getInterfaces(Class<?> clazz) {
         final LinkedHashSet<Class<?>> interfacesFound = new LinkedHashSet<>();
-        if(clazz != null) {
+        if (clazz != null) {
             doGetInterfaces(clazz, interfacesFound);
         }
         return interfacesFound;
@@ -319,8 +325,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     }
 
     private boolean validateSomeTypeSafety(Class c) {
-        List<Type> filteredTypeList = this.classGenTypes.stream()
-                .filter(cgt -> ((Class) cgt).isAssignableFrom(c))
+        List<Type> filteredTypeList = this.classGenTypes.stream().filter(cgt -> ((Class) cgt).isAssignableFrom(c))
                 .collect(Collectors.toList());
         // If ClassGenTypes exist, the class c should be one of them
         return this.classGenTypes.isEmpty() || filteredTypeList.isEmpty();
@@ -350,6 +355,5 @@ public class JsonInvocationImpl<T> implements Instance<T> {
             return object;
         }
     }
-
 
 }

@@ -29,10 +29,12 @@ public class InvocationArgGenerator {
             if (invArg.isSerialized()) {
                 ObjectValue objValue = JsonValueFactory.create(invArg.getJson(), invArg.getObjectClassName());
                 try {
-                    // If the invArg is an array, use its type class. In other cases, use the forNameEnhanced to retrieve its class.
-                    generatedArg = invArg.getObjectClassName().equals(InvocationArg.CONTENTS_ARRAY) ?
-                            new GeneratedArg(objValue.getObjectClass(), objValue.getObject()) :
-                            new GeneratedArg(Utils.forNameEnhanced(invArg.getObjectClassName()), objValue.getObject());
+                    // If the invArg is an array, use its type class. In other cases, use the
+                    // forNameEnhanced to retrieve its class.
+                    generatedArg = invArg.getObjectClassName().equals(InvocationArg.CONTENTS_ARRAY)
+                            ? new GeneratedArg(objValue.getObjectClass(), objValue.getObject())
+                            : new GeneratedArg(Utils.forNameEnhanced(invArg.getObjectClassName()),
+                                    objValue.getObject());
                 } catch (ClassNotFoundException cnfe) {
                     throw new InvalidArgumentException("Cannot parse InvocationArgument ", cnfe);
                 }
@@ -43,7 +45,8 @@ public class InvocationArgGenerator {
                             inv != null ? inv.getObjectClass() : Utils.forNameEnhanced(invArg.getObjectClassName()),
                             inv != null ? inv.getObject() : null);
                 } catch (ClassNotFoundException cnfe) {
-                    System.out.println("j4rs Warning! ClassNotFoundException for " + invArg.getObjectClassName() + " Using java.lang.Object instead...");
+                    System.out.println("j4rs Warning! ClassNotFoundException for " + invArg.getObjectClassName()
+                            + " Using java.lang.Object instead...");
                     generatedArg = new GeneratedArg(Object.class, null);
                 }
             }

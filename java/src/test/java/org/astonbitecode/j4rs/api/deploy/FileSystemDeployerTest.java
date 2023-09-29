@@ -27,10 +27,7 @@ public class FileSystemDeployerTest {
         // Download a jar file first
         SimpleMavenDeployer md = new SimpleMavenDeployer();
 
-        md.deploy("io.github.astonbitecode",
-                "j4rs",
-                "0.5.1",
-                "");
+        md.deploy("io.github.astonbitecode", "j4rs", "0.5.1", "");
 
         FileSystemDeployer fsd = new FileSystemDeployer("./fsdTarget");
 

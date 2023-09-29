@@ -59,7 +59,8 @@ public class NativeInstantiationImpl {
 
     public static Instance createJavaArray(String className, InvocationArg... args) {
         try {
-            CreatedInstance createdInstance = createCollection(className, generateArgObjects(args), J4rsCollectionType.Array);
+            CreatedInstance createdInstance = createCollection(className, generateArgObjects(args),
+                    J4rsCollectionType.Array);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create Java Array of " + className, error);
@@ -68,7 +69,8 @@ public class NativeInstantiationImpl {
 
     public static Instance createJavaList(String className, InvocationArg... args) {
         try {
-            CreatedInstance createdInstance = createCollection(className, generateArgObjects(args), J4rsCollectionType.List);
+            CreatedInstance createdInstance = createCollection(className, generateArgObjects(args),
+                    J4rsCollectionType.List);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
             throw new InstantiationException("Cannot create Java List of " + className, error);
@@ -80,7 +82,9 @@ public class NativeInstantiationImpl {
             CreatedInstance createdInstance = createMap(keyClassName, valueClassName, generateArgObjects(args));
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
-            throw new InstantiationException(String.format("Cannot create Java Map of keys %s and values %s", keyClassName, valueClassName), error);
+            throw new InstantiationException(
+                    String.format("Cannot create Java Map of keys %s and values %s", keyClassName, valueClassName),
+                    error);
         }
     }
 
@@ -92,8 +96,7 @@ public class NativeInstantiationImpl {
         Class<?> clazz = Utils.forNameEnhanced(className);
         Class<?>[] paramTypes = Arrays.stream(params).map(param -> param.getClazz())
                 .toArray(size -> new Class<?>[size]);
-        Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject())
-                .toArray(size -> new Object[size]);
+        Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject()).toArray(size -> new Object[size]);
         Constructor<?> constructor = findConstructor(clazz, paramTypes);
         Object instance = constructor.newInstance(paramObjects);
         return new CreatedInstance(clazz, instance);
@@ -104,7 +107,8 @@ public class NativeInstantiationImpl {
                 // Match the params number
                 .filter(constructor -> constructor.getGenericParameterTypes().length == argTypes.length)
                 .filter(constructor -> {
-                    // Each element of the matchedParams list shows whether a parameter is matched or not
+                    // Each element of the matchedParams list shows whether a parameter is matched
+                    // or not
                     List<Boolean> matchedParams = new ArrayList<>();
                     // Get the parameter types of the method to check if matches
                     Type[] pts = constructor.getGenericParameterTypes();
@@ -113,7 +117,8 @@ public class NativeInstantiationImpl {
                         Type typ = pts[i];
 
                         if (typ instanceof ParameterizedType || typ instanceof WildcardType) {
-                            // For generic parameters, the type erasure makes the parameter be an Object.class
+                            // For generic parameters, the type erasure makes the parameter be an
+                            // Object.class
                             // Therefore, the argument is always matched
                             matchedParams.add(true);
                         } else if (typ instanceof GenericArrayType) {
@@ -123,31 +128,37 @@ public class NativeInstantiationImpl {
                             // In case of TypeVariable, the arg matches via the equals method
                             matchedParams.add(((Class<?>) typ).isAssignableFrom(argTypes[i]));
                         } else {
-                            // We get to this point if the TypeVariable is a generic, which is defined with a name like T, U etc.
-                            // The type erasure makes the parameter be an Object.class. Therefore, the argument is always matched.
+                            // We get to this point if the TypeVariable is a generic, which is defined with
+                            // a name like T, U etc.
+                            // The type erasure makes the parameter be an Object.class. Therefore, the
+                            // argument is always matched.
                             // TODO:
-                            // We may have some info about the generic types (if they are defined in the Class scope).
-                            // Can we use this info to provide some type safety? Use matchedParams.add(validateSomeTypeSafety(argTypes[i]));
-                            // In that case however, we don't catch the situation where a class is defined with a generic T in the class scope,
+                            // We may have some info about the generic types (if they are defined in the
+                            // Class scope).
+                            // Can we use this info to provide some type safety? Use
+                            // matchedParams.add(validateSomeTypeSafety(argTypes[i]));
+                            // In that case however, we don't catch the situation where a class is defined
+                            // with a generic T in the class scope,
                             // but there is a method that defines another generic U in the method scope.
                             matchedParams.add(true);
                         }
                     }
                     return matchedParams.stream().allMatch(Boolean::booleanValue);
-                })
-                .collect(Collectors.toList());
+                }).collect(Collectors.toList());
         if (!found.isEmpty()) {
             return found.get(0);
         } else {
             Class<?> superclass = clazz.getSuperclass();
             if (superclass == null) {
-                throw new NoSuchMethodException("Constructor was not found in " + clazz.getName() + " or its ancestors.");
+                throw new NoSuchMethodException(
+                        "Constructor was not found in " + clazz.getName() + " or its ancestors.");
             }
             return findConstructor(superclass, argTypes);
         }
     }
 
-    static CreatedInstance createCollection(String className, GeneratedArg[] params, J4rsCollectionType collectionType) throws Exception {
+    static CreatedInstance createCollection(String className, GeneratedArg[] params, J4rsCollectionType collectionType)
+            throws Exception {
         boolean isJ4rsArray = className.equals(InvocationArg.CONTENTS_ARRAY);
         Class<?> clazz = isJ4rsArray ? Utils.forNameBasedOnArgs(params) : Utils.forNameEnhanced(className);
         Object arrayObj = Array.newInstance(clazz, params.length);
@@ -156,30 +167,31 @@ public class NativeInstantiationImpl {
                 .toArray(size -> new Class<?>[size]);
 
         if (!isJ4rsArray && !Arrays.stream(paramTypes).allMatch(type -> type.getName().equals(className))) {
-            throw new IllegalArgumentException("Could not create Java array. All the arguments should be of class " + className);
+            throw new IllegalArgumentException(
+                    "Could not create Java array. All the arguments should be of class " + className);
         }
 
-        Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject())
-                .toArray(size -> new Object[size]);
+        Object[] paramObjects = Arrays.stream(params).map(param -> param.getObject()).toArray(size -> new Object[size]);
 
         for (int i = 0; i < params.length; i++) {
             Array.set(arrayObj, i, paramObjects[i]);
         }
 
         switch (collectionType) {
-            case Array:
-                return new CreatedInstance(arrayObj.getClass(), arrayObj);
-            case List: {
-                Object l = clazz.isPrimitive() ? arrayObj : Arrays.asList(((Object[]) arrayObj));
-                return new CreatedInstance(l.getClass(), l);
-            }
-            default:
-                return new CreatedInstance(arrayObj.getClass(), arrayObj);
+        case Array:
+            return new CreatedInstance(arrayObj.getClass(), arrayObj);
+        case List: {
+            Object l = clazz.isPrimitive() ? arrayObj : Arrays.asList(((Object[]) arrayObj));
+            return new CreatedInstance(l.getClass(), l);
+        }
+        default:
+            return new CreatedInstance(arrayObj.getClass(), arrayObj);
         }
 
     }
 
-    static CreatedInstance createMap(String keyClassName, String valueClassName, GeneratedArg[] params) throws Exception {
+    static CreatedInstance createMap(String keyClassName, String valueClassName, GeneratedArg[] params)
+            throws Exception {
         Class<?> keyClazz = Utils.forNameEnhanced(keyClassName);
         Map map = new HashMap();
 
@@ -210,7 +222,6 @@ public class NativeInstantiationImpl {
     }
 
     enum J4rsCollectionType {
-        Array,
-        List
+        Array, List
     }
 }

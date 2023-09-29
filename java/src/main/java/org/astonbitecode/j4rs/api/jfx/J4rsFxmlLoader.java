@@ -38,9 +38,7 @@ public class J4rsFxmlLoader {
     public static FxController loadFxml(Stage stage, String fxmlPath) throws IOException, FxException {
         FXMLLoader loader = new FXMLLoader();
         URL resurl = new File(fxmlPath).toURI().toURL();
-        loader.setControllerFactory(clazz ->
-                new FxControllerImpl()
-        );
+        loader.setControllerFactory(clazz -> new FxControllerImpl());
         loader.setLocation(resurl);
         Parent root = loader.load();
 
@@ -49,7 +47,9 @@ public class J4rsFxmlLoader {
 
         FxController controller = loader.getController();
         if (controller == null) {
-            throw new FxException(String.format("Could not load the fxml %s. Please make sure that its root element contains fx:controller=\"org.astonbitecode.j4rs.api.jfx.controllers.FxController\"", fxmlPath));
+            throw new FxException(String.format(
+                    "Could not load the fxml %s. Please make sure that its root element contains fx:controller=\"org.astonbitecode.j4rs.api.jfx.controllers.FxController\"",
+                    fxmlPath));
         }
         controller.setScene(scene);
 

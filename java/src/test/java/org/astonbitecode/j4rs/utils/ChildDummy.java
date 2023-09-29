@@ -29,6 +29,6 @@ public class ChildDummy extends Dummy implements DummyInterface {
     }
 
     public <T> Class<T> invokeGeneric(T check) {
-        return (Class<T>)check.getClass();
+        return (Class<T>) check.getClass();
     }
 }

@@ -21,19 +21,21 @@ import org.astonbitecode.j4rs.utils.Utils;
 
 public class InvocationArg implements Instance {
     /**
-     * The array contents should map to a List. This is in order to allow calls of type Arrays.asList(arg1, arg2, arg3, ...)
+     * The array contents should map to a List. This is in order to allow calls of
+     * type Arrays.asList(arg1, arg2, arg3, ...)
      */
     public static final String CONTENTS_ARRAY = "org.astonbitecode.j4rs.api.dtos.Array";
     private final Instance instance;
     private final String json;
     /**
      * If not serialized, the argument is taken straight by the Java code as Object.
-     * Otherwise, the argument is a json document that needs to be deserialized to an
-     * Object.
+     * Otherwise, the argument is a json document that needs to be deserialized to
+     * an Object.
      */
     private boolean serialized;
     /**
-     * The type of this argument. This is used when json objects come from Rust, in order to be mapped to proper Java Objects.
+     * The type of this argument. This is used when json objects come from Rust, in
+     * order to be mapped to proper Java Objects.
      */
     private String className;
 
@@ -66,9 +68,8 @@ public class InvocationArg implements Instance {
     }
 
     /**
-     * If true, the argument is taken straight by the Java code as Object. If
-     * false, the argument is a json document that need to be deserialized to an
-     * Object.
+     * If true, the argument is taken straight by the Java code as Object. If false,
+     * the argument is a json document that need to be deserialized to an Object.
      *
      * @return The The argFrom
      */
@@ -77,7 +78,8 @@ public class InvocationArg implements Instance {
     }
 
     /**
-     * The type of this argument. This is used when json objects come from Rust, in order to be mapped to proper Java Objects.
+     * The type of this argument. This is used when json objects come from Rust, in
+     * order to be mapped to proper Java Objects.
      *
      * @return The classname
      */
@@ -88,21 +90,24 @@ public class InvocationArg implements Instance {
 
     public Instance getInstance() {
         if (isSerialized()) {
-            throw new InvalidArgumentException("This InvocationArg of class " + className + " is created by Rust code.");
+            throw new InvalidArgumentException(
+                    "This InvocationArg of class " + className + " is created by Rust code.");
         }
         return instance;
     }
 
     public String getJson() {
         if (!isSerialized()) {
-            throw new InvalidArgumentException("This InvocationArg of class " + className + " is created by Java code.");
+            throw new InvalidArgumentException(
+                    "This InvocationArg of class " + className + " is created by Java code.");
         }
         return json;
     }
 
     @Override
     public String toString() {
-        return "classname:" + this.className + ", serialized:" + this.serialized + ", json:" + this.json + ", instance:" + this.instance;
+        return "classname:" + this.className + ", serialized:" + this.serialized + ", json:" + this.json + ", instance:"
+                + this.instance;
     }
 
     @Override

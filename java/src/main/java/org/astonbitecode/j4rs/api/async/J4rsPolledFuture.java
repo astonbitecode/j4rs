@@ -20,6 +20,7 @@ import java.util.concurrent.Future;
 
 /**
  * A {@link CompletableFuture} that completes by polling a {@link Future}.
+ * 
  * @param <T>
  */
 public class J4rsPolledFuture<T> extends CompletableFuture<T> {

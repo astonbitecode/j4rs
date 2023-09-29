@@ -49,7 +49,7 @@ public class InstanceGenerator {
 
     private static boolean shouldRunInFxThread(Class<?> clazz) {
         String className = clazz.getName();
-        return className.startsWith("javafx") ||
-                (className.startsWith("org.astonbitecode.j4rs.api.jfx") && !className.startsWith("org.astonbitecode.j4rs.api.jfx.FxApplication"));
+        return className.startsWith("javafx") || (className.startsWith("org.astonbitecode.j4rs.api.jfx")
+                && !className.startsWith("org.astonbitecode.j4rs.api.jfx.FxApplication"));
     }
 }

@@ -32,16 +32,19 @@ public class NativeInstantiationImplTest {
     public void constructorMatches() throws Exception {
         String className = Dummy.class.getName();
 
-        GeneratedArg[] generatedArgs1 = {new GeneratedArg(Integer.class, new Integer(11))};
-        NativeInstantiationImpl.CreatedInstance createdInstance1 = NativeInstantiationImpl.createInstance(className, generatedArgs1);
+        GeneratedArg[] generatedArgs1 = { new GeneratedArg(Integer.class, new Integer(11)) };
+        NativeInstantiationImpl.CreatedInstance createdInstance1 = NativeInstantiationImpl.createInstance(className,
+                generatedArgs1);
         assert (createdInstance1.getObject() instanceof Dummy);
 
-        GeneratedArg[] generatedArgs2 = {new GeneratedArg(int.class, 11)};
-        NativeInstantiationImpl.CreatedInstance createdInstance2 = NativeInstantiationImpl.createInstance(className, generatedArgs2);
+        GeneratedArg[] generatedArgs2 = { new GeneratedArg(int.class, 11) };
+        NativeInstantiationImpl.CreatedInstance createdInstance2 = NativeInstantiationImpl.createInstance(className,
+                generatedArgs2);
         assert (createdInstance2.getObject() instanceof Dummy);
 
         GeneratedArg[] noGeneratedArgs = {};
-        NativeInstantiationImpl.CreatedInstance createdInstanceNoArgs = NativeInstantiationImpl.createInstance(className, noGeneratedArgs);
+        NativeInstantiationImpl.CreatedInstance createdInstanceNoArgs = NativeInstantiationImpl
+                .createInstance(className, noGeneratedArgs);
         assert (createdInstanceNoArgs.getObject() instanceof Dummy);
     }
 
@@ -49,14 +52,14 @@ public class NativeInstantiationImplTest {
     public void noConstructorFound() throws Exception {
         String className = Dummy.class.getName();
 
-        GeneratedArg[] generatedArgs = {new GeneratedArg(Long.class, new Long(11))};
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Long.class, new Long(11)) };
         NativeInstantiationImpl.createInstance(className, generatedArgs);
     }
 
     @Test
     public void generateArgObjectsFromJava() throws Exception {
         InvocationArg arg = new InvocationArg(Dummy.class.getName(), new JsonInvocationImpl(new Dummy(), Dummy.class));
-        InvocationArg[] args = {arg};
+        InvocationArg[] args = { arg };
 
         GeneratedArg[] generated = NativeInstantiationImpl.generateArgObjects(args);
         assert (generated.length == 1);
@@ -67,7 +70,7 @@ public class NativeInstantiationImplTest {
     public void generateArgObjectsFromRust() throws Exception {
         String json = "{\"i\":0}";
         InvocationArg arg = new InvocationArg(Dummy.class.getName(), json);
-        InvocationArg[] args = {arg};
+        InvocationArg[] args = { arg };
 
         GeneratedArg[] generated = NativeInstantiationImpl.generateArgObjects(args);
         assert (generated.length == 1);
@@ -78,7 +81,7 @@ public class NativeInstantiationImplTest {
     public void generatePrimitiveArgObjectsFromRust() throws Exception {
         String json = "0";
         InvocationArg arg = new InvocationArg("int", json);
-        InvocationArg[] args = {arg};
+        InvocationArg[] args = { arg };
 
         GeneratedArg[] generated = NativeInstantiationImpl.generateArgObjects(args);
         assert (generated.length == 1);
@@ -88,35 +91,35 @@ public class NativeInstantiationImplTest {
     @Test
     public void createJavaArraySuccess() throws Exception {
         String className = Integer.class.getName();
-        GeneratedArg[] generatedArgs = {new GeneratedArg(Integer.class, new Integer(11))};
-        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className, generatedArgs, NativeInstantiationImpl.J4rsCollectionType.Array);
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, new Integer(11)) };
+        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className,
+                generatedArgs, NativeInstantiationImpl.J4rsCollectionType.Array);
         assert (createdInstance.getClazz().getName().equals("[Ljava.lang.Integer;"));
     }
 
     @Test
     public void createJavaListSuccess() throws Exception {
         String className = Integer.class.getName();
-        GeneratedArg[] generatedArgs = {new GeneratedArg(Integer.class, new Integer(11))};
-        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className, generatedArgs, NativeInstantiationImpl.J4rsCollectionType.List);
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, new Integer(11)) };
+        NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className,
+                generatedArgs, NativeInstantiationImpl.J4rsCollectionType.List);
         assert (List.class.isAssignableFrom(createdInstance.getClazz()));
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void createJavaArrayFailure() throws Exception {
         String className = Integer.class.getName();
-        GeneratedArg[] generatedArgs = {
-                new GeneratedArg(Integer.class, new Integer(11)),
-                new GeneratedArg(String.class, "this is a string")
-        };
-        NativeInstantiationImpl.createCollection(className, generatedArgs, NativeInstantiationImpl.J4rsCollectionType.Array);
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, new Integer(11)),
+                new GeneratedArg(String.class, "this is a string") };
+        NativeInstantiationImpl.createCollection(className, generatedArgs,
+                NativeInstantiationImpl.J4rsCollectionType.Array);
     }
 
     @Test
     public void createClassWithNeededArgsInHierarchy() throws Exception {
-        GeneratedArg[] generatedArgs = {
-                new GeneratedArg(ChildDummy.class, new ChildDummy())
-        };
-        NativeInstantiationImpl.CreatedInstance instance = NativeInstantiationImpl.createInstance(ClassWithDummyAtConstructor.class.getName(), generatedArgs);
+        GeneratedArg[] generatedArgs = { new GeneratedArg(ChildDummy.class, new ChildDummy()) };
+        NativeInstantiationImpl.CreatedInstance instance = NativeInstantiationImpl
+                .createInstance(ClassWithDummyAtConstructor.class.getName(), generatedArgs);
         assert (instance.getClazz().equals(ClassWithDummyAtConstructor.class));
     }
 }

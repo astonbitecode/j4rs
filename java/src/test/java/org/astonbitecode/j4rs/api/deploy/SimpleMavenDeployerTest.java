@@ -31,19 +31,14 @@ public class SimpleMavenDeployerTest {
 
     @Test
     public void generateArtifactName() {
-        assert (new SimpleMavenDeployer().generateArtifactName(
-                "j4rs",
-                "0.5.1",
-                "").equals("j4rs-0.5.1.jar"));
+        assert (new SimpleMavenDeployer().generateArtifactName("j4rs", "0.5.1", "").equals("j4rs-0.5.1.jar"));
     }
 
     @Test
     public void generateUrlTagret() {
-        assert (new SimpleMavenDeployer("https://my.artifactory.com", true, "depltarget").generateUrlTagret(
-                "io.github.astonbitecode",
-                "j4rs",
-                "0.5.1",
-                "j4rs-0.5.1.jar").equals("https://my.artifactory.com/io/github/astonbitecode/j4rs/0.5.1/j4rs-0.5.1.jar"));
+        assert (new SimpleMavenDeployer("https://my.artifactory.com", true, "depltarget")
+                .generateUrlTagret("io.github.astonbitecode", "j4rs", "0.5.1", "j4rs-0.5.1.jar")
+                .equals("https://my.artifactory.com/io/github/astonbitecode/j4rs/0.5.1/j4rs-0.5.1.jar"));
 
         File f = new File("depltarget");
         f.delete();
@@ -53,10 +48,7 @@ public class SimpleMavenDeployerTest {
     public void deploySuccess() throws Exception {
         SimpleMavenDeployer md = new SimpleMavenDeployer();
 
-        md.deploy("io.github.astonbitecode",
-                "j4rs",
-                "0.5.1",
-                "");
+        md.deploy("io.github.astonbitecode", "j4rs", "0.5.1", "");
 
         File f = new File("./j4rs-0.5.1.jar");
         f.delete();
@@ -66,24 +58,15 @@ public class SimpleMavenDeployerTest {
     public void deployFailure() throws Exception {
         SimpleMavenDeployer md = new SimpleMavenDeployer();
 
-        md.deploy("io.github.astonbitecode",
-                "j4rs",
-                "non-existing",
-                "");
+        md.deploy("io.github.astonbitecode", "j4rs", "non-existing", "");
     }
 
     @Test()
     public void doNotDownloadArtifactIfAlreadyDeployed() throws Exception {
-        new SimpleMavenDeployer().deploy("io.github.astonbitecode",
-                "j4rs",
-                "0.5.1",
-                "");
+        new SimpleMavenDeployer().deploy("io.github.astonbitecode", "j4rs", "0.5.1", "");
 
         SimpleMavenDeployer mdmock = mock(SimpleMavenDeployer.class);
-        mdmock.deploy("io.github.astonbitecode",
-                "j4rs",
-                "0.5.1",
-                "");
+        mdmock.deploy("io.github.astonbitecode", "j4rs", "0.5.1", "");
 
         verify(mdmock, times(0)).deployFromLocalCache(any(), any(), any(), any());
 

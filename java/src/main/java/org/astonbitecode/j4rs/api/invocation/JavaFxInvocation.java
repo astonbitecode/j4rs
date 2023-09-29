@@ -40,7 +40,8 @@ public class JavaFxInvocation<T> implements Instance<T> {
         try {
             return f.get();
         } catch (InterruptedException | ExecutionException error) {
-            throw new InvocationException("While invoking method " + methodName + " of Class " + this.jsonInvocation.getObjectClass().getName(), error);
+            throw new InvocationException("While invoking method " + methodName + " of Class "
+                    + this.jsonInvocation.getObjectClass().getName(), error);
         }
     }
 
@@ -55,7 +56,8 @@ public class JavaFxInvocation<T> implements Instance<T> {
         try {
             return f.get();
         } catch (InterruptedException | ExecutionException error) {
-            throw new InvocationException("While invoking method " + methodName + " of Class " + this.jsonInvocation.getObjectClass().getName(), error);
+            throw new InvocationException("While invoking method " + methodName + " of Class "
+                    + this.jsonInvocation.getObjectClass().getName(), error);
         }
     }
 

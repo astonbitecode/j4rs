@@ -32,7 +32,8 @@ public class JsonInvocationImplTest {
     public void genericMethodMatches() {
         JsonInvocationImpl toTest = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
 
-        Instance invocation1 = toTest.invoke("invokeGeneric", new InvocationArg(new JsonInvocationImpl("astring", String.class)));
+        Instance invocation1 = toTest.invoke("invokeGeneric",
+                new InvocationArg(new JsonInvocationImpl("astring", String.class)));
         assert (invocation1.getObject().equals(String.class));
     }
 
@@ -42,8 +43,7 @@ public class JsonInvocationImplTest {
 
         Instance toTest = childDummy.invoke("getMap");
 
-        toTest.invoke("put",
-                new InvocationArg(new JsonInvocationImpl("three", String.class)),
+        toTest.invoke("put", new InvocationArg(new JsonInvocationImpl("three", String.class)),
                 new InvocationArg(new JsonInvocationImpl(3, Integer.class)));
 
         Instance invocation = toTest.invoke("size");
@@ -51,7 +51,8 @@ public class JsonInvocationImplTest {
         assert (((Integer) invocation.getObject()) == 3);
     }
 
-    // TODO: Is there a way to make this test fail? It should fail theoretically because the Map is defined with generics
+    // TODO: Is there a way to make this test fail? It should fail theoretically
+    // because the Map is defined with generics
     // TODO: <String, Object> and here we put to the Map <Object, String>
     @Test
     public void methodOfGenericInterfaceShouldNotMatch() {
@@ -59,8 +60,7 @@ public class JsonInvocationImplTest {
 
         Instance toTest = childDummy.invoke("getMap");
 
-        toTest.invoke("put",
-                new InvocationArg(new JsonInvocationImpl(3, Integer.class)),
+        toTest.invoke("put", new InvocationArg(new JsonInvocationImpl(3, Integer.class)),
                 new InvocationArg(new JsonInvocationImpl("three", String.class)));
     }
 
@@ -241,7 +241,8 @@ public class JsonInvocationImplTest {
 
     @Test
     public void invokeMethodWithArgumentOfSubclassType() {
-        Instance instance = new JsonInvocationImpl(new ClassWithDummyAtConstructor(new ChildDummy()), ClassWithDummyAtConstructor.class);
+        Instance instance = new JsonInvocationImpl(new ClassWithDummyAtConstructor(new ChildDummy()),
+                ClassWithDummyAtConstructor.class);
 
         Instance otherChildDummyInstance = new JsonInvocationImpl(new ChildDummy(), ChildDummy.class);
         instance.invoke("replaceDummy", new InvocationArg(otherChildDummyInstance));
@@ -253,7 +254,8 @@ public class JsonInvocationImplTest {
         TestCallback callback = new TestCallback();
         doReturn(callback).when(instance).newCallbackForAsyncToChannel(anyLong());
         String testString = "j4rs";
-        instance.invokeAsyncToChannel(123, "getStringWithFuture", new InvocationArg(new JsonInvocationImpl(testString, String.class)));
+        instance.invokeAsyncToChannel(123, "getStringWithFuture",
+                new InvocationArg(new JsonInvocationImpl(testString, String.class)));
 
         int i = 1000;
         while (callback.getString() == null && --i > 0) {
@@ -269,7 +271,8 @@ public class JsonInvocationImplTest {
         TestCallback callback = new TestCallback();
         doReturn(callback).when(instance).newCallbackForAsyncToChannel(anyLong());
         String errorString = "Boom!";
-        instance.invokeAsyncToChannel(123, "getErrorWithFuture", new InvocationArg(new JsonInvocationImpl(errorString, String.class)));
+        instance.invokeAsyncToChannel(123, "getErrorWithFuture",
+                new InvocationArg(new JsonInvocationImpl(errorString, String.class)));
 
         int i = 1000;
         while (callback.getString() == null && --i > 0) {

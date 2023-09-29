@@ -65,13 +65,9 @@ public class MyTest {
     }
 
     public String getMyWithArgsList(String... args) {
-        String str = Arrays.stream(args)
-                .reduce(
-                        "",
-                        (a, b) -> {
-                            return a + b;
-                        }
-                );
+        String str = Arrays.stream(args).reduce("", (a, b) -> {
+            return a + b;
+        });
         return str;
     }
 
@@ -84,13 +80,9 @@ public class MyTest {
     }
 
     public Integer addInts(Integer... args) {
-        int result = Arrays.stream(args)
-                .reduce(
-                        0,
-                        (a, b) -> {
-                            return a + b;
-                        }
-                );
+        int result = Arrays.stream(args).reduce(0, (a, b) -> {
+            return a + b;
+        });
         return result;
     }
 
@@ -99,20 +91,14 @@ public class MyTest {
     }
 
     public void list(List<String> l) {
-        String str = l.stream()
-                .reduce(
-                        "The arguments passed where",
-                        (a, b) -> {
-                            return a + "\n" + b;
-                        }
-                );
+        String str = l.stream().reduce("The arguments passed where", (a, b) -> {
+            return a + "\n" + b;
+        });
     }
 
     public void map(Map<String, Integer> m) {
-        m.entrySet().stream()
-                .map(entry -> entry.getKey().getClass().isAssignableFrom(String.class) &&
-                        entry.getValue().getClass().isAssignableFrom(Integer.class))
-                .collect(Collectors.toList());
+        m.entrySet().stream().map(entry -> entry.getKey().getClass().isAssignableFrom(String.class)
+                && entry.getValue().getClass().isAssignableFrom(Integer.class)).collect(Collectors.toList());
     }
 
     public void aMethod() {

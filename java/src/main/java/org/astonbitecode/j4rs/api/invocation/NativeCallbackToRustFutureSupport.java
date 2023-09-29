@@ -24,10 +24,12 @@ import java.io.StringWriter;
 import java.util.Optional;
 
 /**
- * Performs native callbacks to Rust channels that are transformed to Rust Futures
+ * Performs native callbacks to Rust channels that are transformed to Rust
+ * Futures
  */
 class NativeCallbackToRustFutureSupport {
     private static native int docallbacktochannel(long channelPointerAddress, Instance inv);
+
     private static native int failcallbacktochannel(long channelPointerAddress, String stacktrace);
 
     private Optional<RustPointer> channelPointerOpt = Optional.empty();
@@ -36,7 +38,8 @@ class NativeCallbackToRustFutureSupport {
         try {
             System.loadLibrary(libname);
         } catch (UnsatisfiedLinkError error) {
-            System.err.println("The Callbacks are not initialized because the j4rs lib was not found. You may ignore this error if you don't use callbacks.");
+            System.err.println(
+                    "The Callbacks are not initialized because the j4rs lib was not found. You may ignore this error if you don't use callbacks.");
             error.printStackTrace();
         }
     }
@@ -49,17 +52,21 @@ class NativeCallbackToRustFutureSupport {
     public void doCallbackSuccess(Object obj) {
         if (channelPointerOpt.isPresent()) {
             if (obj != null) {
-                docallbacktochannel(channelPointerOpt.get().getAddress(), InstanceGenerator.create(obj, obj.getClass()));
+                docallbacktochannel(channelPointerOpt.get().getAddress(),
+                        InstanceGenerator.create(obj, obj.getClass()));
             } else {
-                docallbacktochannel(channelPointerOpt.get().getAddress(), InstanceGenerator.create(null, NullObject.class));
+                docallbacktochannel(channelPointerOpt.get().getAddress(),
+                        InstanceGenerator.create(null, NullObject.class));
             }
         } else {
-            throw new InvocationException("Cannot do callback. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackToRustFutureSupport)");
+            throw new InvocationException(
+                    "Cannot do callback. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackToRustFutureSupport)");
         }
     }
 
     /**
      * Perform a callback to signal failure
+     * 
      * @param error The error
      */
     public void doCallbackFailure(Throwable error) {
@@ -70,7 +77,9 @@ class NativeCallbackToRustFutureSupport {
             String stringStackTrace = sw.toString();
             failcallbacktochannel(channelPointerOpt.get().getAddress(), stringStackTrace);
         } else {
-            throw new InvocationException("Cannot do callback for failure. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackSupport). The failure was: ", error);
+            throw new InvocationException(
+                    "Cannot do callback for failure. Please make sure that you don't try to access this method while being in the constructor of your class (that extends NativeCallbackSupport). The failure was: ",
+                    error);
         }
     }
 

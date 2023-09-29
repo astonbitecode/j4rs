@@ -16,6 +16,8 @@ package org.astonbitecode.j4rs.api;
 
 public interface ObjectValue {
     Object getObject();
+
     Class<?> getObjectClass();
+
     String getObjectClassName();
 }

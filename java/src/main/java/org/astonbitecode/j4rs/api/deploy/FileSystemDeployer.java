@@ -36,7 +36,7 @@ public class FileSystemDeployer {
         File jarFile = new File(path);
         ReadableByteChannel readableByteChannel = Channels.newChannel(jarFile.toURI().toURL().openStream());
         String fullJarDeployPath = deployTarget + File.separator + jarFile.getName();
-        try(FileOutputStream fileOutputStream = new FileOutputStream(fullJarDeployPath)) {
+        try (FileOutputStream fileOutputStream = new FileOutputStream(fullJarDeployPath)) {
             fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
         }
         DeployUtils.addToClasspath(fullJarDeployPath);

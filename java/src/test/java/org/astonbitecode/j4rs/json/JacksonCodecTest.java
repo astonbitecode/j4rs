@@ -56,11 +56,11 @@ public class JacksonCodecTest {
 
     @Test
     public void encodeJ4rsArray() {
-        String json = "[\n" +
-                "     {\"Rust\":{\"json\":\"\\\"arg1\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}},\n" +
-                "     {\"Rust\":{\"json\":\"\\\"arg2\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}},\n" +
-                "     {\"Rust\":{\"json\":\"\\\"arg3\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}}\n" +
-                "     ]";
+        String json = "[\n"
+                + "     {\"Rust\":{\"json\":\"\\\"arg1\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}},\n"
+                + "     {\"Rust\":{\"json\":\"\\\"arg2\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}},\n"
+                + "     {\"Rust\":{\"json\":\"\\\"arg3\\\"\",\"class_name\":\"java.lang.String\",\"arg_from\":\"rust\"}}\n"
+                + "     ]";
         Object[] ret = jacksonCodec.decodeArrayContents(json);
     }
 
@@ -70,4 +70,3 @@ public class JacksonCodecTest {
         jacksonCodec.decodeArrayContents(json);
     }
 }
-

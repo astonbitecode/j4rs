@@ -44,7 +44,8 @@ public class NativeCallbackToRustChannelSupportTest {
         Dummy spied = Mockito.spy(d);
 
         spied.initPointer(fp);
-        // Here we will get an UnsatisfiedLinkError since the native libs are not initialized in the tests
+        // Here we will get an UnsatisfiedLinkError since the native libs are not
+        // initialized in the tests
         spied.doCallback("");
     }
 

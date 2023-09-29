@@ -24,7 +24,8 @@ import java.nio.channels.ReadableByteChannel;
 
 public class SimpleMavenDeployer {
     private static final String MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2";
-    private final String M2_CACHE = System.getProperty("user.home") + File.separator + ".m2" + File.separator + "repository";
+    private final String M2_CACHE = System.getProperty("user.home") + File.separator + ".m2" + File.separator
+            + "repository";
 
     private final String repoBase;
     private final boolean checkLocalCache;
@@ -81,11 +82,13 @@ public class SimpleMavenDeployer {
         return new File(pathString).exists();
     }
 
-    void deployFromLocalCache(String groupId, String artifactId, String version, String qualifier) throws MalformedURLException, IOException {
+    void deployFromLocalCache(String groupId, String artifactId, String version, String qualifier)
+            throws MalformedURLException, IOException {
         String jarName = generateArtifactName(artifactId, version, qualifier);
         String pathString = generatePathTagret(M2_CACHE, groupId, artifactId, version, jarName);
 
-        ReadableByteChannel readableByteChannel = Channels.newChannel(new File(pathString).toURI().toURL().openStream());
+        ReadableByteChannel readableByteChannel = Channels
+                .newChannel(new File(pathString).toURI().toURL().openStream());
         FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
         fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
     }
@@ -100,25 +103,12 @@ public class SimpleMavenDeployer {
     }
 
     String generateUrlTagret(String groupId, String artifactId, String version, String jarName) {
-        return String.format("%s/%s/%s/%s/%s",
-                repoBase,
-                groupId.replace(".", "/"),
-                artifactId,
-                version,
-                jarName);
+        return String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, jarName);
     }
 
     String generatePathTagret(String base, String groupId, String artifactId, String version, String jarName) {
-        return String.format("%s%s%s%s%s%s%s%s%s",
-                base,
-                File.separator,
-                groupId.replace(".", File.separator),
-                File.separator,
-                artifactId,
-                File.separator,
-                version,
-                File.separator,
-                jarName);
+        return String.format("%s%s%s%s%s%s%s%s%s", base, File.separator, groupId.replace(".", File.separator),
+                File.separator, artifactId, File.separator, version, File.separator, jarName);
     }
 
     public String getRepoBase() {

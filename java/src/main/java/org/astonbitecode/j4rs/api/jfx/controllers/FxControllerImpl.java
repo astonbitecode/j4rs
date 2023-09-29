@@ -49,7 +49,8 @@ public class FxControllerImpl implements FxController {
     }
 
     @Override
-    public void addEventHandler(String id, EventHandler<Event> handler, EventType<?> eventType) throws ComponentNotFoundException {
+    public void addEventHandler(String id, EventHandler<Event> handler, EventType<?> eventType)
+            throws ComponentNotFoundException {
         Node node = getNodeById(id);
         node.addEventHandler(eventType, handler);
     }

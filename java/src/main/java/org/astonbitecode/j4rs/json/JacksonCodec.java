@@ -30,8 +30,7 @@ public class JacksonCodec implements Codec {
     private static final String JSON_FIELD = "json";
     private static final String CLASS_NAME_FIELD = "class_name";
     private ObjectMapper mapper = new ObjectMapper();
-    TypeReference<Map<String, Object>[]> typeRef
-            = new TypeReference<Map<String, Object>[]>() {
+    TypeReference<Map<String, Object>[]> typeRef = new TypeReference<Map<String, Object>[]>() {
     };
 
     @Override
@@ -61,14 +60,13 @@ public class JacksonCodec implements Codec {
         try {
             Map<String, Object>[] array = mapper.readValue(json, typeRef);
 
-            return Arrays.stream(array)
-                    .map(elem -> {
-                        try {
-                            return retrieveFromMap(elem);
-                        } catch (Exception error) {
-                            throw new JsonCodecException("Error while retrieving Array", error);
-                        }
-                    }).toArray();
+            return Arrays.stream(array).map(elem -> {
+                try {
+                    return retrieveFromMap(elem);
+                } catch (Exception error) {
+                    throw new JsonCodecException("Error while retrieving Array", error);
+                }
+            }).toArray();
         } catch (JsonProcessingException error) {
             throw new JsonCodecException(error);
         }

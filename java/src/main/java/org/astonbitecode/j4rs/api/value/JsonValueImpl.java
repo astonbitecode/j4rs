@@ -33,7 +33,8 @@ public class JsonValueImpl implements JsonValue {
         try {
             this.json = jsonCodec.encode(obj);
         } catch (JsonCodecException error) {
-            throw new JsonCodecException("While creating JsonValueCallbackImpl for instance of " + obj.getClass().getName(), error);
+            throw new JsonCodecException(
+                    "While creating JsonValueCallbackImpl for instance of " + obj.getClass().getName(), error);
         }
         this.className = obj.getClass().getName();
     }
