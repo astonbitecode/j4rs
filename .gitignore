@@ -6,3 +6,5 @@
 **/Cargo.lock
 **/settings/
 **/primer/
+**/.settings
+**/.classpath
