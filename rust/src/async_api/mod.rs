@@ -18,16 +18,26 @@ use jni_sys::{jobject, jstring};
 
 use futures::channel::oneshot;
 
-use crate::{cache, errors, Instance, InvocationArg, jni_utils, Jvm};
 use crate::errors::opt_to_res;
+use crate::{cache, errors, jni_utils, Instance, InvocationArg, Jvm};
 
 use super::logger::debug;
 
 impl Jvm {
     /// Invokes the method `method_name` of a created `Instance` asynchronously, passing an array of `InvocationArg`s.
     /// It returns an `Instance` as the result of the invocation.
-    pub async fn invoke_async(&self, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<Instance> {
-        debug(&format!("Asynchronously invoking method {} of class {} using {} arguments", method_name, instance.class_name, inv_args.len()));
+    pub async fn invoke_async(
+        &self,
+        instance: &Instance,
+        method_name: &str,
+        inv_args: &[InvocationArg],
+    ) -> errors::Result<Instance> {
+        debug(&format!(
+            "Asynchronously invoking method {} of class {} using {} arguments",
+            method_name,
+            instance.class_name,
+            inv_args.len()
+        ));
         unsafe {
             // Create the channel
             let (sender, rx) = oneshot::channel::<errors::Result<Instance>>();
@@ -39,7 +49,8 @@ impl Jvm {
             let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
 
             // Second argument: create a jstring to pass as argument for the method_name
-            let method_name_jstring: jstring = jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
+            let method_name_jstring: jstring =
+                jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -57,7 +68,8 @@ impl Jvm {
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java = inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
+                let inv_arg_java =
+                    inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -97,8 +109,8 @@ impl Jvm {
 
 #[cfg(test)]
 mod api_unit_tests {
-    use crate::JvmBuilder;
     use super::*;
+    use crate::JvmBuilder;
     use tokio;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -106,7 +118,13 @@ mod api_unit_tests {
         let s_test = "j4rs_rust";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
-        let instance = jvm.invoke_async(&my_test, "getStringWithFuture", &[InvocationArg::try_from(s_test)?]).await?;
+        let instance = jvm
+            .invoke_async(
+                &my_test,
+                "getStringWithFuture",
+                &[InvocationArg::try_from(s_test)?],
+            )
+            .await?;
         let string: String = jvm.to_rust(instance)?;
         assert_eq!(s_test, string);
         Ok(())
@@ -117,7 +135,13 @@ mod api_unit_tests {
         let s_test = "Boom!";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
-        let instance_result = jvm.invoke_async(&my_test, "getErrorWithFuture", &[InvocationArg::try_from(s_test)?]).await;
+        let instance_result = jvm
+            .invoke_async(
+                &my_test,
+                "getErrorWithFuture",
+                &[InvocationArg::try_from(s_test)?],
+            )
+            .await;
         assert!(instance_result.is_err());
         let error = instance_result.err().unwrap();
         println!("{}", error);
@@ -129,7 +153,13 @@ mod api_unit_tests {
         let s_test = "j4rs_rust";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
-        let instance = jvm.invoke_async(&my_test, "getStringWithFuture", &[InvocationArg::try_from(s_test)?]).await?;
+        let instance = jvm
+            .invoke_async(
+                &my_test,
+                "getStringWithFuture",
+                &[InvocationArg::try_from(s_test)?],
+            )
+            .await?;
         let string: String = jvm.to_rust(instance)?;
         assert_eq!(s_test, string);
         Ok(())
@@ -140,7 +170,13 @@ mod api_unit_tests {
         let s_test = "Boom!";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
-        let instance_result = jvm.invoke_async(&my_test, "getErrorWithFuture", &[InvocationArg::try_from(s_test)?]).await;
+        let instance_result = jvm
+            .invoke_async(
+                &my_test,
+                "getErrorWithFuture",
+                &[InvocationArg::try_from(s_test)?],
+            )
+            .await;
         assert!(instance_result.is_err());
         let error = instance_result.err().unwrap();
         println!("{}", error);
@@ -153,8 +189,20 @@ mod api_unit_tests {
         let s_test2 = "j4rs_rust2";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
-        let instance1 = jvm.invoke_async(&my_test, "getStringWithFuture", &[InvocationArg::try_from(s_test1)?]).await?;
-        let instance2 = jvm.invoke_async(&my_test, "getStringWithFuture", &[InvocationArg::try_from(s_test2)?]).await?;
+        let instance1 = jvm
+            .invoke_async(
+                &my_test,
+                "getStringWithFuture",
+                &[InvocationArg::try_from(s_test1)?],
+            )
+            .await?;
+        let instance2 = jvm
+            .invoke_async(
+                &my_test,
+                "getStringWithFuture",
+                &[InvocationArg::try_from(s_test2)?],
+            )
+            .await?;
         let string1: String = jvm.to_rust(instance1)?;
         let string2: String = jvm.to_rust(instance2)?;
         assert_eq!(s_test1, string1);
@@ -167,7 +215,13 @@ mod api_unit_tests {
         let s_test = "j4rs_rust";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.static_class("org.astonbitecode.j4rs.tests.MyTest")?;
-        let instance = jvm.invoke_async(&my_test, "getErrorWithFutureStatic", &[InvocationArg::try_from(s_test)?]).await?;
+        let instance = jvm
+            .invoke_async(
+                &my_test,
+                "getErrorWithFutureStatic",
+                &[InvocationArg::try_from(s_test)?],
+            )
+            .await?;
         let string: String = jvm.to_rust(instance)?;
         assert_eq!(s_test, string);
         Ok(())
@@ -178,7 +232,9 @@ mod api_unit_tests {
         let s_test = "j4rs_rust";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
-        let instance_result = jvm.invoke_async(&my_test, "echo", &[InvocationArg::try_from(s_test)?]).await;
+        let instance_result = jvm
+            .invoke_async(&my_test, "echo", &[InvocationArg::try_from(s_test)?])
+            .await;
         assert!(instance_result.is_err());
         Ok(())
     }
@@ -188,7 +244,13 @@ mod api_unit_tests {
         let s_test = "j4rs_rust";
         let jvm = JvmBuilder::new().build()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
-        let instance_res = jvm.invoke_async(&my_test, "executeVoidFuture", &[InvocationArg::try_from(s_test)?]).await;
+        let instance_res = jvm
+            .invoke_async(
+                &my_test,
+                "executeVoidFuture",
+                &[InvocationArg::try_from(s_test)?],
+            )
+            .await;
         assert!(instance_res.is_ok());
         Ok(())
     }
@@ -202,7 +264,9 @@ mod api_unit_tests {
                 println!("{}", i);
             }
             let ia = InvocationArg::try_from(i.to_string())?;
-            let _s = jvm.invoke_async(&instance, "getStringWithFuture", &[ia]).await?;
+            let _s = jvm
+                .invoke_async(&instance, "getStringWithFuture", &[ia])
+                .await?;
         }
         Ok(())
     }

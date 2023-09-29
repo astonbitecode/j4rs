@@ -52,7 +52,11 @@ impl LocalJarArtifact {
     /// path is the location of the jar file in the local storage
     pub fn new(path: &str) -> LocalJarArtifact {
         LocalJarArtifact {
-            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            base: utils::jassets_path()
+                .unwrap_or(PathBuf::new())
+                .to_str()
+                .unwrap_or("")
+                .to_string(),
             path: path.to_string(),
         }
     }
@@ -88,7 +92,11 @@ impl JavaArtifact for MavenArtifact {}
 impl From<&[&str]> for MavenArtifact {
     fn from(slice: &[&str]) -> MavenArtifact {
         MavenArtifact {
-            base: utils::jassets_path().unwrap_or(PathBuf::new()).to_str().unwrap_or("").to_string(),
+            base: utils::jassets_path()
+                .unwrap_or(PathBuf::new())
+                .to_str()
+                .unwrap_or("")
+                .to_string(),
             group: slice.get(0).unwrap_or(&"").to_string(),
             id: slice.get(1).unwrap_or(&"").to_string(),
             version: slice.get(2).unwrap_or(&"").to_string(),
@@ -142,7 +150,7 @@ impl From<String> for MavenArtifact {
 /// Contains Maven settings and configuration
 #[derive(Debug, Clone)]
 pub struct MavenSettings {
-    pub(crate) repos: Vec<MavenArtifactRepo>
+    pub(crate) repos: Vec<MavenArtifactRepo>,
 }
 
 impl MavenSettings {

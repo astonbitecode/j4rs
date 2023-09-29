@@ -11,15 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::env;
 use std::convert::{TryFrom, TryInto};
+use std::env;
 use std::path::PathBuf;
 
-use crate::{InvocationArg, Jvm, MavenArtifact};
-use crate::api::{CLASS_J4RS_EVENT_HANDLER, CLASS_J4RS_FXML_LOADER, CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT};
 use crate::api::instance::{Instance, InstanceReceiver};
+use crate::api::{
+    CLASS_J4RS_EVENT_HANDLER, CLASS_J4RS_FXML_LOADER, CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT,
+};
 use crate::errors;
-use crate::errors::{J4RsError, opt_to_res};
+use crate::errors::{opt_to_res, J4RsError};
+use crate::{InvocationArg, Jvm, MavenArtifact};
 
 /// Provides JavaFx support.
 pub trait JavaFxSupport {
@@ -36,7 +38,11 @@ pub trait JavaFxSupport {
     /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button',
     /// you need to call the method by using the button as the _instance_ argument
     /// `FxEventType::ActionEvent_Action` as the fx_event_type argument
-    fn get_javafx_event_receiver(&self, instance: &Instance, fx_event_type: FxEventType) -> errors::Result<InstanceReceiver>;
+    fn get_javafx_event_receiver(
+        &self,
+        instance: &Instance,
+        fx_event_type: FxEventType,
+    ) -> errors::Result<InstanceReceiver>;
     /// Creates an instance receiver that will be receiving `Instance`s of events for onclose requests of a `Stage`.
     ///
     /// The instance passed as argument needs to be of class `javafx.stage.Stage`.
@@ -53,7 +59,8 @@ impl JavaFxSupport for Jvm {
     fn start_javafx_app(&self) -> errors::Result<InstanceReceiver> {
         let fx_callback = self.create_instance(
             "org.astonbitecode.j4rs.api.jfx.FxApplicationStartCallback",
-            &[])?;
+            &[],
+        )?;
 
         self.invoke_to_channel(&fx_callback, "setCallbackToApplicationAndLaunch", &[])
     }
@@ -64,14 +71,25 @@ impl JavaFxSupport for Jvm {
     /// For example, to create an `InstanceReceiver` for a 'javafx.scene.control.Button',
     /// you need to call the method by using the button as the _instance_ argument
     /// `FxEventType::ActionEvent_Action` as the fx_event_type argument
-    fn get_javafx_event_receiver(&self, instance: &Instance, fx_event_type: FxEventType) -> errors::Result<InstanceReceiver> {
+    fn get_javafx_event_receiver(
+        &self,
+        instance: &Instance,
+        fx_event_type: FxEventType,
+    ) -> errors::Result<InstanceReceiver> {
         let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
         let btn_action_channel = self.init_callback_channel(&j4rs_event_handler)?;
 
         let (event_class, field) = fx_event_type_to_event_class_and_field(fx_event_type);
         let event_type_instance = self.static_class_field(&event_class, &field)?;
 
-        self.invoke(&instance, "addEventHandler", &[event_type_instance.try_into()?, j4rs_event_handler.try_into()?])?;
+        self.invoke(
+            &instance,
+            "addEventHandler",
+            &[
+                event_type_instance.try_into()?,
+                j4rs_event_handler.try_into()?,
+            ],
+        )?;
         Ok(btn_action_channel)
     }
 
@@ -81,7 +99,11 @@ impl JavaFxSupport for Jvm {
     fn on_close_event_receiver(&self, stage: &Instance) -> errors::Result<InstanceReceiver> {
         let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
         let action_channel = self.init_callback_channel(&j4rs_event_handler)?;
-        self.invoke(&stage, "setOnCloseRequest", &[InvocationArg::try_from(j4rs_event_handler)?])?;
+        self.invoke(
+            &stage,
+            "setOnCloseRequest",
+            &[InvocationArg::try_from(j4rs_event_handler)?],
+        )?;
         Ok(action_channel)
     }
 
@@ -96,7 +118,7 @@ impl JavaFxSupport for Jvm {
 
             let classifier = if target_os == "windows" {
                 "win"
-            } else if target_os == "macos"{
+            } else if target_os == "macos" {
                 "mac"
             } else {
                 target_os
@@ -104,15 +126,30 @@ impl JavaFxSupport for Jvm {
 
             println!("cargo:warning=javafx dependencies deployment...");
             maven("org.openjfx:javafx-base:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-base:13.0.2:{}", classifier), self);
+            maven(
+                &format!("org.openjfx:javafx-base:13.0.2:{}", classifier),
+                self,
+            );
             maven("org.openjfx:javafx-controls:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-controls:13.0.2:{}", classifier), self);
+            maven(
+                &format!("org.openjfx:javafx-controls:13.0.2:{}", classifier),
+                self,
+            );
             maven("org.openjfx:javafx-fxml:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-fxml:13.0.2:{}", classifier), self);
+            maven(
+                &format!("org.openjfx:javafx-fxml:13.0.2:{}", classifier),
+                self,
+            );
             maven("org.openjfx:javafx-graphics:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-graphics:13.0.2:{}", classifier), self);
+            maven(
+                &format!("org.openjfx:javafx-graphics:13.0.2:{}", classifier),
+                self,
+            );
             maven("org.openjfx:javafx-media:13.0.2", self);
-            maven(&format!("org.openjfx:javafx-media:13.0.2:{}", classifier), self);
+            maven(
+                &format!("org.openjfx:javafx-media:13.0.2:{}", classifier),
+                self,
+            );
             println!("cargo:warning=javafx dependencies deployment completed...");
 
             Ok(())
@@ -127,7 +164,8 @@ impl JavaFxSupport for Jvm {
         let controller = self.invoke_static(
             CLASS_J4RS_FXML_LOADER,
             "loadFxml",
-            &[cloned.try_into()?, path_str.try_into()?])?;
+            &[cloned.try_into()?, path_str.try_into()?],
+        )?;
         Ok(FxController::new(controller))
     }
 }
@@ -135,12 +173,15 @@ impl JavaFxSupport for Jvm {
 fn maven(s: &str, jvm: &Jvm) {
     let artifact = MavenArtifact::from(s);
     let _ = jvm.deploy_artifact(&artifact).map_err(|error| {
-        println!("cargo:warning=Could not download Maven artifact {}: {:?}", s, error);
+        println!(
+            "cargo:warning=Could not download Maven artifact {}: {:?}",
+            s, error
+        );
     });
 }
 
 pub struct FxController {
-    controller: Instance
+    controller: Instance,
 }
 
 impl FxController {
@@ -152,19 +193,37 @@ impl FxController {
     ///
     /// JavaFX FXMLLoader will automatically do the call after the root element of the controller has been completely processed.
     pub fn on_initialized_callback(&self, jvm: &Jvm) -> errors::Result<InstanceReceiver> {
-        let channel_support = jvm.create_instance(CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT, &[])?;
+        let channel_support =
+            jvm.create_instance(CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT, &[])?;
         let instance_receiver = jvm.init_callback_channel(&channel_support);
-        jvm.invoke(&self.controller, "addControllerInitializedCallback", &[channel_support.try_into()?])?;
+        jvm.invoke(
+            &self.controller,
+            "addControllerInitializedCallback",
+            &[channel_support.try_into()?],
+        )?;
         instance_receiver
     }
 
     /// Returns an InstanceReceiver that receives events of etype fx_event_type from the JavaFX node with the specified node_id (id attribute of the fxml element).
-    pub fn get_event_receiver_for_node(&self, node_id: &str, fx_event_type: FxEventType, jvm: &Jvm) -> errors::Result<InstanceReceiver> {
+    pub fn get_event_receiver_for_node(
+        &self,
+        node_id: &str,
+        fx_event_type: FxEventType,
+        jvm: &Jvm,
+    ) -> errors::Result<InstanceReceiver> {
         let j4rs_event_handler = jvm.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
         let event_channel = jvm.init_callback_channel(&j4rs_event_handler)?;
         let (event_class, field) = fx_event_type_to_event_class_and_field(fx_event_type);
         let event_type_instance = jvm.static_class_field(&event_class, &field)?;
-        jvm.invoke(&self.controller, "addEventHandler", &[node_id.try_into()?, j4rs_event_handler.try_into()?, event_type_instance.try_into()?])?;
+        jvm.invoke(
+            &self.controller,
+            "addEventHandler",
+            &[
+                node_id.try_into()?,
+                j4rs_event_handler.try_into()?,
+                event_type_instance.try_into()?,
+            ],
+        )?;
         Ok(event_channel)
     }
 }
@@ -288,86 +347,182 @@ fn fx_event_type_to_event_class_and_field(event_type: FxEventType) -> (String, S
         FxEventType::DirectEvent_Any => ("com.sun.javafx.event.DirectEvent", "ANY"),
         FxEventType::DirectEvent_Direct => ("com.sun.javafx.event.DirectEvent", "DIRECT"),
         FxEventType::RedirectedEvent_Any => ("com.sun.javafx.event.RedirectedEvent", "ANY"),
-        FxEventType::RedirectedEvent_Redirected => ("com.sun.javafx.event.RedirectedEvent", "REDIRECTED"),
+        FxEventType::RedirectedEvent_Redirected => {
+            ("com.sun.javafx.event.RedirectedEvent", "REDIRECTED")
+        }
         FxEventType::FocusUngrabEvent_Any => ("com.sun.javafx.stage.FocusUngrabEvent", "ANY"),
-        FxEventType::FocusUngrabEvent_FocusUngrub => ("com.sun.javafx.stage.FocusUngrabEvent", "FOCUS_UNGRUB"),
+        FxEventType::FocusUngrabEvent_FocusUngrub => {
+            ("com.sun.javafx.stage.FocusUngrabEvent", "FOCUS_UNGRUB")
+        }
         FxEventType::WorkerStateEvent_Any => ("javafx.concurrent.WorkerStateEvent", "ANY"),
-        FxEventType::WorkerStateEvent_WorkerStateCancelled => ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_CANCELLED"),
-        FxEventType::WorkerStateEvent_WorkerStateFailed => ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_FAILED"),
-        FxEventType::WorkerStateEvent_WorkerStateReady => ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_READY"),
-        FxEventType::WorkerStateEvent_WorkerStateRunning => ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_RUNNING"),
-        FxEventType::WorkerStateEvent_WorkerStateSucceeded => ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_SUCCEEDED"),
-        FxEventType::WorkerStateEvent_WorkerStateScheduled => ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_SCHEDULED"),
+        FxEventType::WorkerStateEvent_WorkerStateCancelled => (
+            "javafx.concurrent.WorkerStateEvent",
+            "WORKER_STATE_CANCELLED",
+        ),
+        FxEventType::WorkerStateEvent_WorkerStateFailed => {
+            ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_FAILED")
+        }
+        FxEventType::WorkerStateEvent_WorkerStateReady => {
+            ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_READY")
+        }
+        FxEventType::WorkerStateEvent_WorkerStateRunning => {
+            ("javafx.concurrent.WorkerStateEvent", "WORKER_STATE_RUNNING")
+        }
+        FxEventType::WorkerStateEvent_WorkerStateSucceeded => (
+            "javafx.concurrent.WorkerStateEvent",
+            "WORKER_STATE_SUCCEEDED",
+        ),
+        FxEventType::WorkerStateEvent_WorkerStateScheduled => (
+            "javafx.concurrent.WorkerStateEvent",
+            "WORKER_STATE_SCHEDULED",
+        ),
         FxEventType::ActionEvent_Action => ("javafx.event.ActionEvent", "ACTION"),
         FxEventType::ActionEvent_Any => ("javafx.event.ActionEvent", "ANY"),
-        FxEventType::CheckboxTreeItem_TreeModificationEvent_Any => ("javafx.scene.control.CheckBoxTreeItem.TreeModificationEvent", "ANY"),
+        FxEventType::CheckboxTreeItem_TreeModificationEvent_Any => (
+            "javafx.scene.control.CheckBoxTreeItem.TreeModificationEvent",
+            "ANY",
+        ),
         FxEventType::DialogEvent_Any => ("javafx.scene.control.DialogEvent", "ANY"),
-        FxEventType::DialogEvent_DialogCloseRequest => ("javafx.scene.control.DialogEvent", "DIALOG_CLOSE_REQUEST"),
-        FxEventType::DialogEvent_DialogHidden => ("javafx.scene.control.DialogEvent", "DIALOG_HIDDEN"),
-        FxEventType::DialogEvent_DialogHiding => ("javafx.scene.control.DialogEvent", "DIALOG_HIDING"),
-        FxEventType::DialogEvent_DialogShowing => ("javafx.scene.control.DialogEvent", "DIALOG_SHOWING"),
-        FxEventType::DialogEvent_DialogShown => ("javafx.scene.control.DialogEvent", "DIALOG_SHOWN"),
+        FxEventType::DialogEvent_DialogCloseRequest => {
+            ("javafx.scene.control.DialogEvent", "DIALOG_CLOSE_REQUEST")
+        }
+        FxEventType::DialogEvent_DialogHidden => {
+            ("javafx.scene.control.DialogEvent", "DIALOG_HIDDEN")
+        }
+        FxEventType::DialogEvent_DialogHiding => {
+            ("javafx.scene.control.DialogEvent", "DIALOG_HIDING")
+        }
+        FxEventType::DialogEvent_DialogShowing => {
+            ("javafx.scene.control.DialogEvent", "DIALOG_SHOWING")
+        }
+        FxEventType::DialogEvent_DialogShown => {
+            ("javafx.scene.control.DialogEvent", "DIALOG_SHOWN")
+        }
         FxEventType::Listview_EditEvent_Any => ("javafx.scene.control.ListView.EditEvent", "ANY"),
         FxEventType::ScrollToEvent_Any => ("javafx.scene.control.ScrollToEvent", "ANY"),
         FxEventType::SortEvent_Any => ("javafx.scene.control.SortEvent", "ANY"),
-        FxEventType::TableColumn_CellEditEvent_Any => ("javafx.scene.control.TableColumn.CellEditEvent", "ANY"),
-        FxEventType::TreeItem_TreeModificationEvent_Any => ("javafx.scene.control.TreeItem.TreeModificationEvent", "ANY"),
-        FxEventType::TreeTableView_EditEvent_Any => ("javafx.scene.control.TreeTableView.EditEvent", "ANY"),
+        FxEventType::TableColumn_CellEditEvent_Any => {
+            ("javafx.scene.control.TableColumn.CellEditEvent", "ANY")
+        }
+        FxEventType::TreeItem_TreeModificationEvent_Any => {
+            ("javafx.scene.control.TreeItem.TreeModificationEvent", "ANY")
+        }
+        FxEventType::TreeTableView_EditEvent_Any => {
+            ("javafx.scene.control.TreeTableView.EditEvent", "ANY")
+        }
         FxEventType::TreeView_EditEvent_Any => ("javafx.scene.control.TreeView.EditEvent", "ANY"),
         FxEventType::ContextMenuEvent_Any => ("javafx.scene.input.ContextMenuEvent", "ANY"),
-        FxEventType::ContextMenuEvent_ContextMenuRequested => ("javafx.scene.input.ContextMenuEvent", "CONTEXT_MENU_REQUESTED"),
+        FxEventType::ContextMenuEvent_ContextMenuRequested => (
+            "javafx.scene.input.ContextMenuEvent",
+            "CONTEXT_MENU_REQUESTED",
+        ),
         FxEventType::DragEvent_Any => ("javafx.scene.input.DragEvent", "ANY"),
         FxEventType::DragEvent_DragDone => ("javafx.scene.input.DragEvent", "DRAG_DONE"),
         FxEventType::DragEvent_DragDropped => ("javafx.scene.input.DragEvent", "DRAG_DROPPED"),
         FxEventType::DragEvent_DragEntered => ("javafx.scene.input.DragEvent", "DRAG_ENTERED"),
-        FxEventType::DragEvent_DragEnteredTarget => ("javafx.scene.input.DragEvent", "DRAG_ENTERED_TARGET"),
+        FxEventType::DragEvent_DragEnteredTarget => {
+            ("javafx.scene.input.DragEvent", "DRAG_ENTERED_TARGET")
+        }
         FxEventType::DragEvent_DragExited => ("javafx.scene.input.DragEvent", "DRAG_EXITED"),
-        FxEventType::DragEvent_DragExitedTarget => ("javafx.scene.input.DragEvent", "DRAG_EXITED_TARGET"),
+        FxEventType::DragEvent_DragExitedTarget => {
+            ("javafx.scene.input.DragEvent", "DRAG_EXITED_TARGET")
+        }
         FxEventType::DragEvent_DragOver => ("javafx.scene.input.DragEvent", "DRAG_OVER"),
         FxEventType::GestureEvent_Any => ("javafx.scene.input.GestureEvent", "ANY"),
         FxEventType::InputEvent_Any => ("javafx.scene.input.InputEvent", "ANY"),
         FxEventType::InputMethodEvent_Any => ("javafx.scene.input.InputMethodEvent", "ANY"),
-        FxEventType::InputMethodEvent_InputMethodTextChanged => ("javafx.scene.input.InputMethodEvent", "INPUT_METHOD_TEXT_CHANGED"),
+        FxEventType::InputMethodEvent_InputMethodTextChanged => (
+            "javafx.scene.input.InputMethodEvent",
+            "INPUT_METHOD_TEXT_CHANGED",
+        ),
         FxEventType::KeyEvent_Any => ("javafx.scene.input.KeyEvent", "ANY"),
         FxEventType::KeyEvent_KeyPressed => ("javafx.scene.input.KeyEvent", "KEY_PRESSED"),
         FxEventType::KeyEvent_KeyReleased => ("javafx.scene.input.KeyEvent", "KEY_RELEASED"),
         FxEventType::KeyEvent_KeyTyped => ("javafx.scene.input.KeyEvent", "KEY_TYPED"),
         FxEventType::MouseDragEvent_Any => ("javafx.scene.input.MouseDragEvent", "ANY"),
-        FxEventType::MouseDragEvent_DragDetected => ("javafx.scene.input.MouseDragEvent", "DRAG_DETECTED"),
-        FxEventType::MouseDragEvent_MouseClicked => ("javafx.scene.input.MouseDragEvent", "MOUSE_CLICKED"),
-        FxEventType::MouseDragEvent_MouseDragEntered => ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_ENTERED"),
-        FxEventType::MouseDragEvent_MouseDragEnteredTarget => ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_ENTERED_TARGET"),
-        FxEventType::MouseDragEvent_MouseDragExited => ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_EXITED"),
-        FxEventType::MouseDragEvent_MouseDragExitedTarget => ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_EXITED_TARGET"),
-        FxEventType::MouseDragEvent_MouseDragged => ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAGGED"),
-        FxEventType::MouseDragEvent_MouseDragOver => ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_OVER"),
-        FxEventType::MouseDragEvent_MouseDragReleased => ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_RELEASED"),
-        FxEventType::MouseDragEvent_MouseEntered => ("javafx.scene.input.MouseDragEvent", "MOUSE_ENTERED"),
-        FxEventType::MouseDragEvent_MouseEnteredTarget => ("javafx.scene.input.MouseDragEvent", "MOUSE_ENTERED_TARGET"),
-        FxEventType::MouseDragEvent_MouseExited => ("javafx.scene.input.MouseDragEvent", "MOUSE_EXITED"),
-        FxEventType::MouseDragEvent_MouseExitedTarget => ("javafx.scene.input.MouseDragEvent", "MOUSE_EXITED_TARGET"),
-        FxEventType::MouseDragEvent_MouseMoved => ("javafx.scene.input.MouseDragEvent", "MOUSE_MOVED"),
-        FxEventType::MouseDragEvent_MousePressed => ("javafx.scene.input.MouseDragEvent", "MOUSE_PRESSED"),
-        FxEventType::MouseDragEvent_MouseReleased => ("javafx.scene.input.MouseDragEvent", "MOUSE_RELEASED"),
+        FxEventType::MouseDragEvent_DragDetected => {
+            ("javafx.scene.input.MouseDragEvent", "DRAG_DETECTED")
+        }
+        FxEventType::MouseDragEvent_MouseClicked => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_CLICKED")
+        }
+        FxEventType::MouseDragEvent_MouseDragEntered => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_ENTERED")
+        }
+        FxEventType::MouseDragEvent_MouseDragEnteredTarget => (
+            "javafx.scene.input.MouseDragEvent",
+            "MOUSE_DRAG_ENTERED_TARGET",
+        ),
+        FxEventType::MouseDragEvent_MouseDragExited => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_EXITED")
+        }
+        FxEventType::MouseDragEvent_MouseDragExitedTarget => (
+            "javafx.scene.input.MouseDragEvent",
+            "MOUSE_DRAG_EXITED_TARGET",
+        ),
+        FxEventType::MouseDragEvent_MouseDragged => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAGGED")
+        }
+        FxEventType::MouseDragEvent_MouseDragOver => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_OVER")
+        }
+        FxEventType::MouseDragEvent_MouseDragReleased => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_DRAG_RELEASED")
+        }
+        FxEventType::MouseDragEvent_MouseEntered => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_ENTERED")
+        }
+        FxEventType::MouseDragEvent_MouseEnteredTarget => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_ENTERED_TARGET")
+        }
+        FxEventType::MouseDragEvent_MouseExited => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_EXITED")
+        }
+        FxEventType::MouseDragEvent_MouseExitedTarget => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_EXITED_TARGET")
+        }
+        FxEventType::MouseDragEvent_MouseMoved => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_MOVED")
+        }
+        FxEventType::MouseDragEvent_MousePressed => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_PRESSED")
+        }
+        FxEventType::MouseDragEvent_MouseReleased => {
+            ("javafx.scene.input.MouseDragEvent", "MOUSE_RELEASED")
+        }
         FxEventType::MouseEvent_Any => ("javafx.scene.input.MouseEvent", "ANY"),
         FxEventType::MouseEvent_DragDetected => ("javafx.scene.input.MouseEvent", "DRAG_DETECTED"),
         FxEventType::MouseEvent_MouseClicked => ("javafx.scene.input.MouseEvent", "MOUSE_CLICKED"),
         FxEventType::MouseEvent_MouseDragged => ("javafx.scene.input.MouseEvent", "MOUSE_DRAGGED"),
         FxEventType::MouseEvent_MouseEntered => ("javafx.scene.input.MouseEvent", "MOUSE_ENTERED"),
-        FxEventType::MouseEvent_MouseEnteredTarget => ("javafx.scene.input.MouseEvent", "MOUSE_ENTERED_TARGET"),
+        FxEventType::MouseEvent_MouseEnteredTarget => {
+            ("javafx.scene.input.MouseEvent", "MOUSE_ENTERED_TARGET")
+        }
         FxEventType::MouseEvent_MouseExited => ("javafx.scene.input.MouseEvent", "MOUSE_EXITED"),
-        FxEventType::MouseEvent_MouseExitedTarget => ("javafx.scene.input.MouseEvent", "MOUSE_EXITED_TARGET"),
+        FxEventType::MouseEvent_MouseExitedTarget => {
+            ("javafx.scene.input.MouseEvent", "MOUSE_EXITED_TARGET")
+        }
         FxEventType::MouseEvent_MouseMoved => ("javafx.scene.input.MouseEvent", "MOUSE_MOVED"),
         FxEventType::MouseEvent_MousePressed => ("javafx.scene.input.MouseEvent", "MOUSE_PRESSED"),
-        FxEventType::MouseEvent_MouseReleased => ("javafx.scene.input.MouseEvent", "MOUSE_RELEASED"),
+        FxEventType::MouseEvent_MouseReleased => {
+            ("javafx.scene.input.MouseEvent", "MOUSE_RELEASED")
+        }
         FxEventType::RotateEvent_Any => ("javafx.scene.input.RotateEvent", "ANY"),
         FxEventType::RotateEvent_Rotate => ("javafx.scene.input.RotateEvent", "ROTATE"),
-        FxEventType::RotateEvent_RotationFinished => ("javafx.scene.input.RotateEvent", "ROTATION_FINISHED"),
-        FxEventType::RotateEvent_RotationStarted => ("javafx.scene.input.RotateEvent", "ROTATION_STARTED"),
+        FxEventType::RotateEvent_RotationFinished => {
+            ("javafx.scene.input.RotateEvent", "ROTATION_FINISHED")
+        }
+        FxEventType::RotateEvent_RotationStarted => {
+            ("javafx.scene.input.RotateEvent", "ROTATION_STARTED")
+        }
         FxEventType::ScrollEvent_Any => ("javafx.scene.input.ScrollEvent", "ANY"),
         FxEventType::ScrollEvent_Scroll => ("javafx.scene.input.ScrollEvent", "SCROLL"),
-        FxEventType::ScrollEvent_ScrollFinished => ("javafx.scene.input.ScrollEvent", "SCROLL_FINISHED"),
-        FxEventType::ScrollEvent_ScrollStarted => ("javafx.scene.input.ScrollEvent", "SCROLL_STARTED"),
+        FxEventType::ScrollEvent_ScrollFinished => {
+            ("javafx.scene.input.ScrollEvent", "SCROLL_FINISHED")
+        }
+        FxEventType::ScrollEvent_ScrollStarted => {
+            ("javafx.scene.input.ScrollEvent", "SCROLL_STARTED")
+        }
         FxEventType::SwipeEvent_Any => ("javafx.scene.input.SwipeEvent", "ANY"),
         FxEventType::SwipeEvent_SwipeDown => ("javafx.scene.input.SwipeEvent", "SWIPE_DOWN"),
         FxEventType::SwipeEvent_SwipeLeft => ("javafx.scene.input.SwipeEvent", "SWIPE_LEFT"),
@@ -376,20 +531,35 @@ fn fx_event_type_to_event_class_and_field(event_type: FxEventType) -> (String, S
         FxEventType::TouchEvent_Any => ("javafx.scene.input.TouchEvent", "ANY"),
         FxEventType::TouchEvent_TouchMoved => ("javafx.scene.input.TouchEvent", "TOUCH_MOVED"),
         FxEventType::TouchEvent_TouchPressed => ("javafx.scene.input.TouchEvent", "TOUCH_PRESSED"),
-        FxEventType::TouchEvent_TouchReleased => ("javafx.scene.input.TouchEvent", "TOUCH_RELEASED"),
-        FxEventType::TouchEvent_TouchStationary => ("javafx.scene.input.TouchEvent", "TOUCH_STATIONARY"),
+        FxEventType::TouchEvent_TouchReleased => {
+            ("javafx.scene.input.TouchEvent", "TOUCH_RELEASED")
+        }
+        FxEventType::TouchEvent_TouchStationary => {
+            ("javafx.scene.input.TouchEvent", "TOUCH_STATIONARY")
+        }
         FxEventType::ZoomEvent_Any => ("javafx.scene.input.ZoomEvent", "ANY"),
         FxEventType::ZoomEvent_Zoom => ("javafx.scene.input.ZoomEvent", "ZOOM"),
         FxEventType::ZoomEvent_ZoomFinished => ("javafx.scene.input.ZoomEvent", "ZOOM_FINISHED"),
         FxEventType::ZoomEvent_ZoomStarted => ("javafx.scene.input.ZoomEvent", "ZOOM_STARTED"),
         FxEventType::MediaMediaErrorEvent_Any => ("javafx.scene.media.MediaErrorEvent", "ANY"),
-        FxEventType::MediaMediaErrorEvent_MediaError => ("javafx.scene.media.MediaErrorEvent", "MEDIA_ERROR"),
-        FxEventType::MediaMediaMarkerEvent_Action => ("javafx.scene.media.MediaMarkerEvent", "ACTION"),
+        FxEventType::MediaMediaErrorEvent_MediaError => {
+            ("javafx.scene.media.MediaErrorEvent", "MEDIA_ERROR")
+        }
+        FxEventType::MediaMediaMarkerEvent_Action => {
+            ("javafx.scene.media.MediaMarkerEvent", "ACTION")
+        }
         FxEventType::MediaMediaMarkerEvent_Any => ("javafx.scene.media.MediaMarkerEvent", "ANY"),
-        FxEventType::TransformChangedEvent_Any => ("javafx.scene.transform.TransformChangedEvent", "ANY"),
-        FxEventType::TransformChangedEvent_TransformChanged => ("javafx.scene.transform.TransformChangedEvent", "TRANSFORM_CHANGED"),
+        FxEventType::TransformChangedEvent_Any => {
+            ("javafx.scene.transform.TransformChangedEvent", "ANY")
+        }
+        FxEventType::TransformChangedEvent_TransformChanged => (
+            "javafx.scene.transform.TransformChangedEvent",
+            "TRANSFORM_CHANGED",
+        ),
         FxEventType::WindowEvent_Any => ("javafx.stage.WindowEvent", "ANY"),
-        FxEventType::WindowEvent_WindowCloseRequest => ("javafx.stage.WindowEvent", "WINDOW_CLOSE_REQUEST"),
+        FxEventType::WindowEvent_WindowCloseRequest => {
+            ("javafx.stage.WindowEvent", "WINDOW_CLOSE_REQUEST")
+        }
         FxEventType::WindowEvent_WindowHidden => ("javafx.stage.WindowEvent", "WINDOW_HIDDEN"),
         FxEventType::WindowEvent_WindowHiding => ("javafx.stage.WindowEvent", "WINDOW_HIDING"),
         FxEventType::WindowEvent_WindowShowing => ("javafx.stage.WindowEvent", "WINDOW_SHOWING"),

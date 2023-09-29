@@ -13,26 +13,20 @@
 // limitations under the License.
 use std::os::raw::c_void;
 
-use jni_sys::{
-    JavaVM,
-    jclass,
-    jint,
-    JNI_CreateJavaVM,
-    JNI_GetCreatedJavaVMs,
-    JNIEnv,
-    jsize,
-};
+use jni_sys::{jclass, jint, jsize, JNIEnv, JNI_CreateJavaVM, JNI_GetCreatedJavaVMs, JavaVM};
 
-use crate::{errors, utils};
 use crate::errors::opt_to_res;
+use crate::{errors, utils};
 
 #[link(name = "jvm")]
-extern {}
+extern "C" {}
 
-pub(crate) fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms: *mut jsize) -> jint {
-    unsafe {
-        JNI_GetCreatedJavaVMs(vm_buf.as_mut_ptr(), buf_len, n_vms)
-    }
+pub(crate) fn get_created_java_vms(
+    vm_buf: &mut Vec<*mut JavaVM>,
+    buf_len: jsize,
+    n_vms: *mut jsize,
+) -> jint {
+    unsafe { JNI_GetCreatedJavaVMs(vm_buf.as_mut_ptr(), buf_len, n_vms) }
 }
 
 pub(crate) fn create_java_vm(
@@ -40,19 +34,14 @@ pub(crate) fn create_java_vm(
     penv: *mut *mut c_void,
     args: *mut c_void,
 ) -> jint {
-    unsafe {
-        JNI_CreateJavaVM(jvm, penv, args)
-    }
+    unsafe { JNI_CreateJavaVM(jvm, penv, args) }
 }
 
 pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     unsafe {
         let cstr = utils::to_c_string(classname);
         let fc = opt_to_res((**env).FindClass)?;
-        let jc = (fc)(
-            env,
-            cstr,
-        );
+        let jc = (fc)(env, cstr);
         utils::drop_c_string(cstr);
         Ok(jc)
     }

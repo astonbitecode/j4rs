@@ -17,7 +17,7 @@ extern crate proc_macro2;
 use proc_macro::TokenStream;
 
 use proc_macro2::{Ident, Span};
-use syn::{AttributeArgs, Expr, FnArg, ItemFn, Lit, NestedMeta, parse_macro_input, ReturnType};
+use syn::{parse_macro_input, AttributeArgs, Expr, FnArg, ItemFn, Lit, NestedMeta, ReturnType};
 
 use quote::quote;
 
@@ -35,11 +35,16 @@ pub fn call_from_java(macro_args: TokenStream, user_function: TokenStream) -> To
 fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) -> TokenStream {
     let mut macro_args = macro_args;
     // Retrieve the Ident for the jni function
-    let jni_ident_string = match macro_args.pop().expect("No args found in call_from_java. Usage: #[call_from_java(\"full.class.name\")]") {
+    let jni_ident_string = match macro_args
+        .pop()
+        .expect("No args found in call_from_java. Usage: #[call_from_java(\"full.class.name\")]")
+    {
         NestedMeta::Lit(Lit::Str(litstr)) => {
             format!("Java_{}", litstr.value().replace(".", "_"))
         }
-        _ => panic!("No valid args found in call_from_java. Usage: #[call_from_java(\"full.class.name\")]"),
+        _ => panic!(
+            "No valid args found in call_from_java. Usage: #[call_from_java(\"full.class.name\")]"
+        ),
     };
     let ref jni_ident = Ident::new(jni_ident_string.as_ref(), Span::call_site());
     // Retrieve the user function Ident, input arguments and return output
@@ -49,16 +54,20 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
     // Arguments
     let user_function_args = &user_function_signature.inputs;
     // The argument names as defined by the user
-    let user_function_arg_names: Vec<String> = user_function_args.iter()
+    let user_function_arg_names: Vec<String> = user_function_args
+        .iter()
         .map(|arg| {
             let a = arg.clone();
             let q = quote!(#a).to_string();
             let v: Vec<&str> = q.split(' ').collect();
-            v.get(0).expect(&format!("Could not locate the argument name for: {}", q)).to_string()
+            v.get(0)
+                .expect(&format!("Could not locate the argument name for: {}", q))
+                .to_string()
         })
         .collect();
     // The arguments of the jni function
-    let jni_function_args: Vec<FnArg> = user_function_arg_names.iter()
+    let jni_function_args: Vec<FnArg> = user_function_arg_names
+        .iter()
         .map(|arg| {
             let a: FnArg = syn::parse_str(&format!("{}: jobject", arg)).unwrap();
             a
@@ -90,7 +99,9 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
                         let _ = jvm.throw_invocation_exception(&message);
                         ptr::null_mut()
                     },
-                }"#).unwrap();
+                }"#,
+            )
+            .unwrap();
             ret_value
         }
     };

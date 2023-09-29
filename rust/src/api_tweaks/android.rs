@@ -15,18 +15,11 @@ use std::collections::HashMap;
 use std::os::raw::c_void;
 use std::sync::Mutex;
 
-use jni_sys::{
-    JavaVM,
-    jclass,
-    jint,
-    JNI_OK,
-    JNIEnv,
-    jsize,
-};
+use jni_sys::{jclass, jint, jsize, JNIEnv, JavaVM, JNI_OK};
 
-use crate::jni_utils::create_global_ref_from_local_ref;
-use crate::{utils, errors};
 use crate::errors::opt_to_res;
+use crate::jni_utils::create_global_ref_from_local_ref;
+use crate::{errors, utils};
 
 lazy_static! {
     static ref MUTEX: Mutex<Option<J4rsAndroidJavaVM>> = Mutex::new(None);
@@ -34,7 +27,11 @@ lazy_static! {
     static ref CLASSES: Mutex<HashMap<String, J4rsAndroidJclass>> = Mutex::new(HashMap::new());
 }
 
-pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, _buf_len: jsize, n_vms: *mut jsize) -> jint {
+pub fn get_created_java_vms(
+    vm_buf: &mut Vec<*mut JavaVM>,
+    _buf_len: jsize,
+    n_vms: *mut jsize,
+) -> jint {
     unsafe {
         match MUTEX.lock() {
             Ok(g) => {
@@ -46,7 +43,9 @@ pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, _buf_len: jsize, n_vm
                     *vm_buf = Vec::new();
                 };
             }
-            Err(error) => { error!("Could not get the lock for J4rsAndroidJavaVM: {:?}", error) }
+            Err(error) => {
+                error!("Could not get the lock for J4rsAndroidJavaVM: {:?}", error)
+            }
         }
     }
     JNI_OK
@@ -61,33 +60,25 @@ pub(crate) fn create_java_vm(
     _pvm: *mut *mut JavaVM,
     _penv: *mut *mut c_void,
     _args: *mut c_void,
-) -> jint { panic!("Cannot create Java VM in Android.") }
+) -> jint {
+    panic!("Cannot create Java VM in Android.")
+}
 
 // Search the class in the cache first. If not found, then call the FindClass of JNI and insert the result to the cache.
 pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     unsafe {
         let mut add_to_cache = false;
         let found = match CLASSES.lock() {
-            Ok(g) => {
-                match g.get(classname) {
-                    Some(j4rs_class) => {
-                        Some(j4rs_class.class.clone())
-                    }
-                    None => {
-                        ((**env).FindClass)
-                            .map(|fc| {
-                                let cstr = utils::to_c_string(classname);
-                                let found: jclass = (fc)(
-                                    env,
-                                    cstr,
-                                );
-                                add_to_cache = true;
-                                utils::drop_c_string(cstr);
-                                found
-                            })
-                    }
-                }
-            }
+            Ok(g) => match g.get(classname) {
+                Some(j4rs_class) => Some(j4rs_class.class.clone()),
+                None => ((**env).FindClass).map(|fc| {
+                    let cstr = utils::to_c_string(classname);
+                    let found: jclass = (fc)(env, cstr);
+                    add_to_cache = true;
+                    utils::drop_c_string(cstr);
+                    found
+                }),
+            },
             Err(error) => {
                 error!("Could not get the lock for the jclass cache: {:?}", error);
                 None
@@ -97,7 +88,12 @@ pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jc
         let to_ret = opt_to_res(found)?;
         if add_to_cache {
             let global = create_global_ref_from_local_ref(to_ret, env)?;
-            CLASSES.lock()?.insert(classname.to_string(), J4rsAndroidJclass { class: global.clone() });
+            CLASSES.lock()?.insert(
+                classname.to_string(),
+                J4rsAndroidJclass {
+                    class: global.clone(),
+                },
+            );
             Ok(global as jclass)
         } else {
             Ok(to_ret)

@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{self, env, fs, str};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
+use std::{self, env, fs, str};
 
 use cesu8::{from_java_cesu8, to_java_cesu8};
 use dunce::canonicalize;
 use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
+use crate::api::{
+    PRIMITIVE_BOOLEAN, PRIMITIVE_BYTE, PRIMITIVE_CHAR, PRIMITIVE_DOUBLE, PRIMITIVE_FLOAT,
+    PRIMITIVE_INT, PRIMITIVE_LONG, PRIMITIVE_SHORT,
+};
 use crate::{cache, errors, InvocationArg, JavaClass};
-use crate::api::{PRIMITIVE_BOOLEAN, PRIMITIVE_BYTE, PRIMITIVE_CHAR, PRIMITIVE_DOUBLE, PRIMITIVE_FLOAT, PRIMITIVE_INT, PRIMITIVE_LONG, PRIMITIVE_SHORT};
 
 pub fn to_rust_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
@@ -66,9 +69,7 @@ pub(crate) fn deps_dir() -> errors::Result<String> {
     let mut pb = jassets_path()?;
     pb.pop();
     pb.push("deps");
-    Ok(pb
-        .to_str()
-        .unwrap_or("./deps/").to_owned())
+    Ok(pb.to_str().unwrap_or("./deps/").to_owned())
 }
 
 pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
@@ -96,33 +97,30 @@ pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
 
     while tmp_vec.is_empty() {
         jassets_path.pop();
-        tmp_vec = get_dir_content(&jassets_path)?.directories.into_iter().filter(|path| path.ends_with("jassets")).collect();
+        tmp_vec = get_dir_content(&jassets_path)?
+            .directories
+            .into_iter()
+            .filter(|path| path.ends_with("jassets"))
+            .collect();
     }
 
     jassets_path.push("jassets");
     Ok(jassets_path)
 }
 
-
 pub(crate) fn find_j4rs_dynamic_libraries_names() -> errors::Result<Vec<String>> {
-    let entries: Vec<String> = find_j4rs_dynamic_libraries_dir_entries()?.iter()
-        .map(|entry| entry
-            .file_name()
-            .to_str()
-            .unwrap()
-            .to_owned())
+    let entries: Vec<String> = find_j4rs_dynamic_libraries_dir_entries()?
+        .iter()
+        .map(|entry| entry.file_name().to_str().unwrap().to_owned())
         .collect();
 
     Ok(entries)
 }
 
 pub(crate) fn find_j4rs_dynamic_libraries_paths() -> errors::Result<Vec<String>> {
-    let entries: Vec<String> = find_j4rs_dynamic_libraries_dir_entries()?.iter()
-        .map(|entry| entry
-            .path()
-            .to_str()
-            .unwrap()
-            .to_owned())
+    let entries: Vec<String> = find_j4rs_dynamic_libraries_dir_entries()?
+        .iter()
+        .map(|entry| entry.path().to_str().unwrap().to_owned())
         .collect();
 
     Ok(entries)
@@ -130,17 +128,15 @@ pub(crate) fn find_j4rs_dynamic_libraries_paths() -> errors::Result<Vec<String>>
 
 fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>> {
     let v: Vec<fs::DirEntry> = fs::read_dir(deps_dir()?)?
-        .filter(|entry| {
-            entry.is_ok()
-        })
+        .filter(|entry| entry.is_ok())
         .filter(|entry| {
             let entry = entry.as_ref().unwrap();
             let file_name = entry.file_name();
             let file_name = file_name.to_str().unwrap();
-            file_name.contains("j4rs") && (
-                file_name.contains(".so") ||
-                    file_name.contains(".dll") ||
-                    file_name.contains(".dylib"))
+            file_name.contains("j4rs")
+                && (file_name.contains(".so")
+                    || file_name.contains(".dll")
+                    || file_name.contains(".dylib"))
         })
         .map(|entry| entry.unwrap())
         .collect();
@@ -165,9 +161,21 @@ pub(crate) fn primitive_of(inv_arg: &InvocationArg) -> Option<String> {
 
 pub(crate) fn get_class_name(inv_arg: &InvocationArg) -> &str {
     let class_name = match inv_arg {
-        &InvocationArg::Java { instance: _, ref class_name, serialized: _ } => class_name,
-        &InvocationArg::Rust { json: _, ref class_name, serialized: _ } => class_name,
-        &InvocationArg::RustBasic { instance: _, ref class_name, serialized: _ } => class_name,
+        &InvocationArg::Java {
+            instance: _,
+            ref class_name,
+            serialized: _,
+        } => class_name,
+        &InvocationArg::Rust {
+            json: _,
+            ref class_name,
+            serialized: _,
+        } => class_name,
+        &InvocationArg::RustBasic {
+            instance: _,
+            ref class_name,
+            serialized: _,
+        } => class_name,
     };
     class_name.as_ref()
 }
@@ -189,13 +197,21 @@ mod utils_unit_tests {
     #[test]
     fn primitive_of_test() {
         let _jvm = JvmBuilder::new().build().unwrap();
-        assert!(primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("boolean".to_string()));
+        assert!(
+            primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("boolean".to_string())
+        );
         assert!(primitive_of(&InvocationArg::try_from(1_i8).unwrap()) == Some("byte".to_string()));
-        assert!(primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string()));
+        assert!(
+            primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string())
+        );
         assert!(primitive_of(&InvocationArg::try_from(1_32).unwrap()) == Some("int".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_i64).unwrap()) == Some("long".to_string()));
-        assert!(primitive_of(&InvocationArg::try_from(0.1_f32).unwrap()) == Some("float".to_string()));
-        assert!(primitive_of(&InvocationArg::try_from(0.1_f64).unwrap()) == Some("double".to_string()));
+        assert!(
+            primitive_of(&InvocationArg::try_from(0.1_f32).unwrap()) == Some("float".to_string())
+        );
+        assert!(
+            primitive_of(&InvocationArg::try_from(0.1_f64).unwrap()) == Some("double".to_string())
+        );
         assert!(primitive_of(&InvocationArg::try_from('c').unwrap()) == Some("char".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(()).unwrap()) == Some("void".to_string()));
     }

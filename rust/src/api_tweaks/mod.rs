@@ -13,14 +13,18 @@ use std::os::raw::c_void;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use jni_sys::{JavaVM, jclass, jint, JNIEnv, jsize};
 use crate::errors;
+use jni_sys::{jclass, jint, jsize, JNIEnv, JavaVM};
 
 #[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 mod generic;
 
 #[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
-pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms: *mut jsize) -> jint {
+pub fn get_created_java_vms(
+    vm_buf: &mut Vec<*mut JavaVM>,
+    buf_len: jsize,
+    n_vms: *mut jsize,
+) -> jint {
     generic::get_created_java_vms(vm_buf, buf_len, n_vms)
 }
 
@@ -28,11 +32,9 @@ pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms
 pub fn set_java_vm(_: *mut JavaVM) {}
 
 #[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
-pub fn create_java_vm(
-    pvm: *mut *mut JavaVM,
-    penv: *mut *mut c_void,
-    args: *mut c_void,
-) -> jint { generic::create_java_vm(pvm, penv, args) }
+pub fn create_java_vm(pvm: *mut *mut JavaVM, penv: *mut *mut c_void, args: *mut c_void) -> jint {
+    generic::create_java_vm(pvm, penv, args)
+}
 
 #[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
@@ -45,7 +47,11 @@ pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
 mod no_runtime_lib_loading;
 
 #[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
-pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms: *mut jsize) -> jint {
+pub fn get_created_java_vms(
+    vm_buf: &mut Vec<*mut JavaVM>,
+    buf_len: jsize,
+    n_vms: *mut jsize,
+) -> jint {
     no_runtime_lib_loading::get_created_java_vms(vm_buf, buf_len, n_vms)
 }
 
@@ -53,11 +59,9 @@ pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms
 pub fn set_java_vm(_: *mut JavaVM) {}
 
 #[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
-pub fn create_java_vm(
-    pvm: *mut *mut JavaVM,
-    penv: *mut *mut c_void,
-    args: *mut c_void,
-) -> jint { no_runtime_lib_loading::create_java_vm(pvm, penv, args) }
+pub fn create_java_vm(pvm: *mut *mut JavaVM, penv: *mut *mut c_void, args: *mut c_void) -> jint {
+    no_runtime_lib_loading::create_java_vm(pvm, penv, args)
+}
 
 #[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
 pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
@@ -70,7 +74,11 @@ pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
 mod android;
 
 #[cfg(target_os = "android")]
-pub fn get_created_java_vms(vm_buf: &mut Vec<*mut JavaVM>, buf_len: jsize, n_vms: *mut jsize) -> jint {
+pub fn get_created_java_vms(
+    vm_buf: &mut Vec<*mut JavaVM>,
+    buf_len: jsize,
+    n_vms: *mut jsize,
+) -> jint {
     android::get_created_java_vms(vm_buf, buf_len, n_vms)
 }
 
@@ -80,11 +88,9 @@ pub fn set_java_vm(java_vm: *mut JavaVM) {
 }
 
 #[cfg(target_os = "android")]
-pub fn create_java_vm(
-    pvm: *mut *mut JavaVM,
-    penv: *mut *mut c_void,
-    args: *mut c_void,
-) -> jint { android::create_java_vm(pvm, penv, args) }
+pub fn create_java_vm(pvm: *mut *mut JavaVM, penv: *mut *mut c_void, args: *mut c_void) -> jint {
+    android::create_java_vm(pvm, penv, args)
+}
 
 #[cfg(target_os = "android")]
 pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {

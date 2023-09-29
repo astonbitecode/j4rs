@@ -14,13 +14,13 @@
 extern crate dirs;
 extern crate fs_extra;
 
-use std::{env, fs};
 use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 use glob::glob;
 use java_locator;
@@ -64,7 +64,9 @@ fn generate_src(out_dir: &str) -> Result<(), J4rsBuildError> {
 fn j4rs_version() -> &'static str {{
     \"{}\"
 }}
-", VERSION);
+",
+        VERSION
+    );
 
     f.write_all(contents.as_bytes())?;
     Ok(())
@@ -79,7 +81,8 @@ fn copy_jars_from_java(jar_source_path: &str) -> Result<(), J4rsBuildError> {
         let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
 
         let destination_jar_file_res = {
-            let djpb = Path::new(&jassets_path).join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
+            let djpb = Path::new(&jassets_path)
+                .join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
             File::open(djpb)
         };
 
@@ -87,7 +90,9 @@ fn copy_jars_from_java(jar_source_path: &str) -> Result<(), J4rsBuildError> {
         let do_copy = if destination_jar_file_res.is_ok() {
             let mut destination_jar_file = destination_jar_file_res.unwrap();
             !are_same_files(&mut source_jar_file, &mut destination_jar_file).unwrap_or(true)
-        } else { true };
+        } else {
+            true
+        };
 
         if do_copy {
             fs_extra::remove_items(vec![jassets_path.clone()].as_ref())?;
@@ -134,11 +139,14 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError>
     let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
 
     let jassets_jar_file_res = {
-        let japb = Path::new(&jassets_path).join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
+        let japb =
+            Path::new(&jassets_path).join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
         File::open(japb)
     };
     let jassets_output_file_res = {
-        let jaopb = Path::new(&jassets_output_dir).join("jassets").join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
+        let jaopb = Path::new(&jassets_output_dir)
+            .join("jassets")
+            .join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
         File::open(jaopb)
     };
 
@@ -148,7 +156,9 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError>
         let mut jassets_output_jar_file = jassets_output_file_res.unwrap();
 
         !are_same_files(&mut jassets_jar_file, &mut jassets_output_jar_file).unwrap_or(true)
-    } else { true };
+    } else {
+        true
+    };
 
     if do_copy {
         fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref())?;
@@ -183,36 +193,48 @@ impl Error for J4rsBuildError {
 
 impl From<std::env::VarError> for J4rsBuildError {
     fn from(err: std::env::VarError) -> J4rsBuildError {
-        J4rsBuildError { description: format!("{:?}", err) }
+        J4rsBuildError {
+            description: format!("{:?}", err),
+        }
     }
 }
 
 impl From<std::io::Error> for J4rsBuildError {
     fn from(err: std::io::Error) -> J4rsBuildError {
-        J4rsBuildError { description: format!("{:?}", err) }
+        J4rsBuildError {
+            description: format!("{:?}", err),
+        }
     }
 }
 
 impl From<java_locator::errors::JavaLocatorError> for J4rsBuildError {
     fn from(err: java_locator::errors::JavaLocatorError) -> J4rsBuildError {
-        J4rsBuildError { description: format!("{:?}", err) }
+        J4rsBuildError {
+            description: format!("{:?}", err),
+        }
     }
 }
 
 impl From<fs_extra::error::Error> for J4rsBuildError {
     fn from(err: fs_extra::error::Error) -> J4rsBuildError {
-        J4rsBuildError { description: format!("{:?}", err) }
+        J4rsBuildError {
+            description: format!("{:?}", err),
+        }
     }
 }
 
 impl From<glob::PatternError> for J4rsBuildError {
     fn from(err: glob::PatternError) -> J4rsBuildError {
-        J4rsBuildError { description: format!("{:?}", err) }
+        J4rsBuildError {
+            description: format!("{:?}", err),
+        }
     }
 }
 
 impl From<glob::GlobError> for J4rsBuildError {
     fn from(err: glob::GlobError) -> J4rsBuildError {
-        J4rsBuildError { description: format!("{:?}", err) }
+        J4rsBuildError {
+            description: format!("{:?}", err),
+        }
     }
 }

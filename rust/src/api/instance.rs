@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::logger::debug;
+use crate::{cache, errors, jni_utils, InvocationArg, Jvm};
 use jni_sys::jobject;
+use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::any::Any;
 use std::convert::TryFrom;
 use std::sync::mpsc::{Receiver, Sender};
-use std::any::Any;
-use serde::de::DeserializeOwned;
-use crate::{cache, errors, InvocationArg, jni_utils, Jvm};
-use crate::logger::debug;
 
 /// A Java instance
 #[derive(Serialize)]
@@ -57,13 +57,15 @@ impl Instance {
         self.jinstance
     }
 
-    #[deprecated(since = "0.12.0", note = "Please use Instance::from_jobject or Instance::from_jobject_with_global_ref instead")]
+    #[deprecated(
+        since = "0.12.0",
+        note = "Please use Instance::from_jobject or Instance::from_jobject_with_global_ref instead"
+    )]
     pub fn from(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = cache::get_thread_local_env().map_err(|_| {
-            Jvm::attach_thread()
-        });
+        let _jvm = cache::get_thread_local_env().map_err(|_| Jvm::attach_thread());
 
-        let global = jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
+        let global =
+            jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
         Ok(Instance {
             jinstance: global,
             class_name: cache::UNKNOWN_FOR_RUST.to_string(),
@@ -72,9 +74,7 @@ impl Instance {
     }
 
     pub fn from_jobject(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = cache::get_thread_local_env().map_err(|_| {
-            Jvm::attach_thread()
-        });
+        let _jvm = cache::get_thread_local_env().map_err(|_| Jvm::attach_thread());
 
         Ok(Instance {
             jinstance: obj,
@@ -84,11 +84,10 @@ impl Instance {
     }
 
     pub fn from_jobject_with_global_ref(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = cache::get_thread_local_env().map_err(|_| {
-            Jvm::attach_thread()
-        });
+        let _jvm = cache::get_thread_local_env().map_err(|_| Jvm::attach_thread());
 
-        let global = jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
+        let global =
+            jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
         Ok(Instance {
             jinstance: global,
             class_name: cache::UNKNOWN_FOR_RUST.to_string(),
@@ -100,7 +99,10 @@ impl Instance {
     fn _weak_ref(&self) -> errors::Result<Instance> {
         Ok(Instance {
             class_name: self.class_name.clone(),
-            jinstance: jni_utils::_create_weak_global_ref_from_global_ref(self.jinstance.clone(), cache::get_thread_local_env()?)?,
+            jinstance: jni_utils::_create_weak_global_ref_from_global_ref(
+                self.jinstance.clone(),
+                cache::get_thread_local_env()?,
+            )?,
             skip_deleting_jobject: false,
         })
     }
@@ -176,9 +178,15 @@ impl<'a> ChainableInstance<'a> {
         ChainableInstance { instance, jvm }
     }
 
-    pub(crate) fn new_with_instance_ref(instance: &Instance, jvm: &'a Jvm) -> errors::Result<ChainableInstance<'a>> {
+    pub(crate) fn new_with_instance_ref(
+        instance: &Instance,
+        jvm: &'a Jvm,
+    ) -> errors::Result<ChainableInstance<'a>> {
         let cloned = jvm.clone_instance(&instance)?;
-        Ok(ChainableInstance { instance: cloned, jvm })
+        Ok(ChainableInstance {
+            instance: cloned,
+            jvm,
+        })
     }
 
     pub fn collect(self) -> Instance {
@@ -186,7 +194,11 @@ impl<'a> ChainableInstance<'a> {
     }
 
     /// Invokes the method `method_name` of a this `Instance`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
-    pub fn invoke(&self, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<ChainableInstance> {
+    pub fn invoke(
+        &self,
+        method_name: &str,
+        inv_args: &[InvocationArg],
+    ) -> errors::Result<ChainableInstance> {
         let instance = self.jvm.invoke(&self.instance, method_name, inv_args)?;
         Ok(ChainableInstance::new(instance, self.jvm))
     }
@@ -210,13 +222,18 @@ impl<'a> ChainableInstance<'a> {
     }
 
     /// Returns the Rust representation of the provided instance
-    pub fn to_rust<T: Any>(self) -> errors::Result<T> where T: DeserializeOwned {
+    pub fn to_rust<T: Any>(self) -> errors::Result<T>
+    where
+        T: DeserializeOwned,
+    {
         self.jvm.to_rust(self.instance)
     }
 
     /// Returns the Rust representation of the provided instance, boxed
-    pub fn to_rust_boxed<T: Any>(self) -> errors::Result<Box<T>> where T: DeserializeOwned {
+    pub fn to_rust_boxed<T: Any>(self) -> errors::Result<Box<T>>
+    where
+        T: DeserializeOwned,
+    {
         self.jvm.to_rust_boxed(self.instance)
     }
 }
-
