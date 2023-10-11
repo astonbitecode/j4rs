@@ -91,7 +91,7 @@ let rust_map = HashMap::from([
 let java_map_instance = jvm.java_map(
     JavaClass::String,
     JavaClass::Integer,
-    map)?;
+    rust_map)?;
 ```
 
 ### Passing arguments from Rust to Java
