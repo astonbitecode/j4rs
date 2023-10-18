@@ -138,11 +138,11 @@ unsafe impl Send for Instance {}
 /// On Drop, the InstanceReceiver removes the Box from the heap.
 pub struct InstanceReceiver {
     pub(crate) rx: Box<Receiver<Instance>>,
-    tx_address: i64,
+    tx_address: u64,
 }
 
 impl InstanceReceiver {
-    pub(crate) fn new(rx: Receiver<Instance>, tx_address: i64) -> InstanceReceiver {
+    pub(crate) fn new(rx: Receiver<Instance>, tx_address: u64) -> InstanceReceiver {
         InstanceReceiver {
             rx: Box::new(rx),
             tx_address,
