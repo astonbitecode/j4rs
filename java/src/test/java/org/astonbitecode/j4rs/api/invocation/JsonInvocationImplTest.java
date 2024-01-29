@@ -22,6 +22,8 @@ import org.astonbitecode.j4rs.tests.MyTest;
 import org.astonbitecode.j4rs.utils.*;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
@@ -280,6 +282,18 @@ public class JsonInvocationImplTest {
         }
 
         assert (errorString.equals(callback.getString()));
+    }
+
+    @Test
+    public void invokeOverloaded() throws ClassNotFoundException {
+        JsonInvocationImpl instance = new JsonInvocationImpl(new MyTest(), MyTest.class);
+        Integer[] arr = {1, 2, 3};
+        // The addInts method is overloaded. One method accepts a List and one an array
+        // Invoke the method accepting an array first
+        instance.invoke("addInts", new InvocationArg(arr.getClass().getName(), arr));
+        // Invoke the method accepting a List
+        List<Integer> list = Arrays.asList();
+        instance.invoke("addInts", new InvocationArg(list.getClass().getName(), list));
     }
 
     private class TestCallback extends NativeCallbackToRustFutureSupport {

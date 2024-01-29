@@ -86,6 +86,13 @@ public class MyTest {
         return result;
     }
 
+    public Integer addInts(List<Integer> args) {
+        int result = args.stream().reduce(0, (a, b) -> {
+            return a + b;
+        });
+        return result;
+    }
+
     public Integer addInts(int a, int b) {
         return a + b;
     }
