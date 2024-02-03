@@ -1659,7 +1659,7 @@ impl<'a> JvmBuilder<'a> {
                         .split(MAIN_SEPARATOR)
                         .last()
                         .unwrap_or(jar_full_path);
-                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use)
+                    jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use)
                 })
                 .collect();
             let cp_string = filtered_jars.join(utils::classpath_sep());
