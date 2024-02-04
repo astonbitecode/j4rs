@@ -54,9 +54,8 @@ public class SimpleMavenDeployer {
         String jarName = generateArtifactName(artifactId, version, qualifier);
         String urlString = generateUrlTagret(groupId, artifactId, version, jarName);
         boolean searchRemoteRepo = true;
-
+        String fullJarDeployPath = deployTarget + File.separator + jarName;
         if (!artifactExists(groupId, artifactId, version, qualifier)) {
-            String fullJarDeployPath = deployTarget + File.separator + jarName;
             if (checkLocalCache) {
                 try {
                     deployFromLocalCache(groupId, artifactId, version, qualifier);
@@ -71,9 +70,8 @@ public class SimpleMavenDeployer {
                     fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
                 }
             }
-
-            DeployUtils.addToClasspath(fullJarDeployPath);
         }
+        DeployUtils.addToClasspath(fullJarDeployPath);
     }
 
     private boolean artifactExists(String groupId, String artifactId, String version, String qualifier) {
