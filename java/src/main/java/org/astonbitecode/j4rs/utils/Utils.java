@@ -67,4 +67,31 @@ public class Utils {
     public static Class<?> forNameBasedOnArgs(final GeneratedArg[] params) {
         return Arrays.stream(params).map(arg -> arg.getClazz()).reduce((a, b) -> a).orElse(Void.class);
     }
+
+    // Converts primitive types to their wrapper class.  Useful in matching method parameters.
+    public static Class<?> toWrapper(Class<?> clazz) {
+        if (!clazz.isPrimitive())
+            return clazz;
+
+        if (clazz == Integer.TYPE)
+            return Integer.class;
+        if (clazz == Long.TYPE)
+            return Long.class;
+        if (clazz == Boolean.TYPE)
+            return Boolean.class;
+        if (clazz == Byte.TYPE)
+            return Byte.class;
+        if (clazz == Character.TYPE)
+            return Character.class;
+        if (clazz == Float.TYPE)
+            return Float.class;
+        if (clazz == Double.TYPE)
+            return Double.class;
+        if (clazz == Short.TYPE)
+            return Short.class;
+        if (clazz == Void.TYPE)
+            return Void.class;
+
+        return clazz;
+    }
 }

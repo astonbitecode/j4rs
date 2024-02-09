@@ -23,6 +23,7 @@ import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
 import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
+import org.astonbitecode.j4rs.utils.Utils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
@@ -274,10 +275,21 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                             matchedParams.add(((Class<?>)t).isAssignableFrom(argTypes[i]));
                         } else if (typ instanceof GenericArrayType) {
                             // TODO: Improve by checking the actual types of the arrays?
-                            matchedParams.add(argTypes[i].isArray());
+                            boolean value = argTypes[i].isArray();
+                            // Useful for debugging
+                            //if (!value) {
+                            //    System.out.println("Method " + m.getName() + " not matched for array type at param index " + i + " which is " + argTypes[i].toString());
+                            //}
+                            matchedParams.add(value);
                         } else if (typ instanceof Class) {
                             // In case of TypeVariable, the arg matches via the equals method
-                            matchedParams.add(((Class<?>) typ).isAssignableFrom(argTypes[i]));
+                            boolean value = Utils.toWrapper((Class<?>) typ).isAssignableFrom(argTypes[i]);
+
+                            // Useful for debugging
+                            //if (!value) {
+                            //    System.out.println("Method " + m.getName() + " not matched for Class type at param index " + i + " which is invoked with argType=" + argTypes[i].toString() + " with method definition type " + typ.toString());
+                            //}
+                            matchedParams.add(value);
                         } else if (typ instanceof WildcardType) {
                             // Find the type and match. Eg. ? <?> ? extends String etc
                             WildcardType wildcardType = (WildcardType) typ;
@@ -311,12 +323,20 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                     return matchedParams.stream().allMatch(Boolean::booleanValue);
                 }).collect(Collectors.toList());
         if (!found.isEmpty()) {
+            // Useful for debugging
+            //if (found.size() > 1) {
+            //    StringBuilder options = new StringBuilder();
+            //    for (Method m: found) {
+            //        options.append(m.toString()).append(", ");
+            //    }
+            //    System.out.println("Found " + found.size() + " matching methods and only using the first.  Options are: " + options);
+            //}
             return found.get(0);
         } else {
             Class<?> superclass = clazz.getSuperclass();
             if (superclass == null) {
                 throw new NoSuchMethodException(
-                        "Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
+                        "j4rs could not resolve Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
             }
             return findMethodInHierarchy(superclass, methodName, argTypes);
         }

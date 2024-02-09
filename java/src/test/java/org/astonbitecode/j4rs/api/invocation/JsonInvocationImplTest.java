@@ -16,6 +16,7 @@ package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
+import org.astonbitecode.j4rs.api.dtos.InvocationArgGenerator;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.tests.MyTest;
@@ -154,6 +155,15 @@ public class JsonInvocationImplTest {
         Instance res = ni.invoke("getI");
         Integer i = (Integer) res.getObject();
         assert (i.equals(33));
+    }
+
+    @Test
+    public void invokeMethodInHierarchyParamCheck() {
+        Instance ni = new JsonInvocationImpl(new GrandchildDummy(), GrandchildDummy.class);
+        InvocationArg arg = new InvocationArg(new JsonInvocationImpl(3, Integer.class));
+        Instance res = ni.invoke("checkParam", arg);
+        Integer i = (Integer) res.getObject();
+        assert (i.equals(3));
     }
 
     @Test

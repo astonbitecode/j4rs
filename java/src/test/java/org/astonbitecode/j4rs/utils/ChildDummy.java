@@ -24,6 +24,8 @@ public class ChildDummy extends Dummy implements DummyInterface {
         System.out.println("I am doing something...");
     }
 
+    public int checkParam(int i) { return i; }
+
     public DummyMapInterface<String, Object> getMap() {
         return new DummyMapImpl();
     }
