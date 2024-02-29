@@ -18,7 +18,6 @@ use java_locator::{get_jvm_dyn_lib_file_name, locate_jvm_dyn_library};
 use jni_sys::{jclass, jint, jsize, JNIEnv, JavaVM};
 use libloading;
 
-use crate::errors::opt_to_res;
 use crate::{errors, utils};
 
 type JNIGetCreatedJavaVMs =
@@ -73,7 +72,7 @@ pub(crate) fn create_java_vm(
 pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     unsafe {
         let cstr = utils::to_c_string(classname);
-        let fc = opt_to_res((**env).FindClass)?;
+        let fc = (**env).v1_6.FindClass;
         let jc = (fc)(env, cstr);
         utils::drop_c_string(cstr);
         Ok(jc)

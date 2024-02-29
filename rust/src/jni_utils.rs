@@ -176,33 +176,27 @@ pub fn create_global_ref_from_local_ref(
     jni_env: *mut JNIEnv,
 ) -> errors::Result<jobject> {
     unsafe {
-        match ((**jni_env).NewGlobalRef,
-               (**jni_env).ExceptionCheck,
-               (**jni_env).ExceptionDescribe,
-               (**jni_env).ExceptionClear,
-               (**jni_env).GetObjectRefType) {
-            (Some(ngr), Some(exc), Some(exd), Some(exclear), Some(gort)) => {
-                // Create the global ref
-                let global = ngr(
-                    jni_env,
-                    local_ref,
-                );
-                // If local ref, delete it
-                if gort(jni_env, local_ref) as jint == jobjectRefType::JNILocalRefType as jint {
-                    delete_java_local_ref(jni_env, local_ref);
-                }
-                // Exception check
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating global ref... Please check the logs or the console.".to_string()))
-                } else {
-                    Ok(global)
-                }
-            }
-            (_, _, _, _, _) => {
-                Err(errors::J4RsError::JavaError("Could retrieve the native functions to create a global ref. This may lead to memory leaks".to_string()))
-            }
+        let ngr = (**jni_env).v1_6.NewGlobalRef;
+        let exc = (**jni_env).v1_6.ExceptionCheck;
+        let exd = (**jni_env).v1_6.ExceptionDescribe;
+        let exclear = (**jni_env).v1_6.ExceptionClear;
+        let gort = (**jni_env).v1_6.GetObjectRefType;
+        // Create the global ref
+        let global = ngr(
+            jni_env,
+            local_ref,
+        );
+        // If local ref, delete it
+        if gort(jni_env, local_ref) as jint == jobjectRefType::JNILocalRefType as jint {
+            delete_java_local_ref(jni_env, local_ref);
+        }
+        // Exception check
+        if (exc)(jni_env) == JNI_TRUE {
+            (exd)(jni_env);
+            (exclear)(jni_env);
+            Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating global ref... Please check the logs or the console.".to_string()))
+        } else {
+            Ok(global)
         }
     }
 }
@@ -212,27 +206,20 @@ pub(crate) fn _create_weak_global_ref_from_global_ref(
     jni_env: *mut JNIEnv,
 ) -> errors::Result<jobject> {
     unsafe {
-        match (
-            (**jni_env).NewWeakGlobalRef,
-            (**jni_env).ExceptionCheck,
-            (**jni_env).ExceptionDescribe,
-            (**jni_env).ExceptionClear,
-        ) {
-            (Some(nwgr), Some(exc), Some(exd), Some(exclear)) => {
-                // Create the weak global ref
-                let global = nwgr(jni_env, global_ref);
-                // Exception check
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating a weak global ref... Please check the logs or the console.".to_string()))
-                } else {
-                    Ok(global)
-                }
-            }
-            (_, _, _, _) => Err(errors::J4RsError::JavaError(
-                "Could retrieve the native functions to create a weak global ref.".to_string(),
-            )),
+        let nwgr = (**jni_env).v1_6.NewWeakGlobalRef;
+        let exc = (**jni_env).v1_6.ExceptionCheck;
+        let exd = (**jni_env).v1_6.ExceptionDescribe;
+        let exclear = (**jni_env).v1_6.ExceptionClear;
+
+        // Create the weak global ref
+        let global = nwgr(jni_env, global_ref);
+        // Exception check
+        if (exc)(jni_env) == JNI_TRUE {
+            (exd)(jni_env);
+            (exclear)(jni_env);
+            Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating a weak global ref... Please check the logs or the console.".to_string()))
+        } else {
+            Ok(global)
         }
     }
 }
@@ -240,25 +227,17 @@ pub(crate) fn _create_weak_global_ref_from_global_ref(
 /// Deletes the java ref from the memory
 pub fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     unsafe {
-        match (
-            (**jni_env).DeleteGlobalRef,
-            (**jni_env).ExceptionCheck,
-            (**jni_env).ExceptionDescribe,
-            (**jni_env).ExceptionClear,
-        ) {
-            (Some(dgr), Some(exc), Some(exd), Some(exclear)) => {
-                dgr(jni_env, jinstance);
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    error(
-                        "An Exception was thrown by Java... Please check the logs or the console.",
-                    );
-                }
-            }
-            (_, _, _, _) => {
-                error("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks");
-            }
+        let dgr = (**jni_env).v1_6.DeleteGlobalRef;
+        let exc = (**jni_env).v1_6.ExceptionCheck;
+        let exd = (**jni_env).v1_6.ExceptionDescribe;
+        let exclear = (**jni_env).v1_6.ExceptionClear;
+        dgr(jni_env, jinstance);
+        if (exc)(jni_env) == JNI_TRUE {
+            (exd)(jni_env);
+            (exclear)(jni_env);
+            error(
+                "An Exception was thrown by Java... Please check the logs or the console.",
+            );
         }
     }
 }
@@ -266,25 +245,17 @@ pub fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
 /// Deletes the java ref from the memory
 pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
     unsafe {
-        match (
-            (**jni_env).DeleteLocalRef,
-            (**jni_env).ExceptionCheck,
-            (**jni_env).ExceptionDescribe,
-            (**jni_env).ExceptionClear,
-        ) {
-            (Some(dlr), Some(exc), Some(exd), Some(exclear)) => {
-                dlr(jni_env, jinstance);
-                if (exc)(jni_env) == JNI_TRUE {
-                    (exd)(jni_env);
-                    (exclear)(jni_env);
-                    error(
-                        "An Exception was thrown by Java... Please check the logs or the console.",
-                    );
-                }
-            }
-            (_, _, _, _) => {
-                error("Could retrieve the native functions to drop the Java ref. This may lead to memory leaks");
-            }
+        let dlr = (**jni_env).v1_6.DeleteLocalRef;
+        let exc = (**jni_env).v1_6.ExceptionCheck;
+        let exd = (**jni_env).v1_6.ExceptionDescribe;
+        let exclear = (**jni_env).v1_6.ExceptionClear;
+        dlr(jni_env, jinstance);
+        if (exc)(jni_env) == JNI_TRUE {
+            (exd)(jni_env);
+            (exclear)(jni_env);
+            error(
+                "An Exception was thrown by Java... Please check the logs or the console.",
+            );
         }
     }
 }

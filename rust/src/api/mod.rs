@@ -24,11 +24,7 @@ use std::sync::mpsc::channel;
 use std::{fs, thread, time};
 
 use fs_extra::dir::get_dir_content;
-use jni_sys::{
-    self, jint, jobject, jsize, jstring, JNIEnv, JavaVM, JavaVMInitArgs, JavaVMOption,
-    JNI_EDETACHED, JNI_EEXIST, JNI_EINVAL, JNI_ENOMEM, JNI_ERR, JNI_EVERSION, JNI_OK, JNI_TRUE,
-    JNI_VERSION_1_8,
-};
+use jni_sys::{self, jint, jobject, jsize, jstring, JNIEnv, JavaVM, JavaVMInitArgs, JavaVMOption, JNI_EDETACHED, JNI_EEXIST, JNI_EINVAL, JNI_ENOMEM, JNI_ERR, JNI_EVERSION, JNI_OK, JNI_TRUE, JNI_VERSION_1_6};
 use libc::c_char;
 use serde::de::DeserializeOwned;
 use serde_json;
@@ -157,7 +153,7 @@ impl Jvm {
                     .collect();
 
                 let mut jvm_arguments = JavaVMInitArgs {
-                    version: JNI_VERSION_1_8,
+                    version: JNI_VERSION_1_6,
                     nOptions: jvm_options.len() as i32,
                     options: jvm_options_vec.as_mut_ptr(),
                     ignoreUnrecognized: JNI_TRUE,
@@ -218,77 +214,77 @@ impl Jvm {
             // Create and set the environment in Thread Local
             unsafe {
                 let _ = cache::get_jni_get_method_id()
-                    .or_else(|| cache::set_jni_get_method_id((**jni_environment).GetMethodID));
+                    .or_else(|| cache::set_jni_get_method_id(Some((**jni_environment).v1_6.GetMethodID)));
                 let _ = cache::get_jni_get_static_method_id().or_else(|| {
-                    cache::set_jni_get_static_method_id((**jni_environment).GetStaticMethodID)
+                    cache::set_jni_get_static_method_id(Some((**jni_environment).v1_6.GetStaticMethodID))
                 });
                 let _ = cache::get_jni_new_object()
-                    .or_else(|| cache::set_jni_new_object((**jni_environment).NewObject));
+                    .or_else(|| cache::set_jni_new_object(Some((**jni_environment).v1_6.NewObject)));
                 let _ = cache::get_jni_new_string_utf()
-                    .or_else(|| cache::set_jni_new_string_utf((**jni_environment).NewStringUTF));
+                    .or_else(|| cache::set_jni_new_string_utf(Some((**jni_environment).v1_6.NewStringUTF)));
                 let _ = cache::get_jni_get_string_utf_chars().or_else(|| {
-                    cache::set_jni_get_string_utf_chars((**jni_environment).GetStringUTFChars)
+                    cache::set_jni_get_string_utf_chars(Some((**jni_environment).v1_6.GetStringUTFChars))
                 });
                 let _ = cache::get_jni_release_string_utf_chars().or_else(|| {
                     cache::set_jni_release_string_utf_chars(
-                        (**jni_environment).ReleaseStringUTFChars,
+                        Some((**jni_environment).v1_6.ReleaseStringUTFChars),
                     )
                 });
                 let _ = cache::get_jni_call_object_method().or_else(|| {
-                    cache::set_jni_call_object_method((**jni_environment).CallObjectMethod)
+                    cache::set_jni_call_object_method(Some((**jni_environment).v1_6.CallObjectMethod))
                 });
                 let _ = cache::get_jni_call_byte_method().or_else(|| {
-                    cache::set_jni_call_byte_method((**jni_environment).CallByteMethod)
+                    cache::set_jni_call_byte_method(Some((**jni_environment).v1_6.CallByteMethod))
                 });
                 let _ = cache::get_jni_call_short_method().or_else(|| {
-                    cache::set_jni_call_short_method((**jni_environment).CallShortMethod)
+                    cache::set_jni_call_short_method(Some((**jni_environment).v1_6.CallShortMethod))
                 });
                 let _ = cache::get_jni_call_int_method()
-                    .or_else(|| cache::set_jni_call_int_method((**jni_environment).CallIntMethod));
+                    .or_else(|| cache::set_jni_call_int_method(Some((**jni_environment).v1_6.CallIntMethod)));
                 let _ = cache::get_jni_call_long_method().or_else(|| {
-                    cache::set_jni_call_long_method((**jni_environment).CallLongMethod)
+                    cache::set_jni_call_long_method(Some((**jni_environment).v1_6.CallLongMethod))
                 });
                 let _ = cache::get_jni_call_float_method().or_else(|| {
-                    cache::set_jni_call_float_method((**jni_environment).CallFloatMethod)
+                    cache::set_jni_call_float_method(Some((**jni_environment).v1_6.CallFloatMethod))
                 });
                 let _ = cache::get_jni_call_double_method().or_else(|| {
-                    cache::set_jni_call_double_method((**jni_environment).CallDoubleMethod)
+                    cache::set_jni_call_double_method(Some((**jni_environment).v1_6.CallDoubleMethod))
                 });
                 let _ = cache::get_jni_call_void_method().or_else(|| {
-                    cache::set_jni_call_void_method((**jni_environment).CallVoidMethod)
+                    cache::set_jni_call_void_method(Some((**jni_environment).v1_6.CallVoidMethod))
                 });
                 let _ = cache::get_jni_call_static_object_method().or_else(|| {
                     cache::set_jni_call_static_object_method(
-                        (**jni_environment).CallStaticObjectMethod,
+                        Some((**jni_environment).v1_6.CallStaticObjectMethod),
                     )
                 });
                 let _ = cache::get_jni_new_object_array().or_else(|| {
-                    cache::set_jni_new_object_array((**jni_environment).NewObjectArray)
+                    cache::set_jni_new_object_array(Some((**jni_environment).v1_6.NewObjectArray))
                 });
                 let _ = cache::get_jni_set_object_array_element().or_else(|| {
                     cache::set_jni_set_object_array_element(
-                        (**jni_environment).SetObjectArrayElement,
+                        Some((**jni_environment).v1_6.SetObjectArrayElement),
                     )
                 });
                 let ec = cache::get_jni_exception_check()
-                    .or_else(|| cache::set_jni_exception_check((**jni_environment).ExceptionCheck));
+                    .or_else(|| cache::set_jni_exception_check(Some((**jni_environment).v1_6.ExceptionCheck)));
                 let ed = cache::get_jni_exception_describe().or_else(|| {
-                    cache::set_jni_exception_describe((**jni_environment).ExceptionDescribe)
+                    cache::set_jni_exception_describe(Some((**jni_environment).v1_6.ExceptionDescribe))
                 });
                 let exclear = cache::get_jni_exception_clear()
-                    .or_else(|| cache::set_jni_exception_clear((**jni_environment).ExceptionClear));
+                    .or_else(|| cache::set_jni_exception_clear(Some((**jni_environment).v1_6.ExceptionClear)));
                 let _ = cache::get_jni_delete_local_ref().or_else(|| {
-                    cache::set_jni_delete_local_ref((**jni_environment).DeleteLocalRef)
+                    cache::set_jni_delete_local_ref(Some((**jni_environment).v1_6.DeleteLocalRef))
                 });
                 let _ = cache::get_jni_delete_global_ref().or_else(|| {
-                    cache::set_jni_delete_global_ref((**jni_environment).DeleteGlobalRef)
+                    cache::set_jni_delete_global_ref(Some((**jni_environment).v1_6.DeleteGlobalRef))
                 });
                 let _ = cache::get_jni_new_global_ref()
-                    .or_else(|| cache::set_jni_new_global_ref((**jni_environment).NewGlobalRef));
+                    .or_else(|| cache::set_jni_new_global_ref(Some((**jni_environment).v1_6.NewGlobalRef)));
                 let _ = cache::get_jni_throw_new()
-                    .or_else(|| cache::set_jni_throw_new((**jni_environment).ThrowNew));
+                    .or_else(|| cache::set_jni_throw_new(Some((**jni_environment).v1_6.ThrowNew)));
                 let _ = cache::get_is_same_object()
-                    .or_else(|| cache::set_is_same_object((**jni_environment).IsSameObject));
+                    .or_else(|| cache::set_is_same_object(Some((**jni_environment).v1_6.IsSameObject)));
 
                 match (ec, ed, exclear) {
                     (Some(ec), Some(ed), Some(exclear)) => {
@@ -1366,21 +1362,14 @@ impl Jvm {
                     &mut created_vms_size,
                 );
                 if retjint == JNI_OK {
-                    match (**buffer[0]).AttachCurrentThread {
-                        Some(act) => {
-                            let mut jni_environment: *mut JNIEnv = ptr::null_mut();
-                            (act)(
-                                buffer[0],
-                                (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
-                                ptr::null_mut(),
-                            );
-                            Some(jni_environment)
-                        }
-                        None => {
-                            error("Cannot attach the thread to the JVM");
-                            None
-                        }
-                    }
+                    let act = (**buffer[0]).v1_4.AttachCurrentThread;
+                    let mut jni_environment: *mut JNIEnv = ptr::null_mut();
+                    (act)(
+                        buffer[0],
+                        (&mut jni_environment as *mut *mut JNIEnv) as *mut *mut c_void,
+                        ptr::null_mut(),
+                    );
+                    Some(jni_environment)
                 } else {
                     error(&format!(
                         "Error while retrieving the created JVMs: {}",
@@ -1415,14 +1404,8 @@ impl Jvm {
                     &mut created_vms_size,
                 );
                 if retjint == JNI_OK {
-                    match (**buffer[0]).DetachCurrentThread {
-                        Some(dct) => {
-                            (dct)(buffer[0]);
-                        }
-                        None => {
-                            warn("Cannot detach the thread from the JVM");
-                        }
-                    }
+                    let dct = (**buffer[0]).v1_4.DetachCurrentThread;
+                    (dct)(buffer[0]);
                 } else {
                     warn(&format!(
                         "Error while retrieving the created JVMs: {}",

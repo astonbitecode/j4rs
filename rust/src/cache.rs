@@ -34,13 +34,13 @@ pub(crate) const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
 pub(crate) const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
 
 pub(crate) type JniGetMethodId = unsafe extern "system" fn(
-    *mut *const jni_sys::JNINativeInterface_,
+    *mut jni_sys::JNIEnv,
     *mut jni_sys::_jobject,
     *const c_char,
     *const c_char,
 ) -> *mut jni_sys::_jmethodID;
 pub(crate) type JniGetStaticMethodId = unsafe extern "system" fn(
-    *mut *const jni_sys::JNINativeInterface_,
+    *mut jni_sys::JNIEnv,
     *mut jni_sys::_jobject,
     *const c_char,
     *const c_char,
@@ -92,7 +92,7 @@ pub(crate) type JniNewObjectArray = unsafe extern "system" fn(
     init: jobject,
 ) -> jobjectArray;
 pub(crate) type JniSetObjectArrayElement = unsafe extern "system" fn(
-    *mut *const jni_sys::JNINativeInterface_,
+    *mut jni_sys::JNIEnv,
     *mut jni_sys::_jobject,
     i32,
     *mut jni_sys::_jobject,
