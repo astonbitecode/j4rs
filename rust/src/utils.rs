@@ -204,7 +204,7 @@ mod utils_unit_tests {
         assert!(
             primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string())
         );
-        assert!(primitive_of(&InvocationArg::try_from(1_32).unwrap()) == Some("int".to_string()));
+        assert!(primitive_of(&InvocationArg::try_from(1_i32).unwrap()) == Some("int".to_string()));
         assert!(primitive_of(&InvocationArg::try_from(1_i64).unwrap()) == Some("long".to_string()));
         assert!(
             primitive_of(&InvocationArg::try_from(0.1_f32).unwrap()) == Some("float".to_string())

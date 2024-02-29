@@ -721,7 +721,7 @@ mod inv_arg_unit_tests {
             .unwrap()
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(1_32)
+        assert!(InvocationArg::try_from(1_i32)
             .unwrap()
             .into_primitive()
             .is_ok());
