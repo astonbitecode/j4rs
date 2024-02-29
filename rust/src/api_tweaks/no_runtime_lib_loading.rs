@@ -15,7 +15,6 @@ use std::os::raw::c_void;
 
 use jni_sys::{jclass, jint, jsize, JNIEnv, JNI_CreateJavaVM, JNI_GetCreatedJavaVMs, JavaVM};
 
-use crate::errors::opt_to_res;
 use crate::{errors, utils};
 
 #[link(name = "jvm")]
@@ -40,7 +39,7 @@ pub(crate) fn create_java_vm(
 pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     unsafe {
         let cstr = utils::to_c_string(classname);
-        let fc = opt_to_res((**env).FindClass)?;
+        let fc = (**env).v1_6.FindClass;
         let jc = (fc)(env, cstr);
         utils::drop_c_string(cstr);
         Ok(jc)
