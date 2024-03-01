@@ -116,17 +116,30 @@ public class NativeInstantiationImpl {
                         // Check each parameter type
                         Type typ = pts[i];
 
-                        if (typ instanceof ParameterizedType || typ instanceof WildcardType) {
-                            // For generic parameters, the type erasure makes the parameter be an
-                            // Object.class
-                            // Therefore, the argument is always matched
-                            matchedParams.add(true);
+                        if (typ instanceof ParameterizedType) {
+                            // The arg matches via the equals method. Eg. List<T>
+                            Type t = ((ParameterizedType)typ).getRawType();
+                            matchedParams.add(((Class<?>)t).isAssignableFrom(argTypes[i]));
                         } else if (typ instanceof GenericArrayType) {
                             // TODO: Improve by checking the actual types of the arrays?
                             matchedParams.add(argTypes[i].isArray());
                         } else if (typ instanceof Class) {
                             // In case of TypeVariable, the arg matches via the equals method
                             matchedParams.add(((Class<?>) typ).isAssignableFrom(argTypes[i]));
+                        } else if (typ instanceof WildcardType) {
+                            // Find the type and match. Eg. ? <?> ? extends String etc
+                            WildcardType wildcardType = (WildcardType) typ;
+                            Type t = null;
+                            Type[] upperBounds = wildcardType.getUpperBounds();
+                            if (upperBounds != null && upperBounds.length > 0 && !Object.class.equals(upperBounds[0])) {
+                                t = upperBounds[0];
+                            } else {
+                                Type[] lowerBounds = wildcardType.getLowerBounds();
+                                if (lowerBounds != null && lowerBounds.length > 0 && !Object.class.equals(lowerBounds[0])) {
+                                    t = lowerBounds[0];
+                                }
+                            }
+                            matchedParams.add(((Class<?>)t).isAssignableFrom(argTypes[i]));
                         } else {
                             // We get to this point if the TypeVariable is a generic, which is defined with
                             // a name like T, U etc.
