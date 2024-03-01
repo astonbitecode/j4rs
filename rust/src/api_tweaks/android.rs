@@ -71,13 +71,14 @@ pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jc
         let found = match CLASSES.lock() {
             Ok(g) => match g.get(classname) {
                 Some(j4rs_class) => Some(j4rs_class.class.clone()),
-                None => ((**env).FindClass).map(|fc| {
+                None => {
+                    let fc = (**env).v1_6.FindClass;
                     let cstr = utils::to_c_string(classname);
                     let found: jclass = (fc)(env, cstr);
                     add_to_cache = true;
                     utils::drop_c_string(cstr);
-                    found
-                }),
+                    Some(found)
+                },
             },
             Err(error) => {
                 error!("Could not get the lock for the jclass cache: {:?}", error);
