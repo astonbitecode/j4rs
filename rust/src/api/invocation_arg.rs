@@ -653,15 +653,13 @@ impl TryFrom<Result<InvocationArg, errors::J4RsError>> for InvocationArg {
 mod inv_arg_unit_tests {
     use serde::Deserialize;
 
-    use crate::{errors, JvmBuilder, MavenArtifact};
+    use crate::{api, errors, JvmBuilder, MavenArtifact};
 
     use super::*;
 
-    include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
-
     fn create_tests_jvm() -> errors::Result<Jvm> {
         let jvm: Jvm = JvmBuilder::new().build()?;
-        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
+        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", api::j4rs_version()).as_str()))?;
         Ok(jvm)
     }
 

@@ -184,15 +184,13 @@ pub(crate) fn get_class_name(inv_arg: &InvocationArg) -> &str {
 mod utils_unit_tests {
     use std::convert::TryFrom;
 
-    use crate::{Jvm, JvmBuilder, MavenArtifact};
+    use crate::{api, Jvm, JvmBuilder, MavenArtifact};
 
     use super::*;
 
-    include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
-
     fn create_tests_jvm() -> errors::Result<Jvm> {
         let jvm: Jvm = JvmBuilder::new().build()?;
-        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
+        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", api::j4rs_version()).as_str()))?;
         Ok(jvm)
     }
 

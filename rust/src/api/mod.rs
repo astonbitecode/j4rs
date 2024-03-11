@@ -1887,8 +1887,6 @@ impl<'a> ToString for JavaOpt<'a> {
 mod api_unit_tests {
     use super::*;
 
-    include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
-
     fn create_tests_jvm() -> errors::Result<Jvm> {
         let jvm: Jvm = JvmBuilder::new().build()?;
         jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
