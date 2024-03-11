@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use crate::api::instance::{Instance, InstanceReceiver};
 use crate::api::{
-    CLASS_J4RS_EVENT_HANDLER, CLASS_J4RS_FXML_LOADER, CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT,
+    self, CLASS_J4RS_EVENT_HANDLER, CLASS_J4RS_FXML_LOADER, CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT,
 };
 use crate::errors;
 use crate::errors::{opt_to_res, J4RsError};
@@ -125,29 +125,29 @@ impl JavaFxSupport for Jvm {
             };
 
             println!("cargo:warning=javafx dependencies deployment...");
-            maven("org.openjfx:javafx-base:13.0.2", self);
+            maven(&format!("org.openjfx:javafx-base:{}", api::java_fx_version()), self);
             maven(
-                &format!("org.openjfx:javafx-base:13.0.2:{}", classifier),
+                &format!("org.openjfx:javafx-base:{}:{}", api::java_fx_version(), classifier),
                 self,
             );
-            maven("org.openjfx:javafx-controls:13.0.2", self);
+            maven(&format!("org.openjfx:javafx-controls:{}", api::java_fx_version()), self);
             maven(
-                &format!("org.openjfx:javafx-controls:13.0.2:{}", classifier),
+                &format!("org.openjfx:javafx-controls:{}:{}", api::java_fx_version(), classifier),
                 self,
             );
-            maven("org.openjfx:javafx-fxml:13.0.2", self);
+            maven(&format!("org.openjfx:javafx-fxml:{}", api::java_fx_version()), self);
             maven(
-                &format!("org.openjfx:javafx-fxml:13.0.2:{}", classifier),
+                &format!("org.openjfx:javafx-fxml:{}:{}", api::java_fx_version(), classifier),
                 self,
             );
-            maven("org.openjfx:javafx-graphics:13.0.2", self);
+            maven(&format!("org.openjfx:javafx-graphics:{}", api::java_fx_version()), self);
             maven(
-                &format!("org.openjfx:javafx-graphics:13.0.2:{}", classifier),
+                &format!("org.openjfx:javafx-graphics:{}:{}", api::java_fx_version(), classifier),
                 self,
             );
-            maven("org.openjfx:javafx-media:13.0.2", self);
+            maven(&format!("org.openjfx:javafx-media:{}", api::java_fx_version()), self);
             maven(
-                &format!("org.openjfx:javafx-media:13.0.2:{}", classifier),
+                &format!("org.openjfx:javafx-media:{}:{}", api::java_fx_version(), classifier),
                 self,
             );
             println!("cargo:warning=javafx dependencies deployment completed...");

@@ -28,6 +28,7 @@ use sha2::{Digest, Sha256};
 
 // This is the version of the jar that should be used
 const VERSION: &'static str = "0.18.0-SNAPSHOT";
+const JAVA_FX_VERSION: &'static str = "19.0.2.1";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
@@ -61,11 +62,16 @@ fn generate_src(out_dir: &str) -> Result<(), J4rsBuildError> {
 
     let contents = format!(
         "
-fn j4rs_version() -> &'static str {{
+pub(crate) fn j4rs_version() -> &'static str {{
+    \"{}\"
+}}
+
+pub(crate) fn java_fx_version() -> &'static str {{
     \"{}\"
 }}
 ",
-        VERSION
+        VERSION,
+        JAVA_FX_VERSION
     );
 
     f.write_all(contents.as_bytes())?;

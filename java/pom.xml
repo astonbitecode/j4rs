@@ -63,7 +63,7 @@
         <build.plugins.plugin.version>3.11.0</build.plugins.plugin.version>
         <jackson.version>2.15.2</jackson.version>
         <mockito.version>5.4.0</mockito.version>
-        <javafx.version>13.0.2</javafx.version>
+        <javafx.version>19.0.2.1</javafx.version>
     </properties>
     <dependencies>
         <dependency>
