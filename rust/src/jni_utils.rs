@@ -457,27 +457,23 @@ pub(crate) unsafe fn string_from_jobject(
     }
 }
 
-pub fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
-    unsafe {
-        let s = (opt_to_res(cache::get_jni_get_string_utf_chars())?)(
-            jvm.jni_env,
-            java_string,
-            ptr::null_mut(),
-        ) as *mut c_char;
-        let rust_string = utils::to_rust_string(s);
-        (opt_to_res(cache::get_jni_release_string_utf_chars())?)(jvm.jni_env, java_string, s);
-        Jvm::do_return(jvm.jni_env, rust_string)
-    }
+pub unsafe fn jstring_to_rust_string(jvm: &Jvm, java_string: jstring) -> errors::Result<String> {
+    let s = (opt_to_res(cache::get_jni_get_string_utf_chars())?)(
+        jvm.jni_env,
+        java_string,
+        ptr::null_mut(),
+    ) as *mut c_char;
+    let rust_string = utils::to_rust_string(s);
+    (opt_to_res(cache::get_jni_release_string_utf_chars())?)(jvm.jni_env, java_string, s);
+    Jvm::do_return(jvm.jni_env, rust_string)
 }
 
-pub(crate) fn throw_exception(message: &str, jni_env: *mut JNIEnv) -> errors::Result<i32> {
-    unsafe {
-        let message_jstring = utils::to_c_string_struct(message);
-        let i = (opt_to_res(cache::get_jni_throw_new())?)(
-            jni_env,
-            cache::get_invocation_exception_class()?,
-            message_jstring.as_ptr(),
-        );
-        Ok(i)
-    }
+pub(crate) unsafe fn throw_exception(message: &str, jni_env: *mut JNIEnv) -> errors::Result<i32> {
+    let message_jstring = utils::to_c_string_struct(message);
+    let i = (opt_to_res(cache::get_jni_throw_new())?)(
+        jni_env,
+        cache::get_invocation_exception_class()?,
+        message_jstring.as_ptr(),
+    );
+    Ok(i)
 }

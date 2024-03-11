@@ -123,7 +123,7 @@ pub extern "C" fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRus
 }
 
 #[no_mangle]
-pub extern "C" fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustFutureSupport_failcallbacktochannel(
+pub unsafe extern "C" fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRustFutureSupport_failcallbacktochannel(
     _jni_env: *mut JNIEnv,
     _class: *const c_void,
     ptr_address: jlong,

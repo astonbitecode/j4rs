@@ -210,7 +210,7 @@ mod utils_unit_tests {
         assert_eq!(primitive_of(&InvocationArg::try_from(false)?), Some("boolean".to_string()));
         assert_eq!(primitive_of(&InvocationArg::try_from(1_i8)?), Some("byte".to_string()));
         assert_eq!(primitive_of(&InvocationArg::try_from(1_i16)?), Some("short".to_string()));
-        assert_eq!(primitive_of(&InvocationArg::try_from(1_32)?), Some("int".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(1_i32)?), Some("int".to_string()));
         assert_eq!(primitive_of(&InvocationArg::try_from(1_i64)?), Some("long".to_string()));
         assert_eq!(primitive_of(&InvocationArg::try_from(0.1_f32)?), Some("float".to_string()));
         assert_eq!(primitive_of(&InvocationArg::try_from(0.1_f64)?), Some("double".to_string()));
