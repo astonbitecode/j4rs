@@ -61,7 +61,7 @@
         <dependency>
             <groupId>io.github.astonbitecode</groupId>
             <artifactId>j4rs</artifactId>
-            <version>${project.version}</version>
+            <version>0.17.2</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
