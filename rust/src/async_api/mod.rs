@@ -110,13 +110,21 @@ impl Jvm {
 #[cfg(test)]
 mod api_unit_tests {
     use super::*;
-    use crate::JvmBuilder;
+    use crate::{JvmBuilder, MavenArtifact};
     use tokio;
+
+    include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
+
+    fn create_tests_jvm() -> errors::Result<Jvm> {
+        let jvm: Jvm = JvmBuilder::new().build()?;
+        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
+        Ok(jvm)
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn invoke_async_success_w_tokio() -> errors::Result<()> {
         let s_test = "j4rs_rust";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let instance = jvm
             .invoke_async(
@@ -133,7 +141,7 @@ mod api_unit_tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn invoke_async_failure_w_tokio() -> errors::Result<()> {
         let s_test = "Boom!";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let instance_result = jvm
             .invoke_async(
@@ -151,7 +159,7 @@ mod api_unit_tests {
     #[async_std::test]
     async fn invoke_async_success_w_async_std() -> errors::Result<()> {
         let s_test = "j4rs_rust";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let instance = jvm
             .invoke_async(
@@ -168,7 +176,7 @@ mod api_unit_tests {
     #[async_std::test]
     async fn invoke_async_failure_w_async_std() -> errors::Result<()> {
         let s_test = "Boom!";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let instance_result = jvm
             .invoke_async(
@@ -187,7 +195,7 @@ mod api_unit_tests {
     async fn invoke_async_and_reuse_instance() -> errors::Result<()> {
         let s_test1 = "j4rs_rust1";
         let s_test2 = "j4rs_rust2";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let instance1 = jvm
             .invoke_async(
@@ -213,7 +221,7 @@ mod api_unit_tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn invoke_static_async() -> errors::Result<()> {
         let s_test = "j4rs_rust";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.static_class("org.astonbitecode.j4rs.tests.MyTest")?;
         let instance = jvm
             .invoke_async(
@@ -230,7 +238,7 @@ mod api_unit_tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn invoke_async_error_before_executing_async() -> errors::Result<()> {
         let s_test = "j4rs_rust";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let instance_result = jvm
             .invoke_async(&my_test, "echo", &[InvocationArg::try_from(s_test)?])
@@ -242,7 +250,7 @@ mod api_unit_tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn invoke_void_future() -> errors::Result<()> {
         let s_test = "j4rs_rust";
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let instance_res = jvm
             .invoke_async(
@@ -257,7 +265,7 @@ mod api_unit_tests {
 
     // #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn _memory_leaks_invoke_async_instances() -> errors::Result<()> {
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         for i in 0..100000000 {
             if i % 100000 == 0 {

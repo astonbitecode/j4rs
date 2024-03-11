@@ -184,35 +184,39 @@ pub(crate) fn get_class_name(inv_arg: &InvocationArg) -> &str {
 mod utils_unit_tests {
     use std::convert::TryFrom;
 
-    use crate::JvmBuilder;
+    use crate::{Jvm, JvmBuilder, MavenArtifact};
 
     use super::*;
 
-    #[test]
-    fn get_class_name_test() {
-        let _jvm = JvmBuilder::new().build().unwrap();
-        assert!(get_class_name(&InvocationArg::try_from(false).unwrap()) == "java.lang.Boolean");
+    include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
+
+    fn create_tests_jvm() -> errors::Result<Jvm> {
+        let jvm: Jvm = JvmBuilder::new().build()?;
+        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
+        Ok(jvm)
     }
 
     #[test]
-    fn primitive_of_test() {
-        let _jvm = JvmBuilder::new().build().unwrap();
-        assert!(
-            primitive_of(&InvocationArg::try_from(false).unwrap()) == Some("boolean".to_string())
-        );
-        assert!(primitive_of(&InvocationArg::try_from(1_i8).unwrap()) == Some("byte".to_string()));
-        assert!(
-            primitive_of(&InvocationArg::try_from(1_i16).unwrap()) == Some("short".to_string())
-        );
-        assert!(primitive_of(&InvocationArg::try_from(1_32).unwrap()) == Some("int".to_string()));
-        assert!(primitive_of(&InvocationArg::try_from(1_i64).unwrap()) == Some("long".to_string()));
-        assert!(
-            primitive_of(&InvocationArg::try_from(0.1_f32).unwrap()) == Some("float".to_string())
-        );
-        assert!(
-            primitive_of(&InvocationArg::try_from(0.1_f64).unwrap()) == Some("double".to_string())
-        );
-        assert!(primitive_of(&InvocationArg::try_from('c').unwrap()) == Some("char".to_string()));
-        assert!(primitive_of(&InvocationArg::try_from(()).unwrap()) == Some("void".to_string()));
+    fn get_class_name_test() -> errors::Result<()> {
+        let _jvm = create_tests_jvm()?;
+        assert!(get_class_name(&InvocationArg::try_from(false)?) == "java.lang.Boolean");
+
+        Ok(())
+    }
+
+    #[test]
+    fn primitive_of_test() -> errors::Result<()> {
+        let _jvm = create_tests_jvm()?;
+        assert_eq!(primitive_of(&InvocationArg::try_from(false)?), Some("boolean".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(1_i8)?), Some("byte".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(1_i16)?), Some("short".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(1_32)?), Some("int".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(1_i64)?), Some("long".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(0.1_f32)?), Some("float".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(0.1_f64)?), Some("double".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from('c')?), Some("char".to_string()));
+        assert_eq!(primitive_of(&InvocationArg::try_from(())?), Some("void".to_string()));
+
+        Ok(())
     }
 }

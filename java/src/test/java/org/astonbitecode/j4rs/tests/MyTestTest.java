@@ -17,13 +17,29 @@ package org.astonbitecode.j4rs.tests;
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
+import org.astonbitecode.j4rs.errors.InvocationException;
 import org.junit.Ignore;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 
 public class MyTestTest {
+    private static ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    @Ignore
+    public Future<String> getStringWithFuture(String string) {
+        return executor.submit(() -> string);
+    }
+
+    public Future<String> getErrorWithFuture(String message) {
+        return executor.submit(() -> {
+            throw new InvocationException(message);
+        });
+    }
+
     public void dummy() {
         Instance instance = NativeInstantiationImpl.instantiate("org.astonbitecode.j4rs.tests.MyTest");
         IntStream.range(0, 1000000000).forEach(i -> {
@@ -34,5 +50,19 @@ public class MyTestTest {
             InvocationArg ia = new InvocationArg("java.lang.String", "\"astring\"");
             instance.invoke("getMyWithArgs", ia);
         });
+    }
+
+    public Integer addInts(Integer... args) {
+        int result = Arrays.stream(args).reduce(0, (a, b) -> {
+            return a + b;
+        });
+        return result;
+    }
+
+    public Integer addInts(List<Integer> args) {
+        int result = args.stream().reduce(0, (a, b) -> {
+            return a + b;
+        });
+        return result;
     }
 }

@@ -18,7 +18,7 @@ import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
 import org.astonbitecode.j4rs.errors.InvocationException;
-import org.astonbitecode.j4rs.tests.MyTest;
+import org.astonbitecode.j4rs.tests.MyTestTest;
 import org.astonbitecode.j4rs.utils.*;
 import org.junit.Test;
 
@@ -252,7 +252,7 @@ public class JsonInvocationImplTest {
 
     @Test
     public void invokeAsyncSuccess() throws InterruptedException {
-        JsonInvocationImpl instance = spy(new JsonInvocationImpl(new MyTest(), MyTest.class));
+        JsonInvocationImpl instance = spy(new JsonInvocationImpl(new MyTestTest(), MyTestTest.class));
         TestCallback callback = new TestCallback();
         doReturn(callback).when(instance).newCallbackForAsyncToChannel(anyLong());
         String testString = "j4rs";
@@ -269,7 +269,7 @@ public class JsonInvocationImplTest {
 
     @Test
     public void invokeAsyncFailure() throws InterruptedException {
-        JsonInvocationImpl instance = spy(new JsonInvocationImpl(new MyTest(), MyTest.class));
+        JsonInvocationImpl instance = spy(new JsonInvocationImpl(new MyTestTest(), MyTestTest.class));
         TestCallback callback = new TestCallback();
         doReturn(callback).when(instance).newCallbackForAsyncToChannel(anyLong());
         String errorString = "Boom!";
@@ -286,7 +286,7 @@ public class JsonInvocationImplTest {
 
     @Test
     public void invokeOverloaded() throws ClassNotFoundException {
-        JsonInvocationImpl instance = new JsonInvocationImpl(new MyTest(), MyTest.class);
+        JsonInvocationImpl instance = new JsonInvocationImpl(new MyTestTest(), MyTestTest.class);
         Integer[] arr = {1, 2, 3};
         // The addInts method is overloaded. One method accepts a List and one an array
         // Invoke the method accepting an array first

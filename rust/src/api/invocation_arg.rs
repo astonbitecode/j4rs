@@ -53,8 +53,8 @@ impl InvocationArg {
     /// Creates a InvocationArg::Rust.
     /// This is default for the Args that are created from the Rust code.
     pub fn new<T>(arg: &T, class_name: &str) -> InvocationArg
-    where
-        T: Serialize + Any,
+        where
+            T: Serialize + Any,
     {
         Self::new_2(
             arg,
@@ -68,8 +68,8 @@ impl InvocationArg {
         class_name: &str,
         jni_env: *mut JNIEnv,
     ) -> errors::Result<InvocationArg>
-    where
-        T: Serialize + Any,
+        where
+            T: Serialize + Any,
     {
         let arg_any = arg as &dyn Any;
         if let Some(a) = arg_any.downcast_ref::<String>() {
@@ -262,7 +262,7 @@ impl InvocationArg {
             Null::List => JavaClass::List,
             Null::Of(class_name) => JavaClass::Of(class_name),
         }
-        .into();
+            .into();
         Ok(InvocationArg::RustBasic {
             instance: Instance::new(ptr::null_mut(), class_name)?,
             class_name: class_name.to_string(),
@@ -623,8 +623,8 @@ impl<'a> TryFrom<&'a f64> for InvocationArg {
 }
 
 impl<'a, T: 'static> TryFrom<(&'a [T], &'a str)> for InvocationArg
-where
-    T: Serialize,
+    where
+        T: Serialize,
 {
     type Error = errors::J4RsError;
     fn try_from(vec: (&'a [T], &'a str)) -> errors::Result<InvocationArg> {
@@ -653,107 +653,111 @@ impl TryFrom<Result<InvocationArg, errors::J4RsError>> for InvocationArg {
 mod inv_arg_unit_tests {
     use serde::Deserialize;
 
-    use crate::JvmBuilder;
+    use crate::{errors, JvmBuilder, MavenArtifact};
 
     use super::*;
 
-    #[test]
-    fn new_invocation_arg() {
-        let _jvm = JvmBuilder::new().build().unwrap();
-        let _ = InvocationArg::new(&"something".to_string(), "somethingelse");
+    include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
+
+    fn create_tests_jvm() -> errors::Result<Jvm> {
+        let jvm: Jvm = JvmBuilder::new().build()?;
+        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
+        Ok(jvm)
     }
 
     #[test]
-    fn invocation_arg_try_from_basic_types() {
-        let _jvm = JvmBuilder::new().build().unwrap();
-        validate_type(InvocationArg::try_from("str").unwrap(), "java.lang.String");
+    fn new_invocation_arg() -> errors::Result<()> {
+        let _jvm = create_tests_jvm()?;
+        let _ = InvocationArg::new(&"something".to_string(), "somethingelse");
+
+        Ok(())
+    }
+
+    #[test]
+    fn invocation_arg_try_from_basic_types() -> errors::Result<()> {
+        let _jvm = create_tests_jvm()?;
+        validate_type(InvocationArg::try_from("str")?, "java.lang.String");
         validate_type(
-            InvocationArg::try_from("str".to_string()).unwrap(),
+            InvocationArg::try_from("str".to_string())?,
             "java.lang.String",
         );
-        validate_type(InvocationArg::try_from(true).unwrap(), "java.lang.Boolean");
-        validate_type(InvocationArg::try_from(1_i8).unwrap(), "java.lang.Byte");
-        validate_type(InvocationArg::try_from('c').unwrap(), "java.lang.Character");
-        validate_type(InvocationArg::try_from(1_i16).unwrap(), "java.lang.Short");
-        validate_type(InvocationArg::try_from(1_i64).unwrap(), "java.lang.Long");
-        validate_type(InvocationArg::try_from(0.1_f32).unwrap(), "java.lang.Float");
+        validate_type(InvocationArg::try_from(true)?, "java.lang.Boolean");
+        validate_type(InvocationArg::try_from(1_i8)?, "java.lang.Byte");
+        validate_type(InvocationArg::try_from('c')?, "java.lang.Character");
+        validate_type(InvocationArg::try_from(1_i16)?, "java.lang.Short");
+        validate_type(InvocationArg::try_from(1_i64)?, "java.lang.Long");
+        validate_type(InvocationArg::try_from(0.1_f32)?, "java.lang.Float");
         validate_type(
-            InvocationArg::try_from(0.1_f64).unwrap(),
+            InvocationArg::try_from(0.1_f64)?,
             "java.lang.Double",
         );
-        validate_type(InvocationArg::try_from(()).unwrap(), "void");
+        validate_type(InvocationArg::try_from(())?, "void");
 
         validate_type(
-            InvocationArg::try_from(&"str".to_string()).unwrap(),
+            InvocationArg::try_from(&"str".to_string())?,
             "java.lang.String",
         );
-        validate_type(InvocationArg::try_from("str").unwrap(), "java.lang.String");
-        validate_type(InvocationArg::try_from(&true).unwrap(), "java.lang.Boolean");
-        validate_type(InvocationArg::try_from(&1_i8).unwrap(), "java.lang.Byte");
+        validate_type(InvocationArg::try_from("str")?, "java.lang.String");
+        validate_type(InvocationArg::try_from(&true)?, "java.lang.Boolean");
+        validate_type(InvocationArg::try_from(&1_i8)?, "java.lang.Byte");
         validate_type(
-            InvocationArg::try_from(&'c').unwrap(),
+            InvocationArg::try_from(&'c')?,
             "java.lang.Character",
         );
-        validate_type(InvocationArg::try_from(&1_i16).unwrap(), "java.lang.Short");
-        validate_type(InvocationArg::try_from(&1_i64).unwrap(), "java.lang.Long");
+        validate_type(InvocationArg::try_from(&1_i16)?, "java.lang.Short");
+        validate_type(InvocationArg::try_from(&1_i64)?, "java.lang.Long");
         validate_type(
-            InvocationArg::try_from(&0.1_f32).unwrap(),
+            InvocationArg::try_from(&0.1_f32)?,
             "java.lang.Float",
         );
         validate_type(
-            InvocationArg::try_from(&0.1_f64).unwrap(),
+            InvocationArg::try_from(&0.1_f64)?,
             "java.lang.Double",
         );
+
+        Ok(())
     }
 
     #[test]
-    fn invocation_into_primitive() {
-        let _jvm: Jvm = JvmBuilder::new().build().unwrap();
-        assert!(InvocationArg::try_from(false)
-            .unwrap()
+    fn invocation_into_primitive() -> errors::Result<()> {
+        let _jvm: Jvm = create_tests_jvm()?;
+        assert!(InvocationArg::try_from(false)?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(1_i8)
-            .unwrap()
+        assert!(InvocationArg::try_from(1_i8)?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(1_i16)
-            .unwrap()
+        assert!(InvocationArg::try_from(1_i16)?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(1_32)
-            .unwrap()
+        assert!(InvocationArg::try_from(1_32)?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(1_i64)
-            .unwrap()
+        assert!(InvocationArg::try_from(1_i64)?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(0.1_f32)
-            .unwrap()
+        assert!(InvocationArg::try_from(0.1_f32)?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(0.1_f64)
-            .unwrap()
+        assert!(InvocationArg::try_from(0.1_f64)?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from('c')
-            .unwrap()
+        assert!(InvocationArg::try_from('c')?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from(())
-            .unwrap()
+        assert!(InvocationArg::try_from(())?
             .into_primitive()
             .is_ok());
-        assert!(InvocationArg::try_from("string")
-            .unwrap()
+        assert!(InvocationArg::try_from("string")?
             .into_primitive()
             .is_err());
+
+        Ok(())
     }
 
     #[test]
-    fn invocation_arg_for_custom_types() {
-        let jvm = JvmBuilder::new().build().unwrap();
+    fn invocation_arg_for_custom_types() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
 
         let my_bean = MyBean {
             someString: "My String In A Bean".to_string(),
@@ -761,14 +765,14 @@ mod inv_arg_unit_tests {
         };
         let ia = InvocationArg::new(&my_bean, "org.astonbitecode.j4rs.tests.MyBean");
 
-        let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
-            .unwrap();
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
         let string_instance = jvm.invoke(&test_instance, "getTheString", &[ia]).unwrap();
 
         let rust_string: String = jvm.to_rust(string_instance).unwrap();
 
         assert!(&rust_string == "My String In A Bean");
+
+        Ok(())
     }
 
     #[derive(Serialize, Deserialize, Debug)]

@@ -1634,6 +1634,7 @@ impl<'a> JvmBuilder<'a> {
             let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath
             let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
+            let j4rs_testing_jar_to_use = format!("j4rs-testing-{}.jar", j4rs_version());
             // Filter out possible incorrect jars of j4rs
             let filtered_jars: Vec<String> = all_jars
                 .into_iter()
@@ -1642,7 +1643,7 @@ impl<'a> JvmBuilder<'a> {
                         .split(MAIN_SEPARATOR)
                         .last()
                         .unwrap_or(jar_full_path);
-                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use)
+                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use) || jarname.ends_with(&j4rs_testing_jar_to_use)
                 })
                 .collect();
             let cp_string = filtered_jars.join(utils::classpath_sep());
@@ -1870,24 +1871,36 @@ impl<'a> ToString for JavaOpt<'a> {
 mod api_unit_tests {
     use super::*;
 
+    include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
+
+    fn create_tests_jvm() -> errors::Result<Jvm> {
+        let jvm: Jvm = JvmBuilder::new().build()?;
+        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
+        Ok(jvm)
+    }
+
     #[test]
-    fn jvm_builder() {
-        let res = JvmBuilder::new().build();
+    fn jvm_builder() -> errors::Result<()> {
+        let res = create_tests_jvm();
         assert!(res.is_ok());
         let one_more_res = JvmBuilder::already_initialized();
         assert!(one_more_res.is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_copy_j4rs_libs_under() {
+    fn test_copy_j4rs_libs_under() -> errors::Result<()> {
         let newdir = "./newdir";
-        Jvm::copy_j4rs_libs_under(newdir).unwrap();
+        Jvm::copy_j4rs_libs_under(newdir)?;
 
         let _ = fs_extra::remove_items(&vec![newdir]);
+
+        Ok(())
     }
 
     #[test]
-    fn test_select() {
+    fn test_select() -> errors::Result<()> {
         let (tx1, rx1) = channel();
         let ir1 = InstanceReceiver::new(rx1, 0);
         let (_tx2, rx2) = channel();
@@ -1907,13 +1920,15 @@ mod api_unit_tests {
         let (index1, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
         let (index2, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
         let (index3, _) = Jvm::select(&[&ir1, &ir2, &ir3]).unwrap();
-        assert!(index1 == 2);
-        assert!(index2 == 0);
-        assert!(index3 == 2);
+        assert_eq!(index1, 2);
+        assert_eq!(index2, 0);
+        assert_eq!(index3, 2);
+
+        Ok(())
     }
 
     #[test]
-    fn test_select_timeout() {
+    fn test_select_timeout() -> errors::Result<()> {
         let (tx1, rx1) = channel();
         let ir1 = InstanceReceiver::new(rx1, 0);
         let (tx2, rx2) = channel();
@@ -1927,15 +1942,17 @@ mod api_unit_tests {
         });
 
         let d = time::Duration::from_millis(500);
-        let (index1, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
-        let (index2, _) = Jvm::select_timeout(&[&ir1, &ir2], &d).unwrap();
+        let (index1, _) = Jvm::select_timeout(&[&ir1, &ir2], &d)?;
+        let (index2, _) = Jvm::select_timeout(&[&ir1, &ir2], &d)?;
         assert!(Jvm::select_timeout(&[&ir1, &ir2], &d).is_err());
-        assert!(index1 == 0);
-        assert!(index2 == 1);
+        assert_eq!(index1, 0);
+        assert_eq!(index2, 1);
+
+        Ok(())
     }
 
     #[test]
-    fn test_java_class_creation() {
+    fn test_java_class_creation() -> errors::Result<()> {
         assert_eq!(JavaClass::Void.get_class_str(), "void");
         assert_eq!(JavaClass::String.get_class_str(), CLASS_STRING);
         assert_eq!(JavaClass::Boolean.get_class_str(), CLASS_BOOLEAN);
@@ -1951,101 +1968,97 @@ mod api_unit_tests {
             JavaClass::Of("a.java.Class").get_class_str(),
             "a.java.Class"
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_int_to_rust() {
-        let jvm = JvmBuilder::new().build().unwrap();
+    fn test_int_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
         let rust_value: i32 = 3;
-        let ia = InvocationArg::try_from(rust_value)
-            .unwrap()
-            .into_primitive()
-            .unwrap();
-        let java_instance = jvm.create_instance(CLASS_INTEGER, &[ia]).unwrap();
-        let java_primitive_instance = jvm.invoke(&java_instance, "intValue", &[]).unwrap();
-        let rust_value_from_java: i32 = jvm.to_rust(java_instance).unwrap();
+        let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
+        let java_instance = jvm.create_instance(CLASS_INTEGER, &[ia])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "intValue", &[])?;
+        let rust_value_from_java: i32 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
-        let rust_value_from_java: i32 = jvm.to_rust(java_primitive_instance).unwrap();
+        let rust_value_from_java: i32 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
     }
 
     #[test]
-    fn test_byte_to_rust() {
-        let jvm = JvmBuilder::new().build().unwrap();
+    fn test_byte_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
         let rust_value: i8 = 3;
-        let ia = InvocationArg::try_from(rust_value)
-            .unwrap()
-            .into_primitive()
-            .unwrap();
-        let java_instance = jvm.create_instance(CLASS_BYTE, &[ia]).unwrap();
-        let java_primitive_instance = jvm.invoke(&java_instance, "byteValue", &[]).unwrap();
-        let rust_value_from_java: i8 = jvm.to_rust(java_instance).unwrap();
+        let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
+        let java_instance = jvm.create_instance(CLASS_BYTE, &[ia])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "byteValue", &[])?;
+        let rust_value_from_java: i8 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
-        let rust_value_from_java: i8 = jvm.to_rust(java_primitive_instance).unwrap();
+        let rust_value_from_java: i8 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
     }
 
     #[test]
-    fn test_short_to_rust() {
-        let jvm = JvmBuilder::new().build().unwrap();
+    fn test_short_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
         let rust_value: i16 = 3;
-        let ia = InvocationArg::try_from(rust_value)
-            .unwrap()
-            .into_primitive()
-            .unwrap();
-        let java_instance = jvm.create_instance(CLASS_SHORT, &[ia]).unwrap();
-        let java_primitive_instance = jvm.invoke(&java_instance, "shortValue", &[]).unwrap();
-        let rust_value_from_java: i16 = jvm.to_rust(java_instance).unwrap();
+        let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
+        let java_instance = jvm.create_instance(CLASS_SHORT, &[ia])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "shortValue", &[])?;
+        let rust_value_from_java: i16 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
-        let rust_value_from_java: i16 = jvm.to_rust(java_primitive_instance).unwrap();
+        let rust_value_from_java: i16 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
     }
 
     #[test]
-    fn test_long_to_rust() {
-        let jvm = JvmBuilder::new().build().unwrap();
+    fn test_long_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
         let rust_value: i64 = 3;
-        let ia = InvocationArg::try_from(rust_value)
-            .unwrap()
-            .into_primitive()
-            .unwrap();
-        let java_instance = jvm.create_instance(CLASS_LONG, &[ia]).unwrap();
-        let java_primitive_instance = jvm.invoke(&java_instance, "longValue", &[]).unwrap();
-        let rust_value_from_java: i64 = jvm.to_rust(java_instance).unwrap();
+        let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
+        let java_instance = jvm.create_instance(CLASS_LONG, &[ia])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "longValue", &[])?;
+        let rust_value_from_java: i64 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
-        let rust_value_from_java: i64 = jvm.to_rust(java_primitive_instance).unwrap();
+        let rust_value_from_java: i64 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
     }
 
     #[test]
-    fn test_float_to_rust() {
-        let jvm = JvmBuilder::new().build().unwrap();
+    fn test_float_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
         let rust_value: f32 = 3.3;
-        let ia = InvocationArg::try_from(rust_value)
-            .unwrap()
-            .into_primitive()
-            .unwrap();
-        let java_instance = jvm.create_instance(CLASS_FLOAT, &[ia]).unwrap();
-        let java_primitive_instance = jvm.invoke(&java_instance, "floatValue", &[]).unwrap();
-        let rust_value_from_java: f32 = jvm.to_rust(java_instance).unwrap();
+        let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
+        let java_instance = jvm.create_instance(CLASS_FLOAT, &[ia])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "floatValue", &[])?;
+        let rust_value_from_java: f32 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
-        let rust_value_from_java: f32 = jvm.to_rust(java_primitive_instance).unwrap();
+        let rust_value_from_java: f32 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
     }
 
     #[test]
-    fn test_double_to_rust() {
-        let jvm = JvmBuilder::new().build().unwrap();
+    fn test_double_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
         let rust_value: f64 = 3.3;
-        let ia = InvocationArg::try_from(rust_value)
-            .unwrap()
-            .into_primitive()
-            .unwrap();
-        let java_instance = jvm.create_instance(CLASS_DOUBLE, &[ia]).unwrap();
-        let java_primitive_instance = jvm.invoke(&java_instance, "doubleValue", &[]).unwrap();
-        let rust_value_from_java: f64 = jvm.to_rust(java_instance).unwrap();
+        let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
+        let java_instance = jvm.create_instance(CLASS_DOUBLE, &[ia])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "doubleValue", &[])?;
+        let rust_value_from_java: f64 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
-        let rust_value_from_java: f64 = jvm.to_rust(java_primitive_instance).unwrap();
+        let rust_value_from_java: f64 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
     }
 }
