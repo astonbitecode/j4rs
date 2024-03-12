@@ -69,6 +69,9 @@ let system_out_field = jvm.field(&system_class, "out");
 // Retrieve an enum constant using the field
 let access_mode_enum = jvm.static_class("java.nio.file.AccessMode")?;
 let access_mode_write = jvm.field(&access_mode_enum, "WRITE")?;
+
+// Retrieve a nested class (note the use of `$` instead of `.`)
+let state = jvm.static_class("java.lang.Thread$State")?;
 ```
 
 `Instances`s of Java `List`s and `Map`s can be created with the `java_list` and `java_map` functions:
