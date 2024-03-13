@@ -14,6 +14,13 @@
  */
 package org.astonbitecode.j4rs.api;
 
+/**
+ * Representation for a json value
+ */
 public interface JsonValue extends ObjectValue {
+    /**
+     * Returns the json representation
+     * @return The json representation
+     */
     String getJson();
 }

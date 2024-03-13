@@ -14,10 +14,25 @@
  */
 package org.astonbitecode.j4rs.api;
 
+/**
+ * Represents an object for j4rs needs
+ */
 public interface ObjectValue {
+    /**
+     * Returns the Object
+     * @return An object instance
+     */
     Object getObject();
 
+    /**
+     * Returns the {@link Class} of the Object
+     * @return A {@link Class}
+     */
     Class<?> getObjectClass();
 
+    /**
+     * Returns the name of the Object Class
+     * @return A String representing the name of the Object Class
+     */
     String getObjectClassName();
 }

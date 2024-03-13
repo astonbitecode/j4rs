@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
+@SuppressWarnings("unused")
 public class J4rsFxmlLoader {
     /**
      * Loads a FXML and returns an {@link FxController} for it.
@@ -34,7 +35,9 @@ public class J4rsFxmlLoader {
      * @param fxmlPath The location of the FXML file.
      * @return A {@link FxController} instance.
      * @throws IOException In case that the FXML cannot be loaded.
+     * @throws FxException In case the fxml cannot be loaded
      */
+    @SuppressWarnings("unused")
     public static FxController loadFxml(Stage stage, String fxmlPath) throws IOException, FxException {
         FXMLLoader loader = new FXMLLoader();
         URL resurl = new File(fxmlPath).toURI().toURL();

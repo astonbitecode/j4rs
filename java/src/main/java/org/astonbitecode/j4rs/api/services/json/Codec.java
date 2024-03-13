@@ -17,11 +17,35 @@ package org.astonbitecode.j4rs.api.services.json;
 
 import org.astonbitecode.j4rs.api.services.json.exceptions.JsonCodecException;
 
+/**
+ * Codec to perform JSON encoding and decoding
+ */
 public interface Codec {
 
+    /**
+     * Deocde a json String to an Object
+     * @param json The json
+     * @param className A class name
+     * @return An Object
+     * @param <T> The type of the object
+     * @throws JsonCodecException In case something goes wrong
+     */
     <T> T decode(String json, String className) throws JsonCodecException;
 
+    /**
+     * Encode an object to json String
+     * @param obj The Object to encode
+     * @return A json String
+     * @param <T> The type of the Object
+     * @throws JsonCodecException In case something goes wrong
+     */
     <T> String encode(T obj) throws JsonCodecException;
 
+    /**
+     * Decodes a json String to an array of Objects
+     * @param json The json String to decode
+     * @return An array of Objects
+     * @throws JsonCodecException In case something goes wrong
+     */
     Object[] decodeArrayContents(String json) throws JsonCodecException;
 }

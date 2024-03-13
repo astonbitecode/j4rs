@@ -18,6 +18,11 @@ import java.io.File;
 import java.net.MalformedURLException;
 
 public class DeployUtils {
+    /**
+     * Adds a jar to the classpath
+     * @param fullJarPath The full path of the jar to add
+     * @throws MalformedURLException In case the path is not valid
+     */
     static void addToClasspath(String fullJarPath) throws MalformedURLException {
         if (ClassLoader.getSystemClassLoader().getClass().isAssignableFrom(J4rsClassLoader.class)) {
             J4rsClassLoader classLoader = (J4rsClassLoader) ClassLoader.getSystemClassLoader();

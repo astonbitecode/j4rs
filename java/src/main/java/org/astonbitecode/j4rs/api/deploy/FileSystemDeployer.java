@@ -20,18 +20,33 @@ import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 
+/**
+ * Deploys a resource to be used by j4rs.
+ */
 public class FileSystemDeployer {
     private final String deployTarget;
 
+    /**
+     * Generates a default {@link FileSystemDeployer} with target the working directory
+     */
     public FileSystemDeployer() {
         this(".");
     }
 
+    /**
+     * Generates a {@link FileSystemDeployer} defining the deploy target
+     * @param deployTarget The target path for the deployments
+     */
     public FileSystemDeployer(String deployTarget) {
         this.deployTarget = deployTarget;
         new File(deployTarget).mkdirs();
     }
 
+    /**
+     * Deploys a resource. The resource may be automatically added to the classpath for j4rs
+     * @param path The path of the resource
+     * @throws IOException In case the path is invalid or the resource cannot be accessed
+     */
     public void deploy(String path) throws IOException {
         File jarFile = new File(path);
         ReadableByteChannel readableByteChannel = Channels.newChannel(jarFile.toURI().toURL().openStream());

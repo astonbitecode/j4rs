@@ -56,6 +56,7 @@ public class NativeInstantiationImplTest {
 
     @Test
     public void generateArgObjectsFromJava() throws Exception {
+        @SuppressWarnings("rawtypes")
         InvocationArg arg = new InvocationArg(Dummy.class.getName(), new JsonInvocationImpl(new Dummy(), Dummy.class));
         InvocationArg[] args = { arg };
 

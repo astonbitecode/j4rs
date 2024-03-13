@@ -14,15 +14,33 @@
  */
 package org.astonbitecode.j4rs.api.jfx.errors;
 
+/**
+ * Exception thrown if a JavaFX component is not found
+ */
 public class ComponentNotFoundException extends Exception {
+    /**
+     * Instantiate with a message
+     * @param message A message
+     */
     public ComponentNotFoundException(String message) {
         super(message);
     }
 
+    /**
+     * Instantiate with a {@link Throwable}
+     * @param throwable The Throwable
+     */
+    @SuppressWarnings("unused")
     public ComponentNotFoundException(Throwable throwable) {
         super(throwable);
     }
 
+    /**
+     * Instantiate with a message and a {@link Throwable}
+     * @param message The message
+     * @param throwable The throwable
+     */
+    @SuppressWarnings("unused")
     public ComponentNotFoundException(String message, Throwable throwable) {
         super(message, throwable);
     }

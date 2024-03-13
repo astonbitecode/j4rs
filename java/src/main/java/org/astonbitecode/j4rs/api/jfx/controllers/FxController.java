@@ -30,6 +30,7 @@ public interface FxController extends Initializable {
      *
      * @param callback The callback to add.
      */
+    @SuppressWarnings("unused")
     void addControllerInitializedCallback(NativeCallbackToRustChannelSupport callback);
 
     /**
@@ -39,7 +40,9 @@ public interface FxController extends Initializable {
      * @param id        The id of the callback.
      * @param handler   The handler to add.
      * @param eventType The EventType for Event to handle.
+     * @throws ComponentNotFoundException in case the handler is not found
      */
+    @SuppressWarnings("unused")
     void addEventHandler(String id, EventHandler<Event> handler, EventType<?> eventType)
             throws ComponentNotFoundException;
 

@@ -20,14 +20,21 @@ import org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Manipulates a JavaFX application
+ */
 public class FxApplication extends Application {
-    private static AtomicReference<NativeCallbackToRustChannelSupport> callback = new AtomicReference<>(null);
+    private static final AtomicReference<NativeCallbackToRustChannelSupport> callback = new AtomicReference<>(null);
 
     @Override
     public void start(Stage fxStage) {
         callback.get().doCallback(fxStage);
     }
 
+    /**
+     * Sets a channel callback for j4rs
+     * @param nativeCallbackToRustChannelSupport A {@link NativeCallbackToRustChannelSupport}
+     */
     static void setCallback(NativeCallbackToRustChannelSupport nativeCallbackToRustChannelSupport) {
         callback.getAndSet(nativeCallbackToRustChannelSupport);
     }
