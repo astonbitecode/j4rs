@@ -536,7 +536,7 @@ impl Jvm {
     pub fn java_list<'a>(
         &self,
         inner_class_name: impl Into<&'a str>,
-        inv_args: Vec<impl TryInto<InvocationArg, Error = J4RsError>>,
+        inv_args: Vec<impl TryInto<InvocationArg, Error=J4RsError>>,
     ) -> errors::Result<Instance> {
         let v: Result<Vec<InvocationArg>, J4RsError> =
             inv_args.into_iter().map(|arg| arg.try_into()).collect();
@@ -624,8 +624,8 @@ impl Jvm {
         key_class_name: impl Into<&'a str>,
         value_class_name: impl Into<&'a str>,
         inv_args: HashMap<
-            impl TryInto<InvocationArg, Error = J4RsError>,
-            impl TryInto<InvocationArg, Error = J4RsError>,
+            impl TryInto<InvocationArg, Error=J4RsError>,
+            impl TryInto<InvocationArg, Error=J4RsError>,
         >,
     ) -> errors::Result<Instance> {
         let mut inv_args_results: Vec<Result<InvocationArg, J4RsError>> =
@@ -1104,8 +1104,8 @@ impl Jvm {
 
     /// Returns the Rust representation of the provided instance, boxed
     pub fn to_rust_boxed<T>(&self, instance: Instance) -> errors::Result<Box<T>>
-    where
-        T: DeserializeOwned + Any,
+        where
+            T: DeserializeOwned + Any,
     {
         // Define the macro inside the function in order to have access to &self
         macro_rules! rust_box_from_java_object {
@@ -1172,7 +1172,7 @@ impl Jvm {
                 rust_box_from_java_object!(jni_utils::f32_from_jobject)
             } else if t_type == TypeId::of::<f64>()
                 && (JavaClass::Double.get_class_str() == class_name
-                    || PRIMITIVE_DOUBLE == class_name)
+                || PRIMITIVE_DOUBLE == class_name)
             {
                 rust_box_from_java_object!(jni_utils::f64_from_jobject)
             } else {
@@ -1185,15 +1185,15 @@ impl Jvm {
 
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T>
-    where
-        T: DeserializeOwned + Any,
+        where
+            T: DeserializeOwned + Any,
     {
         self.to_rust_boxed(instance).map(|v| *v)
     }
 
     pub fn to_rust_deserialized<T>(&self, instance: Instance) -> errors::Result<T>
-    where
-        T: DeserializeOwned + Any,
+        where
+            T: DeserializeOwned + Any,
     {
         unsafe {
             debug("Invoking the getJson method");

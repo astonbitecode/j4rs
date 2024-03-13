@@ -14,9 +14,19 @@
  */
 package org.astonbitecode.j4rs.api.deploy;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.channels.Channels;
@@ -52,7 +62,6 @@ public class SimpleMavenDeployer {
 
     public void deploy(String groupId, String artifactId, String version, String qualifier) throws IOException {
         String jarName = generateArtifactName(artifactId, version, qualifier);
-        String urlString = generateUrlTagret(groupId, artifactId, version, jarName);
         boolean searchRemoteRepo = true;
 
         if (!artifactExists(groupId, artifactId, version, qualifier)) {
@@ -66,6 +75,7 @@ public class SimpleMavenDeployer {
                 }
             }
             if (searchRemoteRepo) {
+                String urlString = generateUrlTagret(groupId, artifactId, version, jarName);
                 ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(urlString).openStream());
                 try (FileOutputStream fileOutputStream = new FileOutputStream(fullJarDeployPath)) {
                     fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
@@ -102,8 +112,30 @@ public class SimpleMavenDeployer {
         return jarName.toString();
     }
 
-    String generateUrlTagret(String groupId, String artifactId, String version, String jarName) {
-        return String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, jarName);
+    String generateUrlTagret(String groupId, String artifactId, String version, String jarName) throws IOException {
+        if (version.endsWith("-SNAPSHOT")) {
+            String latestSnapshotJarName = getLatestSnapshotName(groupId, artifactId, version);
+            return  String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, latestSnapshotJarName);
+        } else {
+            return String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, jarName);
+        }
+    }
+
+    private String getLatestSnapshotName(String groupId, String artifactId, String version) throws IOException {
+        String metadataXmlUrl = String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, "maven-metadata.xml");
+        ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(metadataXmlUrl).openStream());
+        try (InputStream inputStream = Channels.newInputStream(readableByteChannel)) {
+            DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = builderFactory.newDocumentBuilder();
+            Document xmlDocument = builder.parse(inputStream);
+            XPath xPath = XPathFactory.newInstance().newXPath();
+            String timestamp = xPath.evaluate("/metadata/versioning/snapshot/timestamp", xmlDocument);
+            String buildNumber = xPath.evaluate("/metadata/versioning/snapshot/buildNumber", xmlDocument);
+            String snapshotVersion = version.replace("SNAPSHOT", (timestamp + "-" + buildNumber));
+            return  String.format("%s-%s.jar", artifactId, snapshotVersion);
+        } catch (XPathExpressionException | ParserConfigurationException | SAXException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     String generatePathTagret(String base, String groupId, String artifactId, String version, String jarName) {

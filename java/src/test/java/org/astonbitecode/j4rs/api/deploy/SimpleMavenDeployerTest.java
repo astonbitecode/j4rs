@@ -35,7 +35,7 @@ public class SimpleMavenDeployerTest {
     }
 
     @Test
-    public void generateUrlTagret() {
+    public void generateUrlTagret() throws IOException {
         assert (new SimpleMavenDeployer("https://my.artifactory.com", true, "depltarget")
                 .generateUrlTagret("io.github.astonbitecode", "j4rs", "0.5.1", "j4rs-0.5.1.jar")
                 .equals("https://my.artifactory.com/io/github/astonbitecode/j4rs/0.5.1/j4rs-0.5.1.jar"));

@@ -18,6 +18,7 @@ use std::path::PathBuf;
 use crate::utils;
 
 const MAVEN_CENTRAL: &'static str = "MavenCentral::https://repo.maven.apache.org/maven2";
+const OSS_SNAPSHOTS: &'static str = "OssSnapshots::https://oss.sonatype.org/content/repositories/snapshots";
 
 thread_local! {
     static MAVEN_SETTINGS: RefCell<MavenSettings> = RefCell::new(MavenSettings::default());
@@ -159,6 +160,7 @@ impl MavenSettings {
     pub fn new(repos: Vec<MavenArtifactRepo>) -> MavenSettings {
         let mut repos = repos;
         repos.push(MavenArtifactRepo::from(MAVEN_CENTRAL));
+        repos.push(MavenArtifactRepo::from(OSS_SNAPSHOTS));
         MavenSettings { repos }
     }
 }
