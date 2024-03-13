@@ -59,6 +59,7 @@
         <maven.source.plugin.version>3.3.0</maven.source.plugin.version>
         <maven.javadoc.plugin.version>3.5.0</maven.javadoc.plugin.version>
         <maven.assembly.plugin.version>3.6.0</maven.assembly.plugin.version>
+        <maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
         <logback.version>1.3.8</logback.version>
         <build.plugins.plugin.version>3.11.0</build.plugins.plugin.version>
         <jackson.version>2.15.2</jackson.version>
@@ -123,6 +124,14 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven.resources.plugin.version}</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${build.plugins.plugin.version}</version>
                 <executions>
@@ -134,6 +143,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <encoding>UTF-8</encoding>
                     <source>1.8</source>
                     <target>1.8</target>
                 </configuration>

@@ -14,8 +14,6 @@
  */
 package org.astonbitecode.j4rs.api.instantiation;
 
-import javafx.scene.Scene;
-import javafx.scene.layout.StackPane;
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.invocation.JsonInvocationImpl;
@@ -32,7 +30,7 @@ public class NativeInstantiationImplTest {
     public void constructorMatches() throws Exception {
         String className = Dummy.class.getName();
 
-        GeneratedArg[] generatedArgs1 = { new GeneratedArg(Integer.class, new Integer(11)) };
+        GeneratedArg[] generatedArgs1 = { new GeneratedArg(Integer.class, Integer.parseInt("11")) };
         NativeInstantiationImpl.CreatedInstance createdInstance1 = NativeInstantiationImpl.createInstance(className,
                 generatedArgs1);
         assert (createdInstance1.getObject() instanceof Dummy);
@@ -52,7 +50,7 @@ public class NativeInstantiationImplTest {
     public void noConstructorFound() throws Exception {
         String className = Dummy.class.getName();
 
-        GeneratedArg[] generatedArgs = { new GeneratedArg(Long.class, new Long(11)) };
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Long.class, Long.parseLong("11")) };
         NativeInstantiationImpl.createInstance(className, generatedArgs);
     }
 
@@ -91,7 +89,7 @@ public class NativeInstantiationImplTest {
     @Test
     public void createJavaArraySuccess() throws Exception {
         String className = Integer.class.getName();
-        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, new Integer(11)) };
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, Integer.parseInt("11")) };
         NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className,
                 generatedArgs, NativeInstantiationImpl.J4rsCollectionType.Array);
         assert (createdInstance.getClazz().getName().equals("[Ljava.lang.Integer;"));
@@ -100,7 +98,7 @@ public class NativeInstantiationImplTest {
     @Test
     public void createJavaListSuccess() throws Exception {
         String className = Integer.class.getName();
-        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, new Integer(11)) };
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, Integer.parseInt("11")) };
         NativeInstantiationImpl.CreatedInstance createdInstance = NativeInstantiationImpl.createCollection(className,
                 generatedArgs, NativeInstantiationImpl.J4rsCollectionType.List);
         assert (List.class.isAssignableFrom(createdInstance.getClazz()));
@@ -109,7 +107,7 @@ public class NativeInstantiationImplTest {
     @Test(expected = IllegalArgumentException.class)
     public void createJavaArrayFailure() throws Exception {
         String className = Integer.class.getName();
-        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, new Integer(11)),
+        GeneratedArg[] generatedArgs = { new GeneratedArg(Integer.class, Integer.parseInt("11")),
                 new GeneratedArg(String.class, "this is a string") };
         NativeInstantiationImpl.createCollection(className, generatedArgs,
                 NativeInstantiationImpl.J4rsCollectionType.Array);
