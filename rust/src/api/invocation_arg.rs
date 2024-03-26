@@ -50,6 +50,12 @@ pub enum InvocationArg {
 }
 
 impl InvocationArg {
+
+    /// Return an empty slice of `InvocationArg`s
+    pub fn empty<'a>() -> &'a[InvocationArg;0] {
+        &[]
+    }
+
     /// Creates a InvocationArg::Rust.
     /// This is default for the Args that are created from the Rust code.
     pub fn new<T>(arg: &T, class_name: &str) -> InvocationArg
@@ -763,7 +769,7 @@ mod inv_arg_unit_tests {
         };
         let ia = InvocationArg::new(&my_bean, "org.astonbitecode.j4rs.tests.MyBean");
 
-        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let string_instance = jvm.invoke(&test_instance, "getTheString", &[ia]).unwrap();
 
         let rust_string: String = jvm.to_rust(string_instance).unwrap();

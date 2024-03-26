@@ -36,20 +36,20 @@ let jvm = JvmBuilder::new().build()?;
 
 // Create a java.lang.String instance
 let string_instance = jvm.create_instance(
-"java.lang.String",     // The Java class to create an instance for
-&Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
+    "java.lang.String",     // The Java class to create an instance for
+    InvocationArg::empty(), // An array of `InvocationArg`s to use for the constructor call - empty for this example
 )?;
 
 // The instances returned from invocations and instantiations can be viewed as pointers to Java Objects.
 // They can be used for further Java calls.
 // For example, the following invokes the `isEmpty` method of the created java.lang.String instance
 let boolean_instance = jvm.invoke(
-&string_instance,       // The String instance created above
-"isEmpty",              // The method of the String instance to invoke
-&Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
+  &string_instance,       // The String instance created above
+  "isEmpty",              // The method of the String instance to invoke
+  InvocationArg::empty(), // The `InvocationArg`s to use for the invocation - empty for this example
 )?;
 
-// If we need to transform an `Instance` to Rust value, the `to_rust` should be called
+// If we need to transform an `Instance` to some Rust value, the `to_rust` should be called
 let rust_boolean: bool = jvm.to_rust(boolean_instance)?;
 println!("The isEmpty() method of the java.lang.String instance returned {}", rust_boolean);
 // The above prints:
@@ -57,9 +57,9 @@ println!("The isEmpty() method of the java.lang.String instance returned {}", ru
 
 // Static invocation
 let _static_invocation_result = jvm.invoke_static(
-"java.lang.System",     // The Java class to invoke
-"currentTimeMillis",    // The static method of the Java class to invoke
-&Vec::new(),            // The `InvocationArg`s to use for the invocation - empty for this example
+  "java.lang.System",     // The Java class to invoke
+  "currentTimeMillis",    // The static method of the Java class to invoke
+  InvocationArg::empty(), // The `InvocationArg`s to use for the invocation - empty for this example
 )?;
 
 // Access a field of a class
@@ -127,12 +127,20 @@ let my_vec: Vec<String> = vec![
 let i10 = InvocationArg::try_from(my_vec.as_slice())?;
 ```
 
+The `j4rs` apis accept `InvocationArg`s either as references, or values:
+
+```rust
+let inv_args = InvocationArg::try_from("arg from Rust")?;
+let _ = jvm.create_instance("java.lang.String", &[&inv_args])?; // Pass a reference
+let _ = jvm.create_instance("java.lang.String", &[inv_args])?;  // Move
+```
+
 The `Instance`s returned by j4rs can be transformed to `InvocationArg`s and be further used for invoking methods as well:
 
 ```rust
 let one_more_string_instance = jvm.create_instance(
-"java.lang.String",     // The Java class to create an instance for
-&Vec::new(),            // The `InvocationArg`s to use for the constructor call - empty for this example
+  "java.lang.String",     // The Java class to create an instance for
+  InvocationArg::empty(), // The `InvocationArg`s to use for the constructor call - empty for this example
 )?;
 
 let i11 = InvocationArg::try_from(one_more_string_instance)?;
@@ -143,7 +151,7 @@ To create an `InvocationArg` that represents a `null` Java value, use the `From`
 ```rust
 let null_string = InvocationArg::from(Null::String);                // A null String
 let null_integer = InvocationArg::from(Null::Integer);              // A null Integer
-let null_obj = InvocationArg::from(Null::Of("java.util.List"));    // A null object of any other class. E.g. List
+let null_obj = InvocationArg::from(Null::Of("java.util.List"));     // A null object of any other class. E.g. List
 ```
 
 ### Passing custom arguments from Rust to Java
@@ -237,7 +245,7 @@ We can invoke it like following:
 
 ```rust
 let s_test = "j4rs_rust";
-let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
 let instance = jvm.invoke_async(&my_test, "getStringWithFuture", &[InvocationArg::try_from(s_test)?]).await?;
 let string: String = jvm.to_rust(instance)?;
 assert_eq!(s_test, string);
@@ -270,7 +278,7 @@ let s1 = InvocationArg::try_from("string1")?;
 let s2 = InvocationArg::try_from("string2")?;
 let s3 = InvocationArg::try_from("string3")?;
 
-let arr_instance = jvm.create_java_array("java.lang.String", &vec![s1, s2, s3])?;
+let arr_instance = jvm.create_java_array("java.lang.String", &[s1, s2, s3])?;
 // Invoke the Arrays.asList(...) and retrieve a java.util.List<String>
 let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[InvocationArg::from(arr_instance)])?;
 ```
@@ -278,9 +286,9 @@ let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[Invocation
 ### Java Generics
 
 ```rust
-// Assuming that the following map_instance is a Map<String, Integer>
+// Assuming the following map_instance is a Map<String, Integer>
 // we may invoke its put method
-jvm.invoke(&map_instance, "put", &vec![InvocationArg::try_from("one")?, InvocationArg::try_from(1)?])?;
+jvm.invoke(&map_instance, "put", &[InvocationArg::try_from("one")?, InvocationArg::try_from(1)?])?;
 ```
 
 ### Java primitives
@@ -320,15 +328,15 @@ let jvm = JvmBuilder::new().build()?;
 
 // Create an instance
 let string_instance = jvm.create_instance(
-"java.lang.String",
-&vec![InvocationArg::try_from(" a string ")?],
+  "java.lang.String",
+  &[InvocationArg::try_from(" a string ")?],
 )?;
 
 // Perform chained operations on the instance
 let string_size: isize = jvm.chain(string_instance)
-.invoke("trim", &[])?
-.invoke("length", &[])?
-.to_rust()?;
+    .invoke("trim", InvocationArg::empty())?
+    .invoke("length", InvocationArg::empty())?
+    .to_rust()?;
 
 // Assert that the string was trimmed
 assert!(string_size == 8);
@@ -349,14 +357,14 @@ In order to initialize a channel that will provide Java callback values, the `Jv
 // (the class just needs to extend the 
 // `org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport`)
 let i = jvm.create_instance(
-"org.astonbitecode.j4rs.tests.MyTest",
-&Vec::new())?;
+  "org.astonbitecode.j4rs.tests.MyTest",
+  InvocationArg::empty())?;
 
 // Invoke the method
 let instance_receiver_res = jvm.invoke_to_channel(
-&i,                         // The instance to invoke asynchronously
-"performCallback",          // The method to invoke asynchronoysly
-&Vec::new()                 // The `InvocationArg`s to use for the invocation - empty for this example
+  &i,                         // The instance to invoke asynchronously
+  "performCallback",          // The method to invoke asynchronoysly
+  InvocationArg::empty()      // The `InvocationArg`s to use for the invocation - empty for this example
 );
 
 // Wait for the response to come
@@ -415,7 +423,7 @@ jvm.deploy_artifact(&MavenArtifact::from("io.my:library:1.2.3"))?;
 
 Maven artifacts are added automatically to the classpath and do not need to be explicitly added.
 
-A good practice is that the deployment of maven artifacts is done by build scripts, during the crate's compilation. This ensures that the classpath is properly populated during the actual Rust code execution.
+A good practice is that the deployment of maven artifacts is done by build scripts, during the crate's compilation. This ensures the classpath is properly populated during the actual Rust code execution.
 
 _Note: the deployment does not take care the transitive dependencies yet._
 
@@ -426,8 +434,8 @@ If we have one jar that needs to be accessed using `j4rs`, we need to add it in 
 ```rust
 let entry = ClasspathEntry::new("/home/myuser/dev/myjar-1.0.0.jar");
 let jvm: Jvm = JvmBuilder::new()
-.classpath_entry(entry)
-.build()?;
+    .classpath_entry(entry)
+    .build()?;
 ```
 
 ## j4rs Java library
@@ -438,7 +446,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.15.3</version>
+    <version>0.18.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -478,7 +486,8 @@ pub extern fn jni_onload(env: *mut JavaVM, _reserved: jobject) -> jint {
 Create an `Activity` and define your native methods normally, as described [here](#java-to-rust-support).
 
 Note:
-If you encounter any issues when using j4rs in Android, this may be caused by Java 8 compatibility problems. This is why there is a `Java 7` version of `j4rs`:
+If you encounter any issues when using j4rs in older Android versions, this may be caused by Java 8 compatibility problems. 
+This is why there is a `Java 7` version of `j4rs`:
 
 ```xml
 <dependency>
@@ -487,6 +496,8 @@ If you encounter any issues when using j4rs in Android, this may be caused by Ja
     <version>0.13.1-java7</version>
 </dependency>
 ```
+
+Update: Java 7 is no more supported. `j4rs` 0.13.1 is the last version.
 
 ## JavaFX support
 (v0.13.0 onwards)
@@ -529,31 +540,31 @@ let jvm = JvmBuilder::new().with_javafx_support().build()?;
 let stage = jvm.start_javafx_app()?.rx().recv()?;
 
 // Create a StackPane. Java code: StackPane root = new StackPane();
-let root = jvm.create_instance("javafx.scene.layout.StackPane", &[])?;
+let root = jvm.create_instance("javafx.scene.layout.StackPane", InvocationArg::empty())?;
 
 // Create the button. Java code: Button btn = new Button();
-let btn = jvm.create_instance("javafx.scene.control.Button", &[])?;
+let btn = jvm.create_instance("javafx.scene.control.Button", InvocationArg::empty())?;
 // Get the action channel for this button
 let btn_action_channel = jvm.get_javafx_event_receiver(&btn, FxEventType::ActionEvent_Action)?;
 // Set the text of the button. Java code: btn.setText("Say Hello World to Rust");
 jvm.invoke(&btn, "setText", &["A button that sends events to Rust".try_into()?])?;
 // Add the button to the GUI. Java code: root.getChildren().add(btn);
 jvm.chain(&root)?
-.invoke("getChildren", &[])?
-.invoke("add", &[btn.try_into()?])?
-.collect();
+  .invoke("getChildren", InvocationArg::empty())?
+  .invoke("add", &[btn.try_into()?])?
+  .collect();
 
 // Create a new Scene. Java code: Scene scene = new Scene(root, 300, 250);
 let scene = jvm.create_instance("javafx.scene.Scene", &[
-root.try_into()?,
-InvocationArg::try_from(300_f64)?.into_primitive()?,
-InvocationArg::try_from(250_f64)?.into_primitive()?])?;
+  root.try_into()?,
+  InvocationArg::try_from(300_f64)?.into_primitive()?,
+  InvocationArg::try_from(250_f64)?.into_primitive()?])?;
 // Set the title for the scene. Java code: stage.setTitle("Hello Rust world!");
 jvm.invoke(&stage, "setTitle", &["Hello Rust world!".try_into()?])?;
 // Set the scene in the stage. Java code: stage.setScene(scene);
 jvm.invoke(&stage, "setScene", &[scene.try_into()?])?;
 // Show the stage. Java code: stage.show();
-jvm.invoke(&stage, "show", &[])?;
+jvm.invoke(&stage, "show", InvocationArg::empty())?;
 
 ```
 
@@ -607,7 +618,7 @@ let stage = jvm.start_javafx_app()?.rx().recv()?;
 // Set the title for the scene. Java code: stage.setTitle("Hello Rust world!");
 jvm.invoke(&stage, "setTitle", &["Hello JavaFX from Rust!".try_into()?])?;
 // Show the stage. Java code: stage.show();
-jvm.invoke(&stage, "show", &[])?;
+jvm.invoke(&stage, "show", InvocationArg::empty())?;
 
 // Load a fxml. This returns an `FxController` which can be used in order to find Nodes by their id,
 // add Event Listeners and more.
@@ -662,8 +673,8 @@ Someone may specify a different [base_path](https://docs.rs/j4rs/0.13.0/j4rs/str
 
 ```rust
 let jvm_res = j4rs::JvmBuilder::new()
-.with_base_path("/opt/myapp")
-.build();
+  .with_base_path("/opt/myapp")
+  .build();
 ```
 
 The `base_path` defines the location of two directories that are needed for j4rs to work;
@@ -701,8 +712,8 @@ as long as the Jvm creation is done using the `with_base_path` method:
 
 ```rust
 let jvm_res = j4rs::JvmBuilder::new()
-.with_base_path("/opt/myapp")
-.build();
+  .with_base_path("/opt/myapp")
+  .build();
 ```
 
 ## FAQ

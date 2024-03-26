@@ -9,12 +9,12 @@ use criterion::{black_box, BenchmarkId};
 use j4rs::{self, Instance, InvocationArg, Jvm};
 
 fn do_instance_creation(jvm: &Jvm) -> Instance {
-    jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+    jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap()
 }
 
 fn do_invocation_w_no_args(jvm: &Jvm, instance: &Instance) -> Instance {
-    jvm.invoke(instance, "getMyString", &[]).unwrap()
+    jvm.invoke(instance, "getMyString", InvocationArg::empty()).unwrap()
 }
 
 fn do_invocation_w_string_args(jvm: &Jvm, instance: &Instance) -> Instance {
@@ -94,7 +94,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm
-        .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+        .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
     c.bench_function("invocations with no args and String result", move |b| {
         b.iter(|| do_invocation_w_no_args(black_box(&jvm), black_box(&instance)))
@@ -102,7 +102,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm
-        .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+        .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
     c.bench_function("invocations with String arg and String result", move |b| {
         b.iter(|| do_invocation_w_string_args(black_box(&jvm), black_box(&instance)))
@@ -110,7 +110,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm
-        .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+        .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
     c.bench_function(
         "invocations with Integer arg and Integer result",
@@ -119,7 +119,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm
-        .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+        .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
     c.bench_function(
         "invocations with String arg and String result transformed to Rust",
@@ -132,7 +132,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm
-        .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+        .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
     c.bench_function("to_rust_unboxed", move |b| {
         b.iter(|| use_to_rust_deserialized(black_box(&jvm), black_box(&instance)))
@@ -144,7 +144,7 @@ fn bench_create_java_objects_and_to_rust(c: &mut Criterion) {
 
     let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
     let instance = jvm
-        .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+        .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
 
     for i in 0..2 {

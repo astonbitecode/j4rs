@@ -22,6 +22,7 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::ptr;
 use std::sync::mpsc::channel;
 use std::{fs, thread, time};
+use std::borrow::Borrow;
 
 use fs_extra::dir::get_dir_content;
 use jni_sys::{
@@ -341,7 +342,7 @@ impl Jvm {
     pub fn create_instance(
         &self,
         class_name: &str,
-        inv_args: &[InvocationArg],
+        inv_args: &[impl Borrow<InvocationArg>],
     ) -> errors::Result<Instance> {
         debug(&format!(
             "Instantiating class {} using {} arguments",
@@ -370,7 +371,7 @@ impl Jvm {
             for i in 0..size {
                 // Create an InvocationArg Java Object
                 let inv_arg_java =
-                    inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
+                    (&inv_args[i as usize]).borrow().as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -447,7 +448,7 @@ impl Jvm {
     pub fn create_java_array(
         &self,
         class_name: &str,
-        inv_args: &[InvocationArg],
+        inv_args: &[impl Borrow<InvocationArg>],
     ) -> errors::Result<Instance> {
         debug(&format!(
             "Creating a java array of class {} with {} elements",
@@ -476,7 +477,7 @@ impl Jvm {
             for i in 0..size {
                 // Create an InvocationArg Java Object
                 let inv_arg_java =
-                    inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
+                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -739,7 +740,7 @@ impl Jvm {
         &self,
         instance: &Instance,
         method_name: &str,
-        inv_args: &[InvocationArg],
+        inv_args: &[impl Borrow<InvocationArg>],
     ) -> errors::Result<Instance> {
         debug(&format!(
             "Invoking method {} of class {} using {} arguments",
@@ -769,7 +770,7 @@ impl Jvm {
             for i in 0..size {
                 // Create an InvocationArg Java Object
                 let inv_arg_java =
-                    inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
+                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -851,6 +852,7 @@ impl Jvm {
             )
         }
     }
+
     /// Retrieves the field `field_name` of a static class.
     pub fn static_class_field(
         &self,
@@ -871,7 +873,7 @@ impl Jvm {
         &self,
         instance: &Instance,
         method_name: &str,
-        inv_args: &[InvocationArg],
+        inv_args: &[impl Borrow<InvocationArg>],
     ) -> errors::Result<InstanceReceiver> {
         debug(&format!("Invoking method {} of class {} using {} arguments. The result of the invocation will come via an InstanceReceiver", method_name, instance.class_name, inv_args.len()));
         unsafe {
@@ -905,7 +907,7 @@ impl Jvm {
             for i in 0..size {
                 // Create an InvocationArg Java Object
                 let inv_arg_java =
-                    inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
+                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -974,7 +976,7 @@ impl Jvm {
         &self,
         class_name: &str,
         method_name: &str,
-        inv_args: &[InvocationArg],
+        inv_args: &[impl Borrow<InvocationArg>],
     ) -> errors::Result<Instance> {
         debug(&format!(
             "Invoking static method {} of class {} using {} arguments",
@@ -1015,7 +1017,7 @@ impl Jvm {
             for i in 0..size {
                 // Create an InvocationArg Java Object
                 let inv_arg_java =
-                    inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
+                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -1992,7 +1994,7 @@ mod api_unit_tests {
         let rust_value: i32 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_INTEGER, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "intValue", &[])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "intValue", InvocationArg::empty())?;
         let rust_value_from_java: i32 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i32 = jvm.to_rust(java_primitive_instance)?;
@@ -2007,7 +2009,7 @@ mod api_unit_tests {
         let rust_value: i8 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_BYTE, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "byteValue", &[])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "byteValue", InvocationArg::empty())?;
         let rust_value_from_java: i8 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i8 = jvm.to_rust(java_primitive_instance)?;
@@ -2022,7 +2024,7 @@ mod api_unit_tests {
         let rust_value: i16 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_SHORT, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "shortValue", &[])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "shortValue", InvocationArg::empty())?;
         let rust_value_from_java: i16 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i16 = jvm.to_rust(java_primitive_instance)?;
@@ -2037,7 +2039,7 @@ mod api_unit_tests {
         let rust_value: i64 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_LONG, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "longValue", &[])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "longValue", InvocationArg::empty())?;
         let rust_value_from_java: i64 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i64 = jvm.to_rust(java_primitive_instance)?;
@@ -2052,7 +2054,7 @@ mod api_unit_tests {
         let rust_value: f32 = 3.3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_FLOAT, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "floatValue", &[])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "floatValue", InvocationArg::empty())?;
         let rust_value_from_java: f32 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: f32 = jvm.to_rust(java_primitive_instance)?;
@@ -2067,12 +2069,23 @@ mod api_unit_tests {
         let rust_value: f64 = 3.3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_DOUBLE, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "doubleValue", &[])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "doubleValue", InvocationArg::empty())?;
         let rust_value_from_java: f64 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: f64 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
 
+        Ok(())
+    }
+
+    #[test]
+    fn api_by_ref_or_value() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+
+        // Instantiate
+        let inv_arg1 = InvocationArg::try_from("some string")?;
+        let _ = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[&inv_arg1])?;
+        let _ = jvm.create_instance("java.lang.String", &[inv_arg1])?;
         Ok(())
     }
 }

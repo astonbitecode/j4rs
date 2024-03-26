@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::env;
 use std::path::PathBuf;
 
@@ -59,10 +59,10 @@ impl JavaFxSupport for Jvm {
     fn start_javafx_app(&self) -> errors::Result<InstanceReceiver> {
         let fx_callback = self.create_instance(
             "org.astonbitecode.j4rs.api.jfx.FxApplicationStartCallback",
-            &[],
+            InvocationArg::empty(),
         )?;
 
-        self.invoke_to_channel(&fx_callback, "setCallbackToApplicationAndLaunch", &[])
+        self.invoke_to_channel(&fx_callback, "setCallbackToApplicationAndLaunch", InvocationArg::empty())
     }
 
     /// Creates an instance receiver that will be receiving `Instance`s of events.
@@ -76,7 +76,7 @@ impl JavaFxSupport for Jvm {
         instance: &Instance,
         fx_event_type: FxEventType,
     ) -> errors::Result<InstanceReceiver> {
-        let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
+        let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, InvocationArg::empty())?;
         let btn_action_channel = self.init_callback_channel(&j4rs_event_handler)?;
 
         let (event_class, field) = fx_event_type_to_event_class_and_field(fx_event_type);
@@ -86,8 +86,8 @@ impl JavaFxSupport for Jvm {
             &instance,
             "addEventHandler",
             &[
-                event_type_instance.try_into()?,
-                j4rs_event_handler.try_into()?,
+                InvocationArg::try_from(event_type_instance)?,
+                InvocationArg::try_from(j4rs_event_handler)?,
             ],
         )?;
         Ok(btn_action_channel)
@@ -97,7 +97,7 @@ impl JavaFxSupport for Jvm {
     ///
     /// The instance passed as argument needs to be of class `javafx.stage.Stage`.
     fn on_close_event_receiver(&self, stage: &Instance) -> errors::Result<InstanceReceiver> {
-        let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
+        let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, InvocationArg::empty())?;
         let action_channel = self.init_callback_channel(&j4rs_event_handler)?;
         self.invoke(
             &stage,
@@ -164,7 +164,7 @@ impl JavaFxSupport for Jvm {
         let controller = self.invoke_static(
             CLASS_J4RS_FXML_LOADER,
             "loadFxml",
-            &[cloned.try_into()?, path_str.try_into()?],
+            &[InvocationArg::try_from(cloned)?, InvocationArg::try_from(path_str)?],
         )?;
         Ok(FxController::new(controller))
     }
@@ -194,12 +194,12 @@ impl FxController {
     /// JavaFX FXMLLoader will automatically do the call after the root element of the controller has been completely processed.
     pub fn on_initialized_callback(&self, jvm: &Jvm) -> errors::Result<InstanceReceiver> {
         let channel_support =
-            jvm.create_instance(CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT, &[])?;
+            jvm.create_instance(CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT, InvocationArg::empty())?;
         let instance_receiver = jvm.init_callback_channel(&channel_support);
         jvm.invoke(
             &self.controller,
             "addControllerInitializedCallback",
-            &[channel_support.try_into()?],
+            &[InvocationArg::try_from(channel_support)?],
         )?;
         instance_receiver
     }
@@ -211,7 +211,7 @@ impl FxController {
         fx_event_type: FxEventType,
         jvm: &Jvm,
     ) -> errors::Result<InstanceReceiver> {
-        let j4rs_event_handler = jvm.create_instance(CLASS_J4RS_EVENT_HANDLER, &[])?;
+        let j4rs_event_handler = jvm.create_instance(CLASS_J4RS_EVENT_HANDLER, InvocationArg::empty())?;
         let event_channel = jvm.init_callback_channel(&j4rs_event_handler)?;
         let (event_class, field) = fx_event_type_to_event_class_and_field(fx_event_type);
         let event_type_instance = jvm.static_class_field(&event_class, &field)?;
@@ -219,9 +219,9 @@ impl FxController {
             &self.controller,
             "addEventHandler",
             &[
-                node_id.try_into()?,
-                j4rs_event_handler.try_into()?,
-                event_type_instance.try_into()?,
+                InvocationArg::try_from(node_id)?,
+                InvocationArg::try_from(j4rs_event_handler)?,
+                InvocationArg::try_from(event_type_instance)?,
             ],
         )?;
         Ok(event_channel)

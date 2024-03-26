@@ -123,7 +123,7 @@ mod api_unit_tests {
     async fn invoke_async_success_w_tokio() -> errors::Result<()> {
         let s_test = "j4rs_rust";
         let jvm = create_tests_jvm()?;
-        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let instance = jvm
             .invoke_async(
                 &my_test,
@@ -140,7 +140,7 @@ mod api_unit_tests {
     async fn invoke_async_failure_w_tokio() -> errors::Result<()> {
         let s_test = "Boom!";
         let jvm = create_tests_jvm()?;
-        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let instance_result = jvm
             .invoke_async(
                 &my_test,
@@ -158,7 +158,7 @@ mod api_unit_tests {
     async fn invoke_async_success_w_async_std() -> errors::Result<()> {
         let s_test = "j4rs_rust";
         let jvm = create_tests_jvm()?;
-        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let instance = jvm
             .invoke_async(
                 &my_test,
@@ -175,7 +175,7 @@ mod api_unit_tests {
     async fn invoke_async_failure_w_async_std() -> errors::Result<()> {
         let s_test = "Boom!";
         let jvm = create_tests_jvm()?;
-        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let instance_result = jvm
             .invoke_async(
                 &my_test,
@@ -194,7 +194,7 @@ mod api_unit_tests {
         let s_test1 = "j4rs_rust1";
         let s_test2 = "j4rs_rust2";
         let jvm = create_tests_jvm()?;
-        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let instance1 = jvm
             .invoke_async(
                 &my_test,
@@ -237,7 +237,7 @@ mod api_unit_tests {
     async fn invoke_async_error_before_executing_async() -> errors::Result<()> {
         let s_test = "j4rs_rust";
         let jvm = create_tests_jvm()?;
-        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let instance_result = jvm
             .invoke_async(&my_test, "echo", &[InvocationArg::try_from(s_test)?])
             .await;
@@ -249,7 +249,7 @@ mod api_unit_tests {
     async fn invoke_void_future() -> errors::Result<()> {
         let s_test = "j4rs_rust";
         let jvm = create_tests_jvm()?;
-        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
         let instance_res = jvm
             .invoke_async(
                 &my_test,
@@ -264,7 +264,7 @@ mod api_unit_tests {
     // #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn _memory_leaks_invoke_async_instances() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
-        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])?;
+        let instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty() as &[InvocationArg; 0])?;
         for i in 0..100000000 {
             if i % 100000 == 0 {
                 println!("{}", i);

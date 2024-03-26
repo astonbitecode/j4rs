@@ -200,7 +200,7 @@ mod lib_unit_tests {
         };
 
         let static_invocation_result =
-            jvm.invoke_static("java.lang.System", "currentTimeMillis", &Vec::new());
+            jvm.invoke_static("java.lang.System", "currentTimeMillis", InvocationArg::empty());
         assert!(static_invocation_result.is_ok());
 
         Ok(())
@@ -211,13 +211,13 @@ mod lib_unit_tests {
         let jvm = create_tests_jvm()?;
         match jvm.create_instance(
             "org.astonbitecode.j4rs.tests.MySecondTest",
-            Vec::new().as_ref(),
+            InvocationArg::empty(),
         ) {
             Ok(i) => {
                 let instance_receiver_res = jvm.init_callback_channel(&i);
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res?;
-                assert!(jvm.invoke(&i, "performCallback", &vec![]).is_ok());
+                assert!(jvm.invoke(&i, "performCallback", InvocationArg::empty()).is_ok());
                 let res_chan = instance_receiver.rx().recv();
                 let i = res_chan?;
                 let res_to_rust = jvm.to_rust(i);
@@ -239,11 +239,11 @@ mod lib_unit_tests {
         let jvm = create_tests_jvm()?;
         match jvm.create_instance(
             "org.astonbitecode.j4rs.tests.MySecondTest",
-            Vec::new().as_ref(),
+            InvocationArg::empty(),
         ) {
             Ok(i) => {
                 let instance_receiver_res =
-                    jvm.invoke_to_channel(&i, "performCallback", Vec::new().as_ref());
+                    jvm.invoke_to_channel(&i, "performCallback", InvocationArg::empty());
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res?;
                 let res_chan = instance_receiver.rx().recv();
@@ -267,11 +267,11 @@ mod lib_unit_tests {
         let jvm = create_tests_jvm()?;
         match jvm.create_instance(
             "org.astonbitecode.j4rs.tests.MySecondTest",
-            Vec::new().as_ref(),
+            InvocationArg::empty(),
         ) {
             Ok(i) => {
                 let instance_receiver_res =
-                    jvm.invoke_to_channel(&i, "performTenCallbacks", Vec::new().as_ref());
+                    jvm.invoke_to_channel(&i, "performTenCallbacks", InvocationArg::empty());
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res?;
                 for _i in 0..10 {
@@ -298,11 +298,11 @@ mod lib_unit_tests {
         let jvm = create_tests_jvm()?;
         match jvm.create_instance(
             "org.astonbitecode.j4rs.tests.MySecondTest",
-            Vec::new().as_ref(),
+            InvocationArg::empty(),
         ) {
             Ok(i) => {
                 let instance_receiver_res =
-                    jvm.invoke_to_channel(&i, "performCallbackFromTenThreads", Vec::new().as_ref());
+                    jvm.invoke_to_channel(&i, "performCallbackFromTenThreads", InvocationArg::empty());
                 assert!(instance_receiver_res.is_ok());
                 let instance_receiver = instance_receiver_res?;
                 for _i in 0..10 {
@@ -330,12 +330,12 @@ mod lib_unit_tests {
         let jvm = create_tests_jvm()?;
         match jvm.create_instance(
             "org.astonbitecode.j4rs.tests.MySecondTest",
-            Vec::new().as_ref(),
+            InvocationArg::empty(),
         ) {
             Ok(instance) => {
                 for i in 0..100000000 {
                     let instance_receiver = jvm
-                        .invoke_to_channel(&instance, "performCallback", &[])
+                        .invoke_to_channel(&instance, "performCallback", InvocationArg::empty())
                         ?;
                     let thousand_millis = time::Duration::from_millis(1000);
                     let res = instance_receiver.rx().recv_timeout(thousand_millis);
@@ -360,7 +360,7 @@ mod lib_unit_tests {
         let jvm = create_tests_jvm()?;
         // Create a MyTest instance
         let i_result =
-            jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref());
+            jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty());
         assert!(i_result.is_ok());
         let i_arg = i_result?;
 
@@ -390,7 +390,7 @@ mod lib_unit_tests {
         for i in 0..100000000 {
             match jvm.create_instance(
                 "org.astonbitecode.j4rs.tests.MySecondTest",
-                Vec::new().as_ref(),
+                InvocationArg::empty(),
             ) {
                 Ok(instance) => {
                     if i % 100000 == 0 {
@@ -412,13 +412,14 @@ mod lib_unit_tests {
     //    #[ignore]
     fn _memory_leaks_invoke_instances() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
-        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty()) {
             Ok(instance) => {
+                let inv_arg = InvocationArg::try_from("tests")?;
                 for i in 0..100000000 {
                     if i % 100000 == 0 {
                         println!("{}", i);
                     }
-                    jvm.invoke(&instance, "getMyString", &[])?;
+                    jvm.invoke(&instance, "getMyWithArgs", &[&inv_arg])?;
                 }
             }
             Err(error) => {
@@ -436,7 +437,7 @@ mod lib_unit_tests {
     // #[ignore]
     fn _memory_leaks_invoke_instances_and_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
-        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty()) {
             Ok(instance) => {
                 for i in 0..100000000 {
                     let ret_instance = jvm
@@ -470,7 +471,7 @@ mod lib_unit_tests {
         for _ in 0..100 {
             string_arg_rust = format!("{}{}", string_arg_rust, "astring")
         }
-        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty()) {
             Ok(instance) => {
                 for i in 0..100000000 {
                     if i % 100000 == 0 {
@@ -499,7 +500,7 @@ mod lib_unit_tests {
                 let jvm = create_tests_jvm().unwrap();
                 match jvm.create_instance(
                     "org.astonbitecode.j4rs.tests.MySecondTest",
-                    Vec::new().as_ref(),
+                    InvocationArg::empty(),
                 ) {
                     Ok(_) => {
                         if i % 100000 == 0 {
@@ -535,7 +536,7 @@ mod lib_unit_tests {
     fn invoke_vec() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
 
-        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty()) {
             Ok(i) => {
                 // Test using InvocationArgs
                 let invocation_args = vec![
@@ -573,7 +574,7 @@ mod lib_unit_tests {
     fn invoke_map() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
 
-        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", Vec::new().as_ref()) {
+        match jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty()) {
             Ok(i) => {
                 let map = HashMap::from([("Potatoes", 3), ("Tomatoes", 33), ("Carrotoes", 333)]);
                 let map_instance = jvm
@@ -624,7 +625,7 @@ mod lib_unit_tests {
 
         let jh = thread::spawn(move || {
             let jvm = create_tests_jvm()?;
-            let res = jvm.invoke(&instance, "isEmpty", &Vec::new());
+            let res = jvm.invoke(&instance, "isEmpty", InvocationArg::empty());
             res
         });
 
@@ -763,7 +764,7 @@ mod lib_unit_tests {
             )
             ?;
 
-        let i = jvm.invoke(&test_instance, "getMyString", &[])?;
+        let i = jvm.invoke(&test_instance, "getMyString", InvocationArg::empty())?;
 
         let s: String = jvm.to_rust(i)?;
         assert!(s == "abc, def, ghi");
@@ -775,7 +776,7 @@ mod lib_unit_tests {
     fn variadic_string_method() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
 
         let s1 = InvocationArg::try_from("abc")?;
@@ -804,7 +805,7 @@ mod lib_unit_tests {
     fn variadic_int_method() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
 
         let s1 = InvocationArg::try_from(1)?;
@@ -874,7 +875,7 @@ mod lib_unit_tests {
                 &vec![InvocationArg::try_from("_is_appended")?],
             )
             ?
-            .invoke("length", &[])
+            .invoke("length", InvocationArg::empty())
             ?
             .collect();
 
@@ -902,7 +903,7 @@ mod lib_unit_tests {
                 &vec![InvocationArg::try_from("_is_appended")?],
             )
             ?
-            .invoke("length", &[])
+            .invoke("length", InvocationArg::empty())
             ?
             .to_rust()
             ?;
@@ -920,7 +921,7 @@ mod lib_unit_tests {
 
         let _: isize = jvm
             .into_chain(static_invocation)
-            .invoke("currentTimeMillis", &[])
+            .invoke("currentTimeMillis", InvocationArg::empty())
             ?
             .to_rust()
             ?;
@@ -966,16 +967,16 @@ mod lib_unit_tests {
     fn parent_interface_method() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
 
         let size: isize = jvm
             .into_chain(instance)
-            .invoke("getMap", &[])
+            .invoke("getMap", InvocationArg::empty())
             ?
             .cast("java.util.Map")
             ?
-            .invoke("size", &[])
+            .invoke("size", InvocationArg::empty())
             ?
             .to_rust()
             ?;
@@ -991,11 +992,11 @@ mod lib_unit_tests {
 
         // Create the MyTest instance
         let instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
 
         // Retrieve the annotated Map
-        let dummy_map = jvm.invoke(&instance, "getMap", &[])?;
+        let dummy_map = jvm.invoke(&instance, "getMap", InvocationArg::empty())?;
 
         // Put a new Map entry
         let _ = jvm
@@ -1012,7 +1013,7 @@ mod lib_unit_tests {
         // Get the size of the new map and assert
         let size: isize = jvm
             .into_chain(dummy_map)
-            .invoke("size", &[])
+            .invoke("size", InvocationArg::empty())
             ?
             .to_rust()
             ?;
@@ -1039,7 +1040,7 @@ mod lib_unit_tests {
         let ia1 = InvocationArg::try_from(1_i32)?;
         let ia2 = InvocationArg::try_from(1_i32)?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
         let res2 = jvm.invoke(
             &test_instance,
@@ -1055,7 +1056,7 @@ mod lib_unit_tests {
     fn to_tust_returns_list() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
         let list_instance = jvm
             .invoke(
@@ -1074,7 +1075,7 @@ mod lib_unit_tests {
     fn basic_types() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
 
         // By values
@@ -1146,7 +1147,7 @@ mod lib_unit_tests {
     fn vecs_arrays() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
 
         let arg = InvocationArg::try_from([33_i8, 34_i8].as_slice())?;
@@ -1186,9 +1187,9 @@ mod lib_unit_tests {
     fn null_handling() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
-        let null = jvm.invoke(&test_instance, "getNullInteger", &[])?;
+        let null = jvm.invoke(&test_instance, "getNullInteger", InvocationArg::empty())?;
         let list_instance = jvm
             .invoke(
                 &test_instance,
@@ -1206,7 +1207,7 @@ mod lib_unit_tests {
     fn null_creation() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
         let null = InvocationArg::try_from(Null::Of("java.lang.Integer"))?;
         let list_instance = jvm
@@ -1227,9 +1228,9 @@ mod lib_unit_tests {
 
     #[test]
     fn to_rust_boxed() -> errors::Result<()> {
-        let jvm = JvmBuilder::new().build()?;
+        let jvm = create_tests_jvm()?;
         let test_instance = jvm
-            .create_instance("org.astonbitecode.j4rs.tests.MyTest", &[])
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
             ?;
 
         let i = jvm
