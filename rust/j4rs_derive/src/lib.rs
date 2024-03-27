@@ -115,7 +115,7 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
     let gen = quote! {
         #[no_mangle]
         pub fn #jni_ident(jni_env: *mut JNIEnv, _class: *const c_void, #(#jni_function_args),*) #jni_function_output {
-            match Jvm::try_from(jni_env) {
+            match unsafe {Jvm::try_from(jni_env)} {
                 Ok(mut jvm) => {
                     jvm.detach_thread_on_drop(false);
                     // println!("Called {}. Calling now  {}", stringify!(#jni_ident), stringify!(#user_function_name));

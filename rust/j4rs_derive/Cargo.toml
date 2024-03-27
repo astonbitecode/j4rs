@@ -1,6 +1,6 @@
 [package]
 name = "j4rs_derive"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["aston <astonbitecode@gmail.com>"]
 description = "The proc macro crate for `j4rs` that allows jni calls to Rust libraries."
 keywords = ["java", "jni"]
