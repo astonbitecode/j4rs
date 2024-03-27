@@ -17,35 +17,24 @@ extern crate proc_macro2;
 use proc_macro::TokenStream;
 
 use proc_macro2::{Ident, Span};
-use syn::{parse_macro_input, AttributeArgs, Expr, FnArg, ItemFn, Lit, NestedMeta, ReturnType};
+use syn::{parse_macro_input, Expr, FnArg, ItemFn, ReturnType, LitStr};
 
 use quote::quote;
 
 #[proc_macro_attribute]
 pub fn call_from_java(macro_args: TokenStream, user_function: TokenStream) -> TokenStream {
     let cloned_user_function = user_function.clone();
-    let macro_args = parse_macro_input!(macro_args as AttributeArgs);
+    let macro_arg = parse_macro_input!(macro_args as LitStr);
     let user_function = parse_macro_input!(user_function as ItemFn);
-    let mut generated = impl_call_from_java_macro(&user_function, macro_args);
+    let mut generated = impl_call_from_java_macro(&user_function, macro_arg);
 
     generated.extend(cloned_user_function.into_iter());
     generated
 }
 
-fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) -> TokenStream {
-    let mut macro_args = macro_args;
+fn impl_call_from_java_macro(user_function: &ItemFn, macro_arg: LitStr) -> TokenStream {
     // Retrieve the Ident for the jni function
-    let jni_ident_string = match macro_args
-        .pop()
-        .expect("No args found in call_from_java. Usage: #[call_from_java(\"full.class.name\")]")
-    {
-        NestedMeta::Lit(Lit::Str(litstr)) => {
-            format!("Java_{}", litstr.value().replace(".", "_"))
-        }
-        _ => panic!(
-            "No valid args found in call_from_java. Usage: #[call_from_java(\"full.class.name\")]"
-        ),
-    };
+    let jni_ident_string = format!("Java_{}", macro_arg.value().replace(".", "_"));
     let ref jni_ident = Ident::new(jni_ident_string.as_ref(), Span::call_site());
     // Retrieve the user function Ident, input arguments and return output
     // Ident
@@ -100,11 +89,11 @@ fn impl_call_from_java_macro(user_function: &ItemFn, macro_args: AttributeArgs) 
                         ptr::null_mut()
                     },
                 }"#,
-            )
-            .unwrap();
+            ).unwrap();
             ret_value
         }
     };
+
     let instance_args_to_pass_to_user_function: Vec<Expr> = user_function_arg_names.iter()
         .map(|jobj_arg_name| {
             let expression: Expr = syn::parse_str(&format!("Instance::from_jobject_with_global_ref({}).expect(\"Could not create Instance from jobject\")", jobj_arg_name)).unwrap();
