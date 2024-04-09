@@ -28,7 +28,7 @@ use sha2::{Digest, Sha256};
 
 // This is the version of the jar that should be used
 const VERSION: &'static str = "0.18.0-SNAPSHOT";
-const JAVA_FX_VERSION: &'static str = "19.0.2.1";
+const JAVA_FX_VERSION: &'static str = "21.0.2";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
