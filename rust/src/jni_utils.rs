@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::any::TypeId;
 use std::os::raw::{c_char, c_double};
 use std::ptr;
 
@@ -474,7 +473,7 @@ macro_rules! primitive_array_from_jobject {
         pub(crate) unsafe fn $fn_name(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<Vec<$rust_type>> {
             if obj.is_null() {
                 Err(errors::J4RsError::JniError(
-                    format!("Attempt to create an {:?} array from null", TypeId::of::<$rust_type>()),
+                    format!("Attempt to create an {} array from null", stringify!($rust_type)),
                 ))
             } else {
                 let length = (opt_to_res(cache::get_jni_get_array_length())?)(
@@ -486,7 +485,7 @@ macro_rules! primitive_array_from_jobject {
                     obj,
                     ptr::null_mut()
                 );
-                if bytes.is_null() { return Err(errors::J4RsError::JniError("get_<primitive>_array_elements failed".to_string())) }
+                if bytes.is_null() { return Err(errors::J4RsError::JniError(format!("{} failed", stringify!($get_array_element)))) }
                 let parts_mut = std::slice::from_raw_parts_mut(bytes as *mut $rust_type, length as usize);
                 let mut vec = Vec::with_capacity(length as usize);
                 vec.extend_from_slice(parts_mut);

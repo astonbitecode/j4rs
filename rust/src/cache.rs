@@ -119,7 +119,7 @@ macro_rules! primitive_array_definitions {
         pub(crate) fn $set_jni_get_array_elements_cell(
             j: Option<$jni_get_array_elements_type>,
         ) -> Option<$jni_get_array_elements_type> {
-            debug("Called set_jni_get_<primitive>_array_elements");
+            debug(&format!("Called {}", stringify!($set_jni_get_array_elements_cell)));
             $jni_get_array_elements_cell.with(|opt| {
                 *opt.borrow_mut() = j;
             });
@@ -133,7 +133,7 @@ macro_rules! primitive_array_definitions {
         pub(crate) fn $set_jni_release_array_elements_cell(
             j: Option<$jni_release_array_elements_type>,
         ) -> Option<$jni_release_array_elements_type> {
-            debug("Called set_jni_release_<primitive>_array_elements");
+            debug(&format!("Called {}", stringify!($set_jni_release_array_elements_cell)));
             $jni_release_array_elements_cell.with(|opt| {
                 *opt.borrow_mut() = j;
             });
@@ -598,7 +598,7 @@ pub(crate) fn get_jni_call_static_object_method() -> Option<JniCallStaticObjectM
 pub(crate) fn set_jni_get_array_length(
     j: Option<JniGetArrayLength>,
 ) -> Option<JniGetArrayLength> {
-    debug("Called set_jni_get_byte_array_elements");
+    debug("Called set_jni_get_array_length");
     JNI_GET_ARRAY_LENGTH.with(|opt| {
         *opt.borrow_mut() = j;
     });
