@@ -1849,7 +1849,7 @@ pub(crate) fn get_character_to_char_method() -> errors::Result<jmethodID> {
             let cstr1 = utils::to_c_string("charValue");
             let cstr2 = utils::to_c_string(&signature);
             let j = unsafe {
-                (opt_to_res(get_jni_get_method_id())?)(env, get_short_class()?, cstr1, cstr2)
+                (opt_to_res(get_jni_get_method_id())?)(env, get_character_class()?, cstr1, cstr2)
             };
             utils::drop_c_string(cstr1);
             utils::drop_c_string(cstr2);
