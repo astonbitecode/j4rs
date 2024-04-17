@@ -16,10 +16,9 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use jni_sys::{
-    self, jboolean, jbyte, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject, jobjectArray,
-    jshort, jsize, jstring, JNIEnv,
-};
+use jni_sys::{self, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass,
+              jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray,
+              jmethodID, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize, jstring};
 use libc::c_char;
 
 use crate::errors::opt_to_res;
@@ -83,8 +82,108 @@ pub(crate) type JniCallDoubleMethod =
 #[allow(non_snake_case)]
 pub(crate) type JniCallVoidMethod =
     unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...);
+#[allow(non_snake_case)]
 pub(crate) type JniCallStaticObjectMethod =
     unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject;
+pub(crate) type JniGetArrayLength =
+    unsafe extern "system" fn(env: *mut JNIEnv, array: jarray) -> jsize;
+
+macro_rules! primitive_array_definitions {
+    (
+        $jni_get_array_elements_type:ident,
+        $jni_release_array_elements_type:ident,
+        $jni_get_array_elements_cell:ident,
+        $jni_release_array_elements_cell:ident,
+        $set_jni_get_array_elements_cell:ident,
+        $get_jni_get_array_elements_cell:ident,
+        $set_jni_release_array_elements_cell:ident,
+        $get_jni_release_array_elements_cell:ident,
+        $jarray_type:ty,
+        $jtype:ty
+    ) => {
+        #[allow(non_snake_case)]
+        pub(crate) type $jni_get_array_elements_type =
+            unsafe extern "system" fn(env: *mut JNIEnv, array: $jarray_type, isCopy: *mut jboolean) -> *mut $jtype;
+        #[allow(non_snake_case)]
+        pub(crate) type $jni_release_array_elements_type =
+            unsafe extern "system" fn(env: *mut JNIEnv, array: $jarray_type, elems: *mut $jtype, mode: jint);
+
+        thread_local! {
+            pub(crate) static $jni_get_array_elements_cell: RefCell<Option<$jni_get_array_elements_type>> = RefCell::new(None);
+            pub(crate) static $jni_release_array_elements_cell: RefCell<Option<$jni_release_array_elements_type>> = RefCell::new(None);
+        }
+
+        pub(crate) fn $set_jni_get_array_elements_cell(
+            j: Option<$jni_get_array_elements_type>,
+        ) -> Option<$jni_get_array_elements_type> {
+            debug("Called set_jni_get_<primitive>_array_elements");
+            $jni_get_array_elements_cell.with(|opt| {
+                *opt.borrow_mut() = j;
+            });
+            $get_jni_get_array_elements_cell()
+        }
+
+        pub(crate) fn $get_jni_get_array_elements_cell() -> Option<$jni_get_array_elements_type> {
+            $jni_get_array_elements_cell.with(|opt| *opt.borrow())
+        }
+
+        pub(crate) fn $set_jni_release_array_elements_cell(
+            j: Option<$jni_release_array_elements_type>,
+        ) -> Option<$jni_release_array_elements_type> {
+            debug("Called set_jni_release_<primitive>_array_elements");
+            $jni_release_array_elements_cell.with(|opt| {
+                *opt.borrow_mut() = j;
+            });
+            $get_jni_release_array_elements_cell()
+        }
+
+        pub(crate) fn $get_jni_release_array_elements_cell() -> Option<$jni_release_array_elements_type> {
+            $jni_release_array_elements_cell.with(|opt| *opt.borrow())
+        }
+    };
+}
+
+primitive_array_definitions!(JniGetByteArrayElements, JniReleaseByteArrayElements,
+    JNI_GET_BYTE_ARRAY_ELEMENTS, JNI_RELEASE_BYTE_ARRAY_ELEMENTS,
+    set_jni_get_byte_array_elements, get_jni_get_byte_array_elements,
+    set_jni_release_byte_array_elements, get_jni_release_byte_array_elements,
+    jbyteArray, jbyte);
+primitive_array_definitions!(JniGetShortArrayElements, JniReleaseShortArrayElements,
+    JNI_GET_SHORT_ARRAY_ELEMENTS, JNI_RELEASE_SHORT_ARRAY_ELEMENTS,
+    set_jni_get_short_array_elements, get_jni_get_short_array_elements,
+    set_jni_release_short_array_elements, get_jni_release_short_array_elements,
+    jshortArray, jshort);
+primitive_array_definitions!(JniGetIntArrayElements, JniReleaseIntArrayElements,
+    JNI_GET_INT_ARRAY_ELEMENTS, JNI_RELEASE_INT_ARRAY_ELEMENTS,
+    set_jni_get_int_array_elements, get_jni_get_int_array_elements,
+    set_jni_release_int_array_elements, get_jni_release_int_array_elements,
+    jintArray, jint);
+primitive_array_definitions!(JniGetLongArrayElements, JniReleaseLongArrayElements,
+    JNI_GET_LONG_ARRAY_ELEMENTS, JNI_RELEASE_LONG_ARRAY_ELEMENTS,
+    set_jni_get_long_array_elements, get_jni_get_long_array_elements,
+    set_jni_release_long_array_elements, get_jni_release_long_array_elements,
+    jlongArray, jlong);
+primitive_array_definitions!(JniGetFloatArrayElements, JniReleaseFloatArrayElements,
+    JNI_GET_FLOAT_ARRAY_ELEMENTS, JNI_RELEASE_FLOAT_ARRAY_ELEMENTS,
+    set_jni_get_float_array_elements, get_jni_get_float_array_elements,
+    set_jni_release_float_array_elements, get_jni_release_float_array_elements,
+    jfloatArray, jfloat);
+primitive_array_definitions!(JniGetDoubleArrayElements, JniReleaseDoubleArrayElements,
+    JNI_GET_DOUBLE_ARRAY_ELEMENTS, JNI_RELEASE_DOUBLE_ARRAY_ELEMENTS,
+    set_jni_get_double_array_elements, get_jni_get_double_array_elements,
+    set_jni_release_double_array_elements, get_jni_release_double_array_elements,
+    jdoubleArray, jdouble);
+primitive_array_definitions!(JniGetCharArrayElements, JniReleaseCharArrayElements,
+    JNI_GET_CHAR_ARRAY_ELEMENTS, JNI_RELEASE_CHAR_ARRAY_ELEMENTS,
+    set_jni_get_char_array_elements, get_jni_get_char_array_elements,
+    set_jni_release_char_array_elements, get_jni_release_char_array_elements,
+    jcharArray, jchar);
+primitive_array_definitions!(JniGetBooleanArrayElements, JniReleaseBooleanArrayElements,
+    JNI_GET_BOOLEAN_ARRAY_ELEMENTS, JNI_RELEASE_BOOLEAN_ARRAY_ELEMENTS,
+    set_jni_get_boolean_array_elements, get_jni_get_boolean_array_elements,
+    set_jni_release_boolean_array_elements, get_jni_release_boolean_array_elements,
+    jbooleanArray, jboolean);
+
 pub(crate) type JniNewObjectArray = unsafe extern "system" fn(
     env: *mut JNIEnv,
     len: jsize,
@@ -135,6 +234,7 @@ thread_local! {
     pub(crate) static JNI_CALL_DOUBLE_METHOD: RefCell<Option<JniCallDoubleMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_VOID_METHOD: RefCell<Option<JniCallVoidMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_STATIC_OBJECT_METHOD: RefCell<Option<JniCallStaticObjectMethod>> = RefCell::new(None);
+    pub(crate) static JNI_GET_ARRAY_LENGTH: RefCell<Option<JniGetArrayLength>> = RefCell::new(None);
     pub(crate) static JNI_NEW_OBJECT_ARRAY: RefCell<Option<JniNewObjectArray>> = RefCell::new(None);
     pub(crate) static JNI_SET_OBJECT_ARRAY_ELEMENT: RefCell<Option<JniSetObjectArrayElement>> = RefCell::new(None);
     pub(crate) static JNI_EXCEPTION_CHECK: RefCell<Option<JniExceptionCheck>> = RefCell::new(None);
@@ -472,6 +572,20 @@ pub(crate) fn set_jni_call_static_object_method(
 
 pub(crate) fn get_jni_call_static_object_method() -> Option<JniCallStaticObjectMethod> {
     JNI_CALL_STATIC_OBJECT_METHOD.with(|opt| *opt.borrow())
+}
+
+pub(crate) fn set_jni_get_array_length(
+    j: Option<JniGetArrayLength>,
+) -> Option<JniGetArrayLength> {
+    debug("Called set_jni_get_byte_array_elements");
+    JNI_GET_ARRAY_LENGTH.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_get_array_length()
+}
+
+pub(crate) fn get_jni_get_array_length() -> Option<JniGetArrayLength> {
+    JNI_GET_ARRAY_LENGTH.with(|opt| *opt.borrow())
 }
 
 pub(crate) fn set_jni_new_object_array(j: Option<JniNewObjectArray>) -> Option<JniNewObjectArray> {

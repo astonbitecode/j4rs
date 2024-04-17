@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::TypeId;
 use std::os::raw::{c_char, c_double};
 use std::ptr;
 
@@ -439,6 +440,48 @@ pub(crate) unsafe fn f64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
         Ok(v)
     }
 }
+
+macro_rules! primitive_array_from_jobject {
+    ($fn_name:ident, $rust_type:ty, $get_array_element:path, $release_array_element:path) => {
+        pub(crate) unsafe fn $fn_name(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<Vec<$rust_type>> {
+            if obj.is_null() {
+                Err(errors::J4RsError::JniError(
+                    format!("Attempt to create an {:?} array from null", TypeId::of::<$rust_type>()),
+                ))
+            } else {
+                let length = (opt_to_res(cache::get_jni_get_array_length())?)(
+                    jni_env,
+                    obj
+                );
+                let bytes = (opt_to_res($get_array_element())?)(
+                    jni_env,
+                    obj,
+                    ptr::null_mut()
+                );
+                if bytes.is_null() { return Err(errors::J4RsError::JniError("get_<primitive>_array_elements failed".to_string())) }
+                let parts_mut = std::slice::from_raw_parts_mut(bytes as *mut $rust_type, length as usize);
+                let mut vec = Vec::with_capacity(length as usize);
+                vec.extend_from_slice(parts_mut);
+                (opt_to_res($release_array_element())?)(
+                    jni_env,
+                    obj,
+                    bytes,
+                    jni_sys::JNI_ABORT,
+                );
+                Ok(vec)
+            }
+        }
+    };
+}
+
+primitive_array_from_jobject!(i8_array_from_jobject, i8, cache::get_jni_get_byte_array_elements, cache::get_jni_release_byte_array_elements);
+primitive_array_from_jobject!(i16_array_from_jobject, i16, cache::get_jni_get_short_array_elements, cache::get_jni_release_short_array_elements);
+primitive_array_from_jobject!(u16_array_from_jobject, u16, cache::get_jni_get_char_array_elements, cache::get_jni_release_char_array_elements);
+primitive_array_from_jobject!(i32_array_from_jobject, i32, cache::get_jni_get_int_array_elements, cache::get_jni_release_int_array_elements);
+primitive_array_from_jobject!(i64_array_from_jobject, i64, cache::get_jni_get_long_array_elements, cache::get_jni_release_long_array_elements);
+primitive_array_from_jobject!(f32_array_from_jobject, f32, cache::get_jni_get_float_array_elements, cache::get_jni_release_float_array_elements);
+primitive_array_from_jobject!(f64_array_from_jobject, f64, cache::get_jni_get_double_array_elements, cache::get_jni_release_double_array_elements);
+primitive_array_from_jobject!(boolean_array_from_jobject, bool, cache::get_jni_get_boolean_array_elements, cache::get_jni_release_boolean_array_elements);
 
 pub(crate) unsafe fn string_from_jobject(
     obj: jobject,
