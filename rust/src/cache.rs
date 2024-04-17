@@ -71,6 +71,9 @@ pub(crate) type JniCallByteMethod =
 pub(crate) type JniCallShortMethod =
     unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jshort;
 #[allow(non_snake_case)]
+pub(crate) type JniCallCharMethod =
+    unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jchar;
+#[allow(non_snake_case)]
 pub(crate) type JniCallLongMethod =
     unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jlong;
 #[allow(non_snake_case)]
@@ -229,6 +232,7 @@ thread_local! {
     pub(crate) static JNI_CALL_INT_METHOD: RefCell<Option<JniCallIntMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_BYTE_METHOD: RefCell<Option<JniCallByteMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_SHORT_METHOD: RefCell<Option<JniCallShortMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_CHAR_METHOD: RefCell<Option<JniCallCharMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_LONG_METHOD: RefCell<Option<JniCallLongMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_FLOAT_METHOD: RefCell<Option<JniCallFloatMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_DOUBLE_METHOD: RefCell<Option<JniCallDoubleMethod>> = RefCell::new(None);
@@ -306,6 +310,9 @@ thread_local! {
     pub(crate) static SHORT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static SHORT_TO_SHORT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static SHORT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static CHARACTER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static CHARACTER_TO_CHAR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static CHARACTER_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     pub(crate) static BYTE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static BYTE_TO_BYTE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     pub(crate) static BYTE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
@@ -502,6 +509,20 @@ pub(crate) fn set_jni_call_short_method(
 
 pub(crate) fn get_jni_call_short_method() -> Option<JniCallShortMethod> {
     JNI_CALL_SHORT_METHOD.with(|opt| *opt.borrow())
+}
+
+pub(crate) fn set_jni_call_char_method(
+    j: Option<JniCallCharMethod>,
+) -> Option<JniCallCharMethod> {
+    debug("Called set_jni_call_char_method");
+    JNI_CALL_CHAR_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_char_method()
+}
+
+pub(crate) fn get_jni_call_char_method() -> Option<JniCallCharMethod> {
+    JNI_CALL_CHAR_METHOD.with(|opt| *opt.borrow())
 }
 
 pub(crate) fn set_jni_call_int_method(j: Option<JniCallIntMethod>) -> Option<JniCallIntMethod> {
@@ -1760,6 +1781,82 @@ pub(crate) fn get_short_to_short_method() -> errors::Result<jmethodID> {
             j
         },
         set_short_to_short_method
+    )
+}
+
+pub(crate) fn set_character_class(j: jclass) {
+    debug("Called set_character_class");
+    CHARACTER_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_character_class() -> errors::Result<jclass> {
+    get_cached!(
+        CHARACTER_CLASS,
+        {
+            let env = get_thread_local_env()?;
+
+            let c = tweaks::find_class(env, "java/lang/Character")?;
+            jni_utils::create_global_ref_from_local_ref(c, env)?
+        },
+        set_character_class
+    )
+}
+
+pub(crate) fn set_character_constructor_method(j: jmethodID) {
+    debug("Called set_character_constructor_method");
+    CHARACTER_CONSTRUCTOR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_character_constructor_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        CHARACTER_CONSTRUCTOR_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let constructor_signature = "(C)V";
+            let cstr1 = utils::to_c_string("<init>");
+            let cstr2 = utils::to_c_string(&constructor_signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(env, get_character_class()?, cstr1, cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_character_constructor_method
+    )
+}
+
+pub(crate) fn set_character_to_char_method(j: jmethodID) {
+    debug("Called set_character_to_char_method");
+    CHARACTER_TO_CHAR_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_character_to_char_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        CHARACTER_TO_CHAR_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let signature = "()C";
+            let cstr1 = utils::to_c_string("charValue");
+            let cstr2 = utils::to_c_string(&signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(env, get_short_class()?, cstr1, cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_character_to_char_method
     )
 }
 

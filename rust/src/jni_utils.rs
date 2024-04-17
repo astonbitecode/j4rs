@@ -314,6 +314,19 @@ pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::
     }
 }
 
+pub(crate) fn global_jobject_from_u16(a: &u16, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        let tmp = a.clone() as *const u16;
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            cache::get_character_class()?,
+            cache::get_character_constructor_method()?,
+            tmp as *const u16,
+        );
+        create_global_ref_from_local_ref(o, jni_env)
+    }
+}
+
 pub(crate) unsafe fn i16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<i16> {
     if obj.is_null() {
         Err(errors::J4RsError::JniError(
@@ -326,6 +339,21 @@ pub(crate) unsafe fn i16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
             cache::get_short_to_short_method()?,
         );
         Ok(v as i16)
+    }
+}
+
+pub(crate) unsafe fn u16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<u16> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError(
+            "Attempt to create an u16 from null".to_string(),
+        ))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_char_method())?)(
+            jni_env,
+            obj,
+            cache::get_character_to_char_method()?,
+        );
+        Ok(v as u16)
     }
 }
 

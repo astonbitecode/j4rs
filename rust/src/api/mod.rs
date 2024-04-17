@@ -259,6 +259,9 @@ impl Jvm {
             let _ = cache::get_jni_call_short_method().or_else(|| {
                 cache::set_jni_call_short_method(Some((**jni_environment).v1_6.CallShortMethod))
             });
+            let _ = cache::get_jni_call_char_method().or_else(|| {
+                cache::set_jni_call_char_method(Some((**jni_environment).v1_6.CallCharMethod))
+            });
             let _ = cache::get_jni_call_int_method().or_else(|| {
                 cache::set_jni_call_int_method(Some((**jni_environment).v1_6.CallIntMethod))
             });
@@ -1259,6 +1262,10 @@ impl Jvm {
                 && (JavaClass::Short.get_class_str() == class_name || PRIMITIVE_SHORT == class_name)
             {
                 rust_box_from_java_object!(jni_utils::i16_from_jobject)
+            }  else if t_type == TypeId::of::<u16>()
+                && (JavaClass::Character.get_class_str() == class_name || PRIMITIVE_CHAR == class_name)
+            {
+                rust_box_from_java_object!(jni_utils::u16_from_jobject)
             } else if t_type == TypeId::of::<i64>()
                 && (JavaClass::Long.get_class_str() == class_name || PRIMITIVE_LONG == class_name)
             {
@@ -2239,6 +2246,21 @@ mod api_unit_tests {
         let rust_value_from_java: i16 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i16 = jvm.to_rust(java_primitive_instance)?;
+        assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_char_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+        let rust_value: u16 = 3;
+        let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
+        let java_instance = jvm.create_instance(CLASS_CHARACTER, &[ia])?;
+        let java_primitive_instance = jvm.invoke(&java_instance, "charValue", InvocationArg::empty())?;
+        let rust_value_from_java: u16 = jvm.to_rust(java_instance)?;
+        assert_eq!(rust_value_from_java, rust_value);
+        let rust_value_from_java: u16 = jvm.to_rust(java_primitive_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
 
         Ok(())

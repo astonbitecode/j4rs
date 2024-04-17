@@ -105,6 +105,15 @@ impl InvocationArg {
                 class_name: class_name.to_string(),
                 serialized: false,
             })
+        } else if let Some(a) = arg_any.downcast_ref::<u16>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(
+                    jni_utils::global_jobject_from_u16(a, jni_env)?,
+                    class_name,
+                )?,
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
         } else if let Some(a) = arg_any.downcast_ref::<i32>() {
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(
