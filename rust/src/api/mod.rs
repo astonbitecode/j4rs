@@ -2173,7 +2173,7 @@ mod api_unit_tests {
     #[test]
     fn test_long_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
-        let rust_value: Vec<i64> = vec![3, 7, 8];
+        let rust_value: Vec<i64> = vec![-100_000, -1_000_000, 1_000_000];
         let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_LONG, &ia)?;
         let rust_value_from_java: Vec<i64> = jvm.to_rust(java_instance)?;
@@ -2185,7 +2185,7 @@ mod api_unit_tests {
     #[test]
     fn test_float_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
-        let rust_value: Vec<f32> = vec![3_f32, 7_f32, 8_f32];
+        let rust_value: Vec<f32> = vec![3_f32, 7.5_f32, -1000.5_f32];
         let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_FLOAT, &ia)?;
         let rust_value_from_java: Vec<f32> = jvm.to_rust(java_instance)?;
@@ -2197,10 +2197,22 @@ mod api_unit_tests {
     #[test]
     fn test_double_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
-        let rust_value: Vec<f64> = vec![3_f64, 7_f64, 8_f64];
+        let rust_value: Vec<f64> = vec![3_f64, 7.5_f64, -1000.5_f64];
         let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_DOUBLE, &ia)?;
         let rust_value_from_java: Vec<f64> = jvm.to_rust(java_instance)?;
+        assert_eq!(rust_value_from_java, rust_value);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_boolean_array_to_rust() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+        let rust_value: Vec<bool> = vec![false, true, false];
+        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let java_instance = jvm.create_java_array(PRIMITIVE_BOOLEAN, &ia)?;
+        let rust_value_from_java: Vec<bool> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
 
         Ok(())
