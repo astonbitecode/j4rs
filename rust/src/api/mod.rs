@@ -283,6 +283,9 @@ impl Jvm {
             let ed = cache::get_jni_exception_describe().or_else(|| {
                 cache::set_jni_exception_describe(Some((**jni_environment).v1_6.ExceptionDescribe))
             });
+            let _ = cache::get_jni_exception_occured().or_else(|| {
+                cache::set_jni_exception_occured(Some((**jni_environment).v1_6.ExceptionOccurred))
+            });
             let exclear = cache::get_jni_exception_clear().or_else(|| {
                 cache::set_jni_exception_clear(Some((**jni_environment).v1_6.ExceptionClear))
             });
@@ -1338,16 +1341,24 @@ impl Jvm {
     pub(crate) fn do_return<T>(jni_env: *mut JNIEnv, to_return: T) -> errors::Result<T> {
         unsafe {
             if (opt_to_res(cache::get_jni_exception_check())?)(jni_env) == JNI_TRUE {
-                (opt_to_res(cache::get_jni_exception_describe())?)(jni_env);
+                let throwable = (opt_to_res(cache::get_jni_exception_occured())?)(jni_env);
+                let throwable_string = Self::get_throwable_string(throwable, jni_env)?;
                 (opt_to_res(cache::get_jni_exception_clear())?)(jni_env);
-                Err(J4RsError::JavaError(
-                    "An Exception was thrown by Java... Please check the logs or the console."
-                        .to_string(),
-                ))
+                Err(J4RsError::JavaError(throwable_string))
             } else {
                 Ok(to_return)
             }
         }
+    }
+
+    unsafe fn get_throwable_string(throwable: jobject, jni_env: *mut JNIEnv) -> errors::Result<String> {
+        let java_string = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            jni_env,
+            cache::get_utils_class()?,
+            cache::get_utils_exception_to_string_method()?,
+            throwable,
+        );
+        jni_utils::string_from_jobject(java_string, jni_env)
     }
 
     // Retrieves a JNIEnv in the case that a JVM is already created even from another thread.
@@ -2086,6 +2097,18 @@ mod api_unit_tests {
         let inv_arg1 = InvocationArg::try_from("some string")?;
         let _ = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", &[&inv_arg1])?;
         let _ = jvm.create_instance("java.lang.String", &[inv_arg1])?;
+        Ok(())
+    }
+
+    #[test]
+    fn exception_string_in_the_result() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+
+        let res = jvm.create_instance("non.Existing", InvocationArg::empty());
+        assert!(res.is_err());
+        let exception_sttring = format!("{}",res.err().unwrap());
+        assert!(exception_sttring.contains("Cannot create instance of non.Existing"));
+        
         Ok(())
     }
 }
