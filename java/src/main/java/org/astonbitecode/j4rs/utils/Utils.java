@@ -14,9 +14,11 @@
  */
 package org.astonbitecode.j4rs.utils;
 
-import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
-
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
+
+import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
 
 public class Utils {
 
@@ -33,30 +35,30 @@ public class Utils {
 
     public static Class<?> forNameEnhanced(final String className) throws ClassNotFoundException {
         switch (className) {
-        case "boolean":
-            return boolean.class;
-        case "byte":
-            return byte.class;
-        case "short":
-            return short.class;
-        case "int":
-            return int.class;
-        case "long":
-            return long.class;
-        case "float":
-            return float.class;
-        case "double":
-            return double.class;
-        case "char":
-            return char.class;
-        case "void":
-            return void.class;
-        default:
-            if (!IsAndroid) {
-                return Class.forName(className, true, ClassLoader.getSystemClassLoader());
-            } else {
-                return Class.forName(className);
-            }
+            case "boolean":
+                return boolean.class;
+            case "byte":
+                return byte.class;
+            case "short":
+                return short.class;
+            case "int":
+                return int.class;
+            case "long":
+                return long.class;
+            case "float":
+                return float.class;
+            case "double":
+                return double.class;
+            case "char":
+                return char.class;
+            case "void":
+                return void.class;
+            default:
+                if (!IsAndroid) {
+                    return Class.forName(className, true, ClassLoader.getSystemClassLoader());
+                } else {
+                    return Class.forName(className);
+                }
         }
     }
 
@@ -66,5 +68,16 @@ public class Utils {
     // GeneratedArgs.
     public static Class<?> forNameBasedOnArgs(final GeneratedArg[] params) {
         return Arrays.stream(params).map(arg -> arg.getClazz()).reduce((a, b) -> a).orElse(Void.class);
+    }
+
+    public static String throwableToString(Throwable throwable) {
+        if (throwable != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            throwable.printStackTrace(pw);
+            return sw.toString();
+        } else {
+            return "Cannot create String out of a null Throwable";
+        }
     }
 }

@@ -18,7 +18,7 @@ use std::sync::Mutex;
 
 use jni_sys::{self, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass,
               jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray,
-              jmethodID, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize, jstring};
+              jmethodID, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize, jstring, jthrowable};
 use libc::c_char;
 
 use crate::errors::opt_to_res;
@@ -27,6 +27,7 @@ use crate::{api_tweaks as tweaks, errors, jni_utils, utils};
 
 pub(crate) const INST_CLASS_NAME: &'static str =
     "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
+pub(crate) const UTILS_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/utils/Utils";
 pub(crate) const INVO_BASE_NAME: &'static str = "org/astonbitecode/j4rs/api/InstanceBase";
 pub(crate) const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/Instance";
 pub(crate) const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
@@ -201,6 +202,7 @@ pub(crate) type JniSetObjectArrayElement = unsafe extern "system" fn(
 );
 pub(crate) type JniExceptionCheck = unsafe extern "system" fn(_: *mut JNIEnv) -> jboolean;
 pub(crate) type JniExceptionDescribe = unsafe extern "system" fn(_: *mut JNIEnv);
+pub(crate) type JniExceptionOccured = unsafe extern "system" fn(_: *mut JNIEnv) -> jthrowable;
 pub(crate) type JniExceptionClear = unsafe extern "system" fn(_: *mut JNIEnv);
 pub(crate) type JniDeleteLocalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
 pub(crate) type JniDeleteGlobalRef = unsafe extern "system" fn(_: *mut JNIEnv, _: jobject) -> ();
@@ -243,12 +245,17 @@ thread_local! {
     pub(crate) static JNI_SET_OBJECT_ARRAY_ELEMENT: RefCell<Option<JniSetObjectArrayElement>> = RefCell::new(None);
     pub(crate) static JNI_EXCEPTION_CHECK: RefCell<Option<JniExceptionCheck>> = RefCell::new(None);
     pub(crate) static JNI_EXCEPTION_DESCRIBE: RefCell<Option<JniExceptionDescribe>> = RefCell::new(None);
+    pub(crate) static JNI_EXCEPTION_OCCURED: RefCell<Option<JniExceptionOccured>> = RefCell::new(None);
     pub(crate) static JNI_EXCEPTION_CLEAR: RefCell<Option<JniExceptionClear>> = RefCell::new(None);
     pub(crate) static JNI_DELETE_LOCAL_REF: RefCell<Option<JniDeleteLocalRef>> = RefCell::new(None);
     pub(crate) static JNI_DELETE_GLOBAL_REF: RefCell<Option<JniDeleteGlobalRef>> = RefCell::new(None);
     pub(crate) static JNI_NEW_GLOBAL_REF: RefCell<Option<JniNewGlobalRef>> = RefCell::new(None);
     pub(crate) static JNI_THROW_NEW: RefCell<Option<JniThrowNew>> = RefCell::new(None);
     pub(crate) static JNI_IS_SAME_OBJECT: RefCell<Option<JniIsSameObject>> = RefCell::new(None);
+    // This is the Utils class.
+    pub(crate) static UTILS_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    // Utils throwableToString method
+    pub(crate) static UTILS_THROWABLE_TO_STRING_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`.
     pub(crate) static FACTORY_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
     // The constructor method of the `NativeInstantiationImpl`.
@@ -662,6 +669,20 @@ pub(crate) fn get_jni_exception_describe() -> Option<JniExceptionDescribe> {
     JNI_EXCEPTION_DESCRIBE.with(|opt| *opt.borrow())
 }
 
+pub(crate) fn set_jni_exception_occured(
+    j: Option<JniExceptionOccured>,
+) -> Option<JniExceptionOccured> {
+    debug("Called set_jni_exception_occured");
+    JNI_EXCEPTION_OCCURED.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_exception_occured()
+}
+
+pub(crate) fn get_jni_exception_occured() -> Option<JniExceptionOccured> {
+    JNI_EXCEPTION_OCCURED.with(|opt| *opt.borrow())
+}
+
 pub(crate) fn set_jni_exception_clear(j: Option<JniExceptionClear>) -> Option<JniExceptionClear> {
     debug("Called set_jni_exception_clear");
     JNI_EXCEPTION_CLEAR.with(|opt| {
@@ -752,6 +773,59 @@ pub(crate) fn get_factory_class() -> errors::Result<jclass> {
             jni_utils::create_global_ref_from_local_ref(c, env)?
         },
         set_factory_class
+    )
+}
+
+pub(crate) fn set_utils_class(j: jclass) {
+    debug("Called set_utils_class");
+    UTILS_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_utils_class() -> errors::Result<jclass> {
+    get_cached!(
+        UTILS_CLASS,
+        {
+            let env = get_thread_local_env()?;
+            let c = tweaks::find_class(env, UTILS_CLASS_NAME)?;
+            jni_utils::create_global_ref_from_local_ref(c, env)?
+        },
+        set_utils_class
+    )
+}
+
+pub(crate) fn set_utils_exception_to_string_method(j: jmethodID) {
+    debug("Called set_utils_exception_to_string_method");
+    UTILS_THROWABLE_TO_STRING_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_utils_exception_to_string_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        UTILS_THROWABLE_TO_STRING_METHOD,
+        {
+            let env = get_thread_local_env()?;
+            let throwable_to_string_method_signature = format!(
+                "(Ljava/lang/Throwable;)Ljava/lang/String;"
+            );
+            let cstr1 = utils::to_c_string("throwableToString");
+            let cstr2 = utils::to_c_string(&throwable_to_string_method_signature);
+            let j = unsafe {
+                (opt_to_res(get_jni_get_static_method_id())?)(
+                    env,
+                    get_utils_class()?,
+                    cstr1,
+                    cstr2,
+                )
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_utils_exception_to_string_method
     )
 }
 
