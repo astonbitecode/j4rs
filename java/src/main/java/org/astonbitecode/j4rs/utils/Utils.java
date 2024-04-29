@@ -16,9 +16,11 @@ package org.astonbitecode.j4rs.utils;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 
 import org.astonbitecode.j4rs.api.dtos.GeneratedArg;
+import org.astonbitecode.j4rs.errors.InvocationException;
 
 public class Utils {
 
@@ -74,7 +76,12 @@ public class Utils {
         if (throwable != null) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
-            throwable.printStackTrace(pw);
+            if (throwable != null && throwable instanceof InvocationException 
+                && throwable.getCause() != null && throwable.getCause() instanceof InvocationTargetException) {
+                throwable.getCause().getCause().printStackTrace(pw);
+            } else {
+                throwable.printStackTrace(pw);
+            }
             return sw.toString();
         } else {
             return "Cannot create String out of a null Throwable";
