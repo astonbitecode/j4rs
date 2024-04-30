@@ -134,6 +134,7 @@ fn find_j4rs_dynamic_libraries_dir_entries() -> errors::Result<Vec<fs::DirEntry>
             let file_name = entry.file_name();
             let file_name = file_name.to_str().unwrap();
             file_name.contains("j4rs")
+                && !file_name.contains("derive")
                 && (file_name.contains(".so")
                     || file_name.contains(".dll")
                     || file_name.contains(".dylib"))
