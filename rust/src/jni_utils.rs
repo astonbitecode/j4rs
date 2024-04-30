@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::mem;
 use std::os::raw::{c_char, c_double};
 use std::ptr;
 
@@ -476,23 +477,27 @@ macro_rules! primitive_array_from_jobject {
                     format!("Attempt to create an {} array from null", stringify!($rust_type)),
                 ))
             } else {
+                // length is at most 2^31-1, which should be smaller than the usize::MAX on a 32/64-bit host
                 let length = (opt_to_res(cache::get_jni_get_array_length())?)(
                     jni_env,
                     obj
-                );
-                let bytes = (opt_to_res($get_array_element())?)(
+                ) as usize;
+                let val_ptr = (opt_to_res($get_array_element())?)(
                     jni_env,
                     obj,
                     ptr::null_mut()
                 );
-                if bytes.is_null() { return Err(errors::J4RsError::JniError(format!("{} failed", stringify!($get_array_element)))) }
-                let parts_mut = std::slice::from_raw_parts_mut(bytes as *mut $rust_type, length as usize);
-                let mut vec = Vec::with_capacity(length as usize);
-                vec.extend_from_slice(parts_mut);
+                if val_ptr.is_null() { return Err(errors::J4RsError::JniError(format!("{} failed", stringify!($get_array_element)))) }
+                let total_bytes = length.checked_mul(mem::size_of::<$rust_type>()).expect("array bytes overflow");
+                let mut vec = Vec::<$rust_type>::with_capacity(length);
+                // `copy_nonoverlapping` requires that both src and dst are aligned. Since JVM does not
+                // enforce alignment, we copy the source buffer as bytes.
+                ptr::copy_nonoverlapping(val_ptr as *const u8, vec.as_mut_ptr() as *mut u8, total_bytes);
+                vec.set_len(length);
                 (opt_to_res($release_array_element())?)(
                     jni_env,
                     obj,
-                    bytes,
+                    val_ptr,
                     jni_sys::JNI_ABORT,
                 );
                 Ok(vec)
