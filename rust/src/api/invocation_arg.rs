@@ -105,6 +105,15 @@ impl InvocationArg {
                 class_name: class_name.to_string(),
                 serialized: false,
             })
+        } else if let Some(a) = arg_any.downcast_ref::<u16>() {
+            Ok(InvocationArg::RustBasic {
+                instance: Instance::new(
+                    jni_utils::global_jobject_from_u16(a, jni_env)?,
+                    class_name,
+                )?,
+                class_name: class_name.to_string(),
+                serialized: false,
+            })
         } else if let Some(a) = arg_any.downcast_ref::<i32>() {
             Ok(InvocationArg::RustBasic {
                 instance: Instance::new(
@@ -446,6 +455,30 @@ impl<'a> TryFrom<&'a [i16]> for InvocationArg {
     }
 }
 
+impl TryFrom<u16> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(arg: u16) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(
+            &arg,
+            JavaClass::Character.into(),
+            cache::get_thread_local_env()?,
+        )
+    }
+}
+
+impl<'a> TryFrom<&'a [u16]> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(vec: &'a [u16]) -> errors::Result<InvocationArg> {
+        let args: errors::Result<Vec<InvocationArg>> = vec
+            .iter()
+            .map(|elem| InvocationArg::try_from(elem))
+            .collect();
+        let res =
+            Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
+        Ok(InvocationArg::from(res?))
+    }
+}
+
 impl TryFrom<i32> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: i32) -> errors::Result<InvocationArg> {
@@ -589,6 +622,13 @@ impl<'a> TryFrom<&'a i16> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a i16) -> errors::Result<InvocationArg> {
         InvocationArg::new_2(arg, JavaClass::Short.into(), cache::get_thread_local_env()?)
+    }
+}
+
+impl<'a> TryFrom<&'a u16> for InvocationArg {
+    type Error = errors::J4RsError;
+    fn try_from(arg: &'a u16) -> errors::Result<InvocationArg> {
+        InvocationArg::new_2(arg, JavaClass::Character.into(), cache::get_thread_local_env()?)
     }
 }
 

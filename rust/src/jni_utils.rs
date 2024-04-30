@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::mem;
 use std::os::raw::{c_char, c_double};
 use std::ptr;
 
@@ -313,6 +314,19 @@ pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::
     }
 }
 
+pub(crate) fn global_jobject_from_u16(a: &u16, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
+    unsafe {
+        let tmp = a.clone() as *const u16;
+        let o = (opt_to_res(cache::get_jni_new_object())?)(
+            jni_env,
+            cache::get_character_class()?,
+            cache::get_character_constructor_method()?,
+            tmp as *const u16,
+        );
+        create_global_ref_from_local_ref(o, jni_env)
+    }
+}
+
 pub(crate) unsafe fn i16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<i16> {
     if obj.is_null() {
         Err(errors::J4RsError::JniError(
@@ -325,6 +339,21 @@ pub(crate) unsafe fn i16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
             cache::get_short_to_short_method()?,
         );
         Ok(v as i16)
+    }
+}
+
+pub(crate) unsafe fn u16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<u16> {
+    if obj.is_null() {
+        Err(errors::J4RsError::JniError(
+            "Attempt to create an u16 from null".to_string(),
+        ))
+    } else {
+        let v = (opt_to_res(cache::get_jni_call_char_method())?)(
+            jni_env,
+            obj,
+            cache::get_character_to_char_method()?,
+        );
+        Ok(v as u16)
     }
 }
 
@@ -439,6 +468,52 @@ pub(crate) unsafe fn f64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
         Ok(v)
     }
 }
+
+macro_rules! primitive_array_from_jobject {
+    ($fn_name:ident, $rust_type:ty, $get_array_element:path, $release_array_element:path) => {
+        pub(crate) unsafe fn $fn_name(obj: jobject, jni_env: *mut JNIEnv) -> errors::Result<Vec<$rust_type>> {
+            if obj.is_null() {
+                Err(errors::J4RsError::JniError(
+                    format!("Attempt to create an {} array from null", stringify!($rust_type)),
+                ))
+            } else {
+                // length is at most 2^31-1, which should be smaller than the usize::MAX on a 32/64-bit host
+                let length = (opt_to_res(cache::get_jni_get_array_length())?)(
+                    jni_env,
+                    obj
+                ) as usize;
+                let val_ptr = (opt_to_res($get_array_element())?)(
+                    jni_env,
+                    obj,
+                    ptr::null_mut()
+                );
+                if val_ptr.is_null() { return Err(errors::J4RsError::JniError(format!("{} failed", stringify!($get_array_element)))) }
+                let total_bytes = length.checked_mul(mem::size_of::<$rust_type>()).expect("array bytes overflow");
+                let mut vec = Vec::<$rust_type>::with_capacity(length);
+                // `copy_nonoverlapping` requires that both src and dst are aligned. Since JVM does not
+                // enforce alignment, we copy the source buffer as bytes.
+                ptr::copy_nonoverlapping(val_ptr as *const u8, vec.as_mut_ptr() as *mut u8, total_bytes);
+                vec.set_len(length);
+                (opt_to_res($release_array_element())?)(
+                    jni_env,
+                    obj,
+                    val_ptr,
+                    jni_sys::JNI_ABORT,
+                );
+                Ok(vec)
+            }
+        }
+    };
+}
+
+primitive_array_from_jobject!(i8_array_from_jobject, i8, cache::get_jni_get_byte_array_elements, cache::get_jni_release_byte_array_elements);
+primitive_array_from_jobject!(i16_array_from_jobject, i16, cache::get_jni_get_short_array_elements, cache::get_jni_release_short_array_elements);
+primitive_array_from_jobject!(u16_array_from_jobject, u16, cache::get_jni_get_char_array_elements, cache::get_jni_release_char_array_elements);
+primitive_array_from_jobject!(i32_array_from_jobject, i32, cache::get_jni_get_int_array_elements, cache::get_jni_release_int_array_elements);
+primitive_array_from_jobject!(i64_array_from_jobject, i64, cache::get_jni_get_long_array_elements, cache::get_jni_release_long_array_elements);
+primitive_array_from_jobject!(f32_array_from_jobject, f32, cache::get_jni_get_float_array_elements, cache::get_jni_release_float_array_elements);
+primitive_array_from_jobject!(f64_array_from_jobject, f64, cache::get_jni_get_double_array_elements, cache::get_jni_release_double_array_elements);
+primitive_array_from_jobject!(boolean_array_from_jobject, bool, cache::get_jni_get_boolean_array_elements, cache::get_jni_release_boolean_array_elements);
 
 pub(crate) unsafe fn string_from_jobject(
     obj: jobject,
