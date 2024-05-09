@@ -38,9 +38,42 @@ impl Jvm {
             instance.class_name,
             inv_args.len()
         ));
+        // Create the channel
+        let (sender, rx) = oneshot::channel::<errors::Result<Instance>>();
         unsafe {
-            // Create the channel
-            let (sender, rx) = oneshot::channel::<errors::Result<Instance>>();
+            Self::handle_channel_sender(self, sender, &instance, &method_name, inv_args.as_ref())?;
+        }
+        // Create and return the Instance
+        let instance = rx.await?;
+        Self::do_return(self.jni_env, instance)?
+    }
+
+    pub async fn invoke_into_sendable_async(
+        instance: Instance,
+        method_name: String,
+        inv_args: Vec<InvocationArg>,
+    ) -> errors::Result<Instance> {
+        debug(&format!(
+            "Asynchronously invoking (2) method {} of class {} using {} arguments",
+            method_name,
+            instance.class_name,
+            inv_args.len()
+        ));
+        // Create the channel
+        let (sender, rx) = oneshot::channel::<errors::Result<Instance>>();
+        unsafe {
+            let s = Jvm::attach_thread()?;
+            Self::handle_channel_sender(&s, sender, &instance, &method_name, inv_args.as_ref())?;
+            drop(s);
+        }
+
+        // Create and return the Instance
+        let instance = rx.await?;
+        let new_jni_env = Jvm::attach_thread()?.jni_env;
+        Self::do_return(new_jni_env, instance)?
+    }
+
+    unsafe fn handle_channel_sender(s: &Jvm, sender: oneshot::Sender<errors::Result<Instance>>, instance: &Instance, method_name: &str, inv_args: &[InvocationArg]) -> errors::Result<()> {
             let tx = Box::new(sender);
             // First argument: the address of the channel Sender
             let raw_ptr = Box::into_raw(tx);
@@ -50,18 +83,18 @@ impl Jvm {
 
             // Second argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(&method_name, s.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
             let array_ptr = {
                 let j = (opt_to_res(cache::get_jni_new_object_array())?)(
-                    self.jni_env,
+                    s.jni_env,
                     size,
                     cache::get_invocation_arg_class()?,
                     ptr::null_mut(),
                 );
-                jni_utils::create_global_ref_from_local_ref(j, self.jni_env)?
+                jni_utils::create_global_ref_from_local_ref(j, s.jni_env)?
             };
             let mut inv_arg_jobjects: Vec<jobject> = Vec::with_capacity(size as usize);
 
@@ -69,10 +102,10 @@ impl Jvm {
             for i in 0..size {
                 // Create an InvocationArg Java Object
                 let inv_arg_java =
-                    inv_args[i as usize].as_java_ptr_with_global_ref(self.jni_env)?;
+                    inv_args[i as usize].as_java_ptr_with_global_ref(s.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
-                    self.jni_env,
+                    s.jni_env,
                     array_ptr,
                     i,
                     inv_arg_java,
@@ -82,7 +115,7 @@ impl Jvm {
 
             // Call the method of the instance
             let _ = (opt_to_res(cache::get_jni_call_void_method())?)(
-                self.jni_env,
+                s.jni_env,
                 instance.jinstance,
                 cache::get_invoke_async_method()?,
                 address,
@@ -91,19 +124,15 @@ impl Jvm {
             );
 
             // Check for exceptions before creating the globalref
-            Self::do_return(self.jni_env, ())?;
+            Self::do_return(s.jni_env, ())?;
 
             // Prevent memory leaks from the created local references
             for inv_arg_jobject in inv_arg_jobjects {
-                jni_utils::delete_java_ref(self.jni_env, inv_arg_jobject);
+                jni_utils::delete_java_ref(s.jni_env, inv_arg_jobject);
             }
-            jni_utils::delete_java_ref(self.jni_env, array_ptr);
-            jni_utils::delete_java_ref(self.jni_env, method_name_jstring);
-
-            // Create and return the Instance
-            let instance = rx.await?;
-            Self::do_return(self.jni_env, instance)?
-        }
+            jni_utils::delete_java_ref(s.jni_env, array_ptr);
+            jni_utils::delete_java_ref(s.jni_env, method_name_jstring);
+            Ok(())
     }
 }
 
@@ -111,6 +140,7 @@ impl Jvm {
 mod api_unit_tests {
     use super::*;
     use crate::{api, JvmBuilder, MavenArtifact};
+    use futures::Future;
     use tokio;
 
     fn create_tests_jvm() -> errors::Result<Jvm> {
@@ -260,6 +290,38 @@ mod api_unit_tests {
         assert!(instance_res.is_ok());
         Ok(())
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn invoke_into_sendable_async_success() -> errors::Result<()> {
+        let s_test = "j4rs_rust";
+        let jvm = create_tests_jvm()?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
+        let instance = Jvm::invoke_into_sendable_async(
+                my_test,
+                "getStringWithFuture".to_string(),
+                vec![InvocationArg::try_from(s_test)?],
+            )
+            .await?;
+        let string: String = jvm.to_rust(instance)?;
+        assert_eq!(s_test, string);
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn future_is_send() -> errors::Result<()> {
+        let s_test = "j4rs_rust";
+        let jvm = create_tests_jvm()?;
+        let my_test = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
+        let f = Jvm::invoke_into_sendable_async(
+            my_test,
+            "executeVoidFuture".to_string(),
+            vec![InvocationArg::try_from(s_test)?],
+        );
+        check_send(f);
+        Ok(())
+    }
+
+    fn check_send<F:Future>(_:F) where F:Send + 'static {}
 
     // #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn _memory_leaks_invoke_async_instances() -> errors::Result<()> {
