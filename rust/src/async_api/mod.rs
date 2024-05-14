@@ -48,6 +48,13 @@ impl Jvm {
         Self::do_return(self.jni_env, instance)?
     }
 
+    /// Invokes the method `method_name` of a created `Instance` asynchronously, passing an array of `InvocationArg`s.
+    /// It returns an `Instance` as the result of the invocation.
+    /// 
+    /// 
+    /// `Instance`s  are `Send` and can be safely sent to other threads. However, because of [Send Approximation](https://rust-lang.github.io/async-book/07_workarounds/03_send_approximation.html), the `Future` returned by `invoke_async` is _not_ `Send`, even if it just contains an `Instance`. This is because the `Jvm` is being captured by the `async` call as well and the `Jvm` is __not__ `Send`.
+    /// 
+    /// In order to have a `Future<Instance>` that __is__ `Send`, the `Jvm::invoke_into_sendable_async` can be used. This function does not get a `Jvm` as argument; it creates one internally when needed and applies some scoping workarounds in order to achieve returning a `Future<Instance>` which is also `Send`.
     pub async fn invoke_into_sendable_async(
         instance: Instance,
         method_name: String,

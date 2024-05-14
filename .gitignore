@@ -8,3 +8,4 @@
 **/primer/
 **/.settings
 **/.classpath
+*.code-workspace

@@ -1,7 +1,7 @@
 # j4rs
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.18.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.19.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
 ![Build](https://github.com/astonbitecode/j4rs/actions/workflows/ci-workflow.yml/badge.svg)
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
@@ -260,6 +260,14 @@ using an internal one-threaded `ScheduledExecutorService`.
 
 This has apparent performance issues.
 
+#### `invoke_async` and `Send`
+
+`Instance`s  are `Send` and can be safely sent to other threads. However, because of [Send Approximation](https://rust-lang.github.io/async-book/07_workarounds/03_send_approximation.html), the `Future` returned by `invoke_async` is _not_ `Send`, even if it just contains an `Instance`. This is because the `Jvm` is being captured by the `async` call as well and the `Jvm` is __not__ `Send`.
+
+In order to have a `Future<Instance>` that __is__ `Send`, the `Jvm::invoke_into_sendable_async` can be used. This function does not get a `Jvm` as argument; it creates one internally when needed and applies some scoping workarounds in order to achieve returning a `Future<Instance>` which is also `Send`.
+
+Discussion [here](https://github.com/astonbitecode/j4rs/issues/103).
+
 ### Casting
 
 An `Instance` may be casted to some other Class:
@@ -446,7 +454,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.18.0</version>
+    <version>0.19.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -486,7 +494,7 @@ pub extern fn jni_onload(env: *mut JavaVM, _reserved: jobject) -> jint {
 Create an `Activity` and define your native methods normally, as described [here](#java-to-rust-support).
 
 Note:
-If you encounter any issues when using j4rs in older Android versions, this may be caused by Java 8 compatibility problems. 
+If you encounter any issues when using j4rs in older Android versions, this may be caused by Java 8 compatibility problems.
 This is why there is a `Java 7` version of `j4rs`:
 
 ```xml

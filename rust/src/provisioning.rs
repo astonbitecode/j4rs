@@ -192,10 +192,10 @@ impl<'a> From<&'a str> for MavenArtifactRepo {
     ///
     /// The `&str` should be formed like following:
     ///
-    /// __id::uri__
+    /// `id::uri`
     ///
     /// E.g:
-    /// _MyAlterRepo::https://myalterrepo.io_
+    /// `MyAlterRepo::https://myalterrepo.io`
     fn from(string: &'a str) -> MavenArtifactRepo {
         let v: Vec<&str> = string.split("::").collect();
         MavenArtifactRepo::from(v.as_slice())
@@ -207,10 +207,10 @@ impl From<String> for MavenArtifactRepo {
     ///
     /// The `&str` should be formed like following:
     ///
-    /// __id::uri__
+    /// `id::uri`
     ///
     /// E.g:
-    /// _MyAlterRepo::https://myalterrepo.io_
+    /// `MyAlterRepo::https://myalterrepo.io`
     fn from(string: String) -> MavenArtifactRepo {
         MavenArtifactRepo::from(string.as_str())
     }

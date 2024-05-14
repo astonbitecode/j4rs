@@ -22,6 +22,7 @@ use std::convert::TryFrom;
 use std::sync::mpsc::{Receiver, Sender};
 
 /// A Java instance
+/// Instances contain global Java references and can be sent to other threads
 #[derive(Serialize)]
 pub struct Instance {
     /// The name of the class of this instance
@@ -127,12 +128,13 @@ impl Drop for Instance {
     }
 }
 
+/// Instances contain global Java references and can be sent to other threads
 unsafe impl Send for Instance {}
 
 /// A receiver for Java Instances.
 ///
 /// It keeps a channel Receiver to get callback Instances from the Java world
-/// and the address of a Box<Sender<Instance>> Box in the heap. This Box is used by Java to communicate
+/// and the address of a `Box<Sender<Instance>>` Box in the heap. This Box is used by Java to communicate
 /// asynchronously Instances to Rust.
 ///
 /// On Drop, the InstanceReceiver removes the Box from the heap.
