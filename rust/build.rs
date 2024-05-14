@@ -18,13 +18,15 @@ use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use fs_extra::dir::CopyOptions;
-use glob::glob;
 
 // This is the version of the jar that should be used
 const VERSION: &str = "0.20.0-SNAPSHOT";
 const JAVA_FX_VERSION: &str = "21.0.2";
 
 fn main() -> Result<(), J4rsBuildError> {
+    // ensure build.rs is not rerun when there are no `rerun-if-*` printed
+    println!("cargo:rerun-if-changed=build.rs");
+
     let out_dir = env::var("OUT_DIR")?;
     let source_jar_location = PathBuf::from(format!(
         "../java/target/j4rs-{VERSION}-jar-with-dependencies.jar"
@@ -46,7 +48,7 @@ fn main() -> Result<(), J4rsBuildError> {
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java(&source_jar_location)?;
-    let _ = copy_jars_to_exec_directory(&out_dir)?;
+    copy_jars_to_exec_directory(&out_dir)?;
     generate_src(&out_dir)?;
 
     Ok(())
@@ -103,8 +105,8 @@ fn are_same_files(path1: &Path, path2: &Path) -> Result<bool, J4rsBuildError> {
     Ok(std::fs::read(path1)? == std::fs::read(path2)?)
 }
 
-// Copies the jars to and returns the PathBuf of the exec directory.
-fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError> {
+// Copies the jars to the exec directory.
+fn copy_jars_to_exec_directory(out_dir: &str) -> Result<(), J4rsBuildError> {
     let mut exec_dir_path_buf = PathBuf::from(out_dir);
     exec_dir_path_buf.pop();
     exec_dir_path_buf.pop();
@@ -134,11 +136,7 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError>
         fs_extra::copy_items(&[jassets_path], jassets_output_dir, &CopyOptions::new())?;
     }
 
-    let jassets_output_files = glob(&format!("{jassets_output_dir}/jassets/**/*"))?;
-    for glob_res in jassets_output_files {
-        println!("cargo:rerun-if-changed={}", glob_res?.to_str().unwrap());
-    }
-    Ok(exec_dir_path_buf)
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -176,22 +174,6 @@ impl From<std::io::Error> for J4rsBuildError {
 
 impl From<fs_extra::error::Error> for J4rsBuildError {
     fn from(err: fs_extra::error::Error) -> J4rsBuildError {
-        J4rsBuildError {
-            description: format!("{:?}", err),
-        }
-    }
-}
-
-impl From<glob::PatternError> for J4rsBuildError {
-    fn from(err: glob::PatternError) -> J4rsBuildError {
-        J4rsBuildError {
-            description: format!("{:?}", err),
-        }
-    }
-}
-
-impl From<glob::GlobError> for J4rsBuildError {
-    fn from(err: glob::GlobError) -> J4rsBuildError {
         J4rsBuildError {
             description: format!("{:?}", err),
         }
