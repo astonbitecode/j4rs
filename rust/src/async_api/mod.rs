@@ -76,7 +76,8 @@ impl Jvm {
 
         // Create and return the Instance
         let instance = rx.await?;
-        let new_jni_env = Jvm::attach_thread()?.jni_env;
+        let new_jvm = Jvm::attach_thread()?;
+        let new_jni_env = new_jvm.jni_env;
         Self::do_return(new_jni_env, instance)?
     }
 
