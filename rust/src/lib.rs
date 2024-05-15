@@ -12,7 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![doc = include_str!("../README.md")]
+//! # j4rs
+//!
+//![![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
+//![![Maven Central](https://img.shields.io/badge/Maven%20Central-0.19.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
+//!![Build](https://github.com/astonbitecode/j4rs/actions/workflows/ci-workflow.yml/badge.svg)
+//!
+//!j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
+//! 
+//! Please see the [README](https://github.com/astonbitecode/j4rs) for more details
+
 
 #[macro_use]
 extern crate lazy_static;
