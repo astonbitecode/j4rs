@@ -27,7 +27,7 @@ use java_locator;
 use sha2::{Digest, Sha256};
 
 // This is the version of the jar that should be used
-const VERSION: &'static str = "0.19.0";
+const VERSION: &'static str = "0.20.0-SNAPSHOT";
 const JAVA_FX_VERSION: &'static str = "21.0.2";
 
 fn main() -> Result<(), J4rsBuildError> {
