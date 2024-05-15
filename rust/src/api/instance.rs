@@ -239,3 +239,31 @@ impl<'a> ChainableInstance<'a> {
         self.jvm.to_rust_boxed(self.instance)
     }
 }
+
+#[cfg(test)]
+mod instance_unit_tests {
+    use crate::*;
+
+    fn create_tests_jvm() -> errors::Result<Jvm> {
+        let jvm: Jvm = JvmBuilder::new().build()?;
+        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", api::j4rs_version()).as_str()))?;
+        Ok(jvm)
+    }
+
+    #[test]
+    fn is_null() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+        let test_instance = jvm
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
+            ?;
+        let maybe_null = jvm.invoke(&test_instance, "getNullInteger", InvocationArg::empty())?;
+        let is_null =
+            jvm.invoke_static(
+                "java.util.Objects", 
+                "isNull", 
+                &[InvocationArg::try_from(maybe_null)?])?;
+        let is_null: bool = jvm.to_rust(is_null)?;
+        assert_eq!(is_null, true);
+        Ok(())
+    }
+}
