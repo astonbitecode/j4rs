@@ -166,8 +166,6 @@ mod lib_unit_tests {
     use std::thread::JoinHandle;
     use std::{thread, time};
 
-    use fs_extra::remove_items;
-
     use crate::api::{self, JavaClass};
     use crate::provisioning::JavaArtifact;
     use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings, Null};
@@ -714,7 +712,7 @@ mod lib_unit_tests {
             jassets_path().unwrap().to_str().unwrap(),
             MAIN_SEPARATOR
         );
-        let _ = remove_items(&vec![to_remove]);
+        let _ = std::fs::remove_dir_all(to_remove);
 
         assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
 
@@ -737,7 +735,7 @@ mod lib_unit_tests {
             jassets_path().unwrap().to_str().unwrap(),
             MAIN_SEPARATOR
         );
-        let _ = remove_items(&vec![to_remove]);
+        let _ = std::fs::remove_dir_all(to_remove);
 
         Ok(())
     }
