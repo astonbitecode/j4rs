@@ -17,6 +17,7 @@ package org.astonbitecode.j4rs.api.invocation;
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.dtos.InvocationArg;
 import org.astonbitecode.j4rs.api.instantiation.NativeInstantiationImpl;
+import org.astonbitecode.j4rs.api.value.NullObject;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.tests.MyTestTest;
 import org.astonbitecode.j4rs.utils.*;
@@ -294,6 +295,19 @@ public class JsonInvocationImplTest {
         // Invoke the method accepting a List
         List<Integer> list = Arrays.asList();
         instance.invoke("addInts", new InvocationArg(list.getClass().getName(), list));
+    }
+
+    @Test
+    public void checkEquals() {
+        JsonInvocationImpl i1 = new JsonInvocationImpl(Integer.valueOf(3), Integer.class);
+        JsonInvocationImpl i2 = new JsonInvocationImpl(Integer.valueOf(3), Integer.class);
+        assert (i1.checkEquals(i2));
+        JsonInvocationImpl i3 = new JsonInvocationImpl(Integer.valueOf(33), Integer.class);
+        assert (!i1.checkEquals(i3));
+        JsonInvocationImpl iNull1 = new JsonInvocationImpl(null, NullObject.class);
+        assert (!iNull1.checkEquals(i3));
+        JsonInvocationImpl iNull2 = new JsonInvocationImpl(null, NullObject.class);
+        assert (iNull1.checkEquals(iNull2));
     }
 
     private class TestCallback extends NativeCallbackToRustFutureSupport {

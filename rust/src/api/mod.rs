@@ -253,6 +253,9 @@ impl Jvm {
             let _ = cache::get_jni_call_object_method().or_else(|| {
                 cache::set_jni_call_object_method(Some((**jni_environment).v1_6.CallObjectMethod))
             });
+            let _ = cache::get_jni_call_boolean_method().or_else(|| {
+                cache::set_jni_call_boolean_method(Some((**jni_environment).v1_6.CallBooleanMethod))
+            });
             let _ = cache::get_jni_call_byte_method().or_else(|| {
                 cache::set_jni_call_byte_method(Some((**jni_environment).v1_6.CallByteMethod))
             });
@@ -1201,6 +1204,31 @@ impl Jvm {
             Self::do_return(
                 self.jni_env,
                 Instance::from_jobject_with_global_ref(java_instance)?,
+            )
+        }
+    }
+
+    /// Checks whether an Instance a is equal to some InvocationArg. 
+    /// 
+    /// The check is actually against the Java `Object.equals`, taking into consideration the possibility of null.
+    /// `NullPointerException` will not be thrown, even if one of the inputs is null.
+    pub fn check_equals(&self, instance: impl Borrow<Instance>, inv_arg: impl Borrow<InvocationArg>) -> errors::Result<bool> {
+        debug(&format!("Checking equality between instances of {} and {}", instance.borrow().class_name(), inv_arg.borrow().class_name()));
+        unsafe {
+            // Create InvocationArg Java Objects
+            let inv_arg_java_b = inv_arg.borrow().as_java_ptr_with_global_ref(self.jni_env)?;
+            // Call the checkEquals method
+            let java_boolean = (opt_to_res(cache::get_jni_call_boolean_method())?)(
+                self.jni_env,
+                instance.borrow().jinstance,
+                cache::get_check_equals_method()?,
+                inv_arg_java_b,
+            );
+
+            // Create and return the boolean
+            Self::do_return(
+                self.jni_env,
+                java_boolean,
             )
         }
     }

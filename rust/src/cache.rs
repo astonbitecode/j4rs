@@ -68,6 +68,9 @@ pub(crate) type JniCallIntMethod =
 #[allow(non_snake_case)]
 pub(crate) type JniCallByteMethod =
     unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jbyte;
+    #[allow(non_snake_case)]
+    pub(crate) type JniCallBooleanMethod =
+        unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jboolean;
 #[allow(non_snake_case)]
 pub(crate) type JniCallShortMethod =
     unsafe extern "C" fn(_: *mut JNIEnv, _: jobject, _: jmethodID, ...) -> jshort;
@@ -233,6 +236,7 @@ thread_local! {
     pub(crate) static JNI_CALL_OBJECT_METHOD: RefCell<Option<JniCallObjectMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_INT_METHOD: RefCell<Option<JniCallIntMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_BYTE_METHOD: RefCell<Option<JniCallByteMethod>> = RefCell::new(None);
+    pub(crate) static JNI_CALL_BOOLEAN_METHOD: RefCell<Option<JniCallBooleanMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_SHORT_METHOD: RefCell<Option<JniCallShortMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_CHAR_METHOD: RefCell<Option<JniCallCharMethod>> = RefCell::new(None);
     pub(crate) static JNI_CALL_LONG_METHOD: RefCell<Option<JniCallLongMethod>> = RefCell::new(None);
@@ -297,6 +301,8 @@ thread_local! {
     pub(crate) static CAST_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The get json method
     pub(crate) static GET_JSON_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    // The get checkEquals method
+    pub(crate) static CHECK_EQUALS_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The get object class name method
     pub(crate) static GET_OBJECT_CLASS_NAME_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
     // The get object method
@@ -502,6 +508,18 @@ pub(crate) fn set_jni_call_byte_method(j: Option<JniCallByteMethod>) -> Option<J
 
 pub(crate) fn get_jni_call_byte_method() -> Option<JniCallByteMethod> {
     JNI_CALL_BYTE_METHOD.with(|opt| *opt.borrow())
+}
+
+pub(crate) fn set_jni_call_boolean_method(j: Option<JniCallBooleanMethod>) -> Option<JniCallBooleanMethod> {
+    debug("Called set_jni_call_boolean_method");
+    JNI_CALL_BOOLEAN_METHOD.with(|opt| {
+        *opt.borrow_mut() = j;
+    });
+    get_jni_call_boolean_method()
+}
+
+pub(crate) fn get_jni_call_boolean_method() -> Option<JniCallBooleanMethod> {
+    JNI_CALL_BOOLEAN_METHOD.with(|opt| *opt.borrow())
 }
 
 pub(crate) fn set_jni_call_short_method(
@@ -1413,6 +1431,41 @@ pub(crate) fn get_get_json_method() -> errors::Result<jmethodID> {
             j
         },
         set_get_json_method
+    )
+}
+
+pub(crate) fn set_check_equals_method(j: jmethodID) {
+    debug("Called set_check_equals_method");
+    CHECK_EQUALS_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+pub(crate) fn get_check_equals_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        CHECK_EQUALS_METHOD,
+        {
+            let env = get_thread_local_env()?;
+
+            let check_equals_method_signature = format!("(L{};)Z", INVO_IFACE_NAME);
+            let cstr1 = utils::to_c_string("checkEquals");
+            let cstr2 = utils::to_c_string(check_equals_method_signature.as_ref());
+
+            // Get the method ID for the `Instance.checkEquals`
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(
+                    env,
+                    get_java_instance_class()?,
+                    cstr1,
+                    cstr2,
+                )
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+
+            j
+        },
+        set_check_equals_method
     )
 }
 

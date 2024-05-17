@@ -1287,4 +1287,19 @@ mod lib_unit_tests {
 
         Ok(())
     }
+
+    #[test]
+    fn check_equals() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+        let test_instance = jvm
+            .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
+            ?;
+        let integer_instance = jvm.create_instance("java.lang.Integer", &[InvocationArg::try_from(3_i32)?.into_primitive()?])?;
+        let ia1 = InvocationArg::try_from(3)?;
+        assert!(jvm.check_equals(&integer_instance, &ia1)?);
+
+        let null_instance = jvm.invoke(&test_instance, "getNullInteger", InvocationArg::empty())?;
+        assert!(jvm.check_equals(&null_instance, InvocationArg::try_from(Null::Integer)?)?);
+        Ok(())
+    }
 }

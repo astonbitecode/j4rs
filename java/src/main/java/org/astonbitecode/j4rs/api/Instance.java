@@ -142,4 +142,16 @@ public interface Instance<T> extends ObjectValue, JsonValue {
             return (T) objValue.getObject();
         }
     }
+
+    default <U> boolean checkEquals(Instance<U> other) {
+        T a = this.getOrDeserializeJavaObject();
+        U b = other.getOrDeserializeJavaObject();
+        if (a != null && b != null) {
+            return a.equals(b);
+        } else if (a == null && b == null) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 }
