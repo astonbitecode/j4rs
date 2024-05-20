@@ -1233,6 +1233,30 @@ impl Jvm {
         }
     }
 
+    /// Consumes an `Instance` and returns its jobject. The returned jobject is a JNI local reference.
+    pub fn instance_into_raw_object(&self, instance: Instance) -> errors::Result<jobject> {
+        debug(&format!("Getting the raw jobject from instance of class {}", instance.borrow().class_name()));
+        // Call the getObjectMethod. This returns a localref
+        let object_instance = unsafe {
+            (opt_to_res(cache::get_jni_call_object_method())?)(
+                self.jni_env,
+                instance.jinstance,
+                cache::get_get_object_method()?,
+        )};
+
+        Self::do_return(
+            self.jni_env,
+            object_instance,
+        )
+    }
+
+    /// Consumes the `Jvm` and returns its `JNIEnv`
+    pub fn into_raw(self) -> *mut JNIEnv {
+        debug(&format!("Getting the raw JNIEnv from the Jvm"));
+
+        self.jni_env
+    }
+
     /// Returns the Rust representation of the provided instance, boxed
     pub fn to_rust_boxed<T>(&self, instance: Instance) -> errors::Result<Box<T>>
         where

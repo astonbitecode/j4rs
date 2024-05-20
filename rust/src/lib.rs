@@ -163,6 +163,7 @@ mod lib_unit_tests {
     use std::collections::HashMap;
     use std::convert::TryFrom;
     use std::path::MAIN_SEPARATOR;
+    use std::ptr::null_mut;
     use std::thread::JoinHandle;
     use std::{thread, time};
 
@@ -1300,6 +1301,24 @@ mod lib_unit_tests {
 
         let null_instance = jvm.invoke(&test_instance, "getNullInteger", InvocationArg::empty())?;
         assert!(jvm.check_equals(&null_instance, InvocationArg::try_from(Null::Integer)?)?);
+        Ok(())
+    }
+
+    #[test]
+    fn instance_into_raw_object() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+        let test_instance = jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())?;
+        let null_instance = jvm.invoke(&test_instance, "getNullInteger", InvocationArg::empty())?;
+        let jobj = jvm.instance_into_raw_object(null_instance)?;
+        assert!(jobj == null_mut());
+        Ok(())
+    }
+
+    #[test]
+    fn jvm_into_raw_object() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+        let jobj = jvm.into_raw();
+        assert!(jobj != null_mut());
         Ok(())
     }
 }
