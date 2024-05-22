@@ -1850,6 +1850,7 @@ impl<'a> JvmBuilder<'a> {
             // This is the j4rs jar that should be included in the classpath
             let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
             let j4rs_testing_jar_to_use = format!("j4rs-testing-{}.jar", j4rs_version());
+            let j4rs_javafx_jar_to_use = format!("j4rs-javafx-{}.jar", j4rs_version());
             // Filter out possible incorrect jars of j4rs
             let filtered_jars: Vec<String> = all_jars
                 .into_iter()
@@ -1858,7 +1859,7 @@ impl<'a> JvmBuilder<'a> {
                         .split(MAIN_SEPARATOR)
                         .last()
                         .unwrap_or(jar_full_path);
-                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use) || jarname.ends_with(&j4rs_testing_jar_to_use)
+                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use) || jarname.ends_with(&j4rs_testing_jar_to_use) || jarname.ends_with(&j4rs_javafx_jar_to_use)
                 })
                 .collect();
             let cp_string = filtered_jars.join(utils::classpath_sep());

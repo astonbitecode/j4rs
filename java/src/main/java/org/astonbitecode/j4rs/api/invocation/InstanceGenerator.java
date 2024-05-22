@@ -14,16 +14,32 @@
  */
 package org.astonbitecode.j4rs.api.invocation;
 
-import org.astonbitecode.j4rs.api.Instance;
-
 import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
+
+import org.astonbitecode.j4rs.api.Instance;
+import org.astonbitecode.j4rs.api.services.delegates.InstanceGeneratorDelegate;
+import org.astonbitecode.j4rs.errors.InvocationException;
 
 public class InstanceGenerator {
+    private static Map<String, InstanceGeneratorDelegate> delegates = new HashMap<>();
+    static {
+        ServiceLoader<InstanceGeneratorDelegate> loader = ServiceLoader.load(InstanceGeneratorDelegate.class);
+        Iterator<InstanceGeneratorDelegate> discoveredDelegates = loader.iterator();
+        while (discoveredDelegates.hasNext()) {
+            InstanceGeneratorDelegate d = discoveredDelegates.next();
+            delegates.put(d.getClass().getCanonicalName(), d);
+        }
+    }
+
     public static <T> Instance<T> create(T instance, Class<T> clazz, List<Type> classGenTypes) {
         JsonInvocationImpl<T> jsonInvocation = new JsonInvocationImpl<T>(instance, clazz, classGenTypes);
         if (shouldRunInFxThread(jsonInvocation.getObjectClass())) {
-            return new JavaFxInvocation<T>(jsonInvocation);
+            return getProxiedForJavaFx(jsonInvocation);
         } else {
             return jsonInvocation;
         }
@@ -32,7 +48,7 @@ public class InstanceGenerator {
     public static <T> Instance<T> create(T instance, Class clazz) {
         JsonInvocationImpl<T> jsonInvocation = new JsonInvocationImpl<T>(instance, clazz);
         if (shouldRunInFxThread(jsonInvocation.getObjectClass())) {
-            return new JavaFxInvocation<T>(jsonInvocation);
+            return getProxiedForJavaFx(jsonInvocation);
         } else {
             return jsonInvocation;
         }
@@ -41,9 +57,20 @@ public class InstanceGenerator {
     public static <T> Instance<T> create(Class clazz) {
         JsonInvocationImpl<T> jsonInvocation = new JsonInvocationImpl(clazz);
         if (shouldRunInFxThread(jsonInvocation.getObjectClass())) {
-            return new JavaFxInvocation<T>(jsonInvocation);
+            return getProxiedForJavaFx(jsonInvocation);
         } else {
             return jsonInvocation;
+        }
+    }
+
+    private static <T> Instance<T> getProxiedForJavaFx(Instance<T> instance) {
+        InstanceGeneratorDelegate delegate = delegates
+                .get("org.astonbitecode.j4rs.api.invocation.JavaFxInstanceGeneratorDelegate");
+        if (delegate == null) {
+            throw new InvocationException(
+                    "Attempted to proxy Instance in order to be executed in FX thread, but delegate is not configured. Please make sure you have j4rs-javafx in the classpath");
+        } else {
+            return delegate.proxy(instance);
         }
     }
 

@@ -26,6 +26,8 @@ jobs:
           distribution: 'adopt'
       - name: Build and Test Java with Maven
         run: mvn -f ./java/pom.xml --batch-mode --update-snapshots install
+      - name: Build and Test the JavaFX module with Maven
+        run: mvn -f ./java/pom.xml --batch-mode --update-snapshots install
       - name: Build and install Java testing resources with Maven
         run: mvn -f ./test-resources/java/pom.xml --batch-mode --update-snapshots install
       - name: Build Rust with Cargo

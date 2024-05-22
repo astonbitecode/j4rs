@@ -23,9 +23,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class JavaFxInvocation<T> implements Instance<T> {
-    private JsonInvocationImpl<T> jsonInvocation;
+    private Instance<T> jsonInvocation;
 
-    public JavaFxInvocation(JsonInvocationImpl<T> jsonInvocation) {
+    public JavaFxInvocation(Instance<T> jsonInvocation) {
         this.jsonInvocation = jsonInvocation;
     }
 

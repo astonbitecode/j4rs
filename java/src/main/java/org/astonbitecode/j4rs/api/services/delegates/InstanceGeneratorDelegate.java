@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 astonbitecode
+ * Copyright 2024 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,16 +12,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astonbitecode.j4rs.api.invocation;
+package org.astonbitecode.j4rs.api.services.delegates;
 
 import org.astonbitecode.j4rs.api.Instance;
-import org.astonbitecode.j4rs.utils.ChildDummy;
-import org.junit.Test;
 
-public class InstanceGeneratorTest {
-    @Test
-    public void generateCorrectImpl() {
-        Instance<?> nonJavaFxInstance = InstanceGenerator.create(new ChildDummy(), ChildDummy.class);
-        assert (nonJavaFxInstance.getClass().equals(JsonInvocationImpl.class));
-    }
+/**
+ * Delegates the generation of Intsances, by creating Instances proxies. 
+ * This is needed for example to execute code in the JavaFX thread.
+ */
+public interface InstanceGeneratorDelegate {
+    /**
+     * Creates a proxied instance
+     * @param <T> The type of the Object the Instance contains
+     * @param instance The Instance
+     * @return A proxied Instance
+     */
+    <T> Instance<T> proxy(Instance<T> instance);
 }

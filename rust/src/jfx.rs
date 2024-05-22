@@ -150,6 +150,7 @@ impl JavaFxSupport for Jvm {
                 &format!("org.openjfx:javafx-media:{}:{}", api::java_fx_version(), classifier),
                 self,
             );
+            maven(&format!("io.github.astonbitecode:j4rs-javafx:{}", api::j4rs_version()), self);
             println!("cargo:warning=javafx dependencies deployment completed...");
 
             Ok(())

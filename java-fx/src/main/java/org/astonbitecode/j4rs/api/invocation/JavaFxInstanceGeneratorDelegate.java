@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 astonbitecode
+ * Copyright 2024 astonbitecode
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,13 +15,11 @@
 package org.astonbitecode.j4rs.api.invocation;
 
 import org.astonbitecode.j4rs.api.Instance;
-import org.astonbitecode.j4rs.utils.ChildDummy;
-import org.junit.Test;
+import org.astonbitecode.j4rs.api.services.delegates.InstanceGeneratorDelegate;
 
-public class InstanceGeneratorTest {
-    @Test
-    public void generateCorrectImpl() {
-        Instance<?> nonJavaFxInstance = InstanceGenerator.create(new ChildDummy(), ChildDummy.class);
-        assert (nonJavaFxInstance.getClass().equals(JsonInvocationImpl.class));
+public class JavaFxInstanceGeneratorDelegate implements InstanceGeneratorDelegate {
+    @Override
+    public <T> Instance<T> proxy(Instance<T> instance) {
+        return new JavaFxInvocation(instance);
     }
 }
