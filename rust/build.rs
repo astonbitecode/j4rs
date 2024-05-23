@@ -11,30 +11,29 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-extern crate dirs;
-extern crate fs_extra;
 
 use std::error::Error;
 use std::fmt;
-#[allow(unused_imports)]
-use std::fs::{File, OpenOptions};
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
+use fs_extra::dir::CopyOptions;
 use glob::glob;
-use java_locator;
-use sha2::{Digest, Sha256};
 
 // This is the version of the jar that should be used
-const VERSION: &'static str = "0.20.0-SNAPSHOT";
-const JAVA_FX_VERSION: &'static str = "21.0.2";
+const VERSION: &str = "0.20.0-SNAPSHOT";
+const JAVA_FX_VERSION: &str = "21.0.2";
 
 fn main() -> Result<(), J4rsBuildError> {
     let out_dir = env::var("OUT_DIR")?;
-    let source_jar_location = format!("../java/target/j4rs-{}-jar-with-dependencies.jar", VERSION);
-    if File::open(&source_jar_location).is_ok() {
-        println!("cargo:rerun-if-changed={}", source_jar_location);
+    let source_jar_location = PathBuf::from(format!(
+        "../java/target/j4rs-{VERSION}-jar-with-dependencies.jar"
+    ));
+    if Path::new(&source_jar_location).exists() {
+        println!(
+            "cargo:rerun-if-changed={}",
+            source_jar_location.to_string_lossy()
+        );
     }
 
     let target_os_res = env::var("CARGO_CFG_TARGET_OS");
@@ -55,76 +54,53 @@ fn main() -> Result<(), J4rsBuildError> {
 
 fn generate_src(out_dir: &str) -> Result<(), J4rsBuildError> {
     let dest_path = Path::new(&out_dir).join("j4rs_init.rs");
-    let mut f = File::create(&dest_path)?;
-
     let contents = format!(
         "
 pub(crate) fn j4rs_version() -> &'static str {{
-    \"{}\"
+    \"{VERSION}\"
 }}
 
 pub(crate) fn java_fx_version() -> &'static str {{
-    \"{}\"
+    \"{JAVA_FX_VERSION}\"
 }}
-",
-        VERSION,
-        JAVA_FX_VERSION
+"
     );
-
-    f.write_all(contents.as_bytes())?;
+    std::fs::write(dest_path, contents)?;
     Ok(())
 }
 
 // Copies the jars from the `java` directory to the source directory of rust.
-fn copy_jars_from_java(jar_source_path: &str) -> Result<(), J4rsBuildError> {
-    if let Ok(mut source_jar_file) = File::open(&jar_source_path) {
+fn copy_jars_from_java(jar_source_path: &Path) -> Result<(), J4rsBuildError> {
+    if jar_source_path.exists() {
         // Find the destination file
         let home = env::var("CARGO_MANIFEST_DIR")?;
         let jassets_path_buf = Path::new(&home).join("jassets");
         let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
 
-        let destination_jar_file_res = {
-            let djpb = Path::new(&jassets_path)
-                .join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
-            File::open(djpb)
-        };
+        let destination_jar_file =
+            Path::new(&jassets_path).join(format!("j4rs-{VERSION}-jar-with-dependencies.jar"));
 
         // Copy only if the files are not the same
-        let do_copy = if destination_jar_file_res.is_ok() {
-            let mut destination_jar_file = destination_jar_file_res.unwrap();
-            !are_same_files(&mut source_jar_file, &mut destination_jar_file).unwrap_or(true)
+        let do_copy = if destination_jar_file.exists() {
+            !are_same_files(&jar_source_path, &destination_jar_file).unwrap_or(true)
         } else {
             true
         };
 
         if do_copy {
-            fs_extra::remove_items(vec![jassets_path.clone()].as_ref())?;
+            fs_extra::remove_items(&[&jassets_path])?;
 
-            let _ = fs::create_dir_all(jassets_path_buf.clone())
-                .map_err(|error| panic!("Cannot create dir '{:?}': {:?}", jassets_path_buf, error));
+            let _ = fs::create_dir_all(&jassets_path_buf)
+                .map_err(|error| panic!("Cannot create dir '{jassets_path_buf:?}': {error:?}"));
 
-            let ref options = fs_extra::dir::CopyOptions::new();
-            let _ = fs_extra::copy_items(vec![jar_source_path].as_ref(), jassets_path, options)?;
+            fs_extra::copy_items(&[jar_source_path], jassets_path, &CopyOptions::new())?;
         }
     }
     Ok(())
 }
 
-fn are_same_files(f1: &mut File, f2: &mut File) -> Result<bool, J4rsBuildError> {
-    let mut buffer1: Vec<u8> = Vec::new();
-    let mut hasher1 = Sha256::new();
-    let mut buffer2: Vec<u8> = Vec::new();
-    let mut hasher2 = Sha256::new();
-
-    f1.read_to_end(&mut buffer1)?;
-    hasher1.update(&buffer1);
-    let hash1 = hasher1.finalize();
-
-    f2.read_to_end(&mut buffer2)?;
-    hasher2.update(&buffer2);
-    let hash2 = hasher2.finalize();
-
-    Ok(hash1 == hash2)
+fn are_same_files(path1: &Path, path2: &Path) -> Result<bool, J4rsBuildError> {
+    Ok(std::fs::read(path1)? == std::fs::read(path2)?)
 }
 
 // Copies the jars to and returns the PathBuf of the exec directory.
@@ -134,43 +110,31 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<PathBuf, J4rsBuildError>
     exec_dir_path_buf.pop();
     exec_dir_path_buf.pop();
 
-    let jassets_output = exec_dir_path_buf.clone();
-    let jassets_output_dir = jassets_output.to_str().unwrap();
+    let jassets_output_dir = exec_dir_path_buf.to_str().unwrap();
 
     let home = env::var("CARGO_MANIFEST_DIR")?;
     let jassets_path_buf = Path::new(&home).join("jassets");
     let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
 
-    let jassets_jar_file_res = {
-        let japb =
-            Path::new(&jassets_path).join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
-        File::open(japb)
-    };
-    let jassets_output_file_res = {
-        let jaopb = Path::new(&jassets_output_dir)
-            .join("jassets")
-            .join(format!("j4rs-{}-jar-with-dependencies.jar", VERSION));
-        File::open(jaopb)
-    };
+    let jassets_jar_file =
+        Path::new(&jassets_path).join(format!("j4rs-{VERSION}-jar-with-dependencies.jar"));
+    let jassets_output_file = Path::new(&jassets_output_dir)
+        .join("jassets")
+        .join(format!("j4rs-{VERSION}-jar-with-dependencies.jar"));
 
     // Delete the target jassets and copy only if the files are not the same
-    let do_copy = if jassets_jar_file_res.is_ok() && jassets_output_file_res.is_ok() {
-        let mut jassets_jar_file = jassets_jar_file_res.unwrap();
-        let mut jassets_output_jar_file = jassets_output_file_res.unwrap();
-
-        !are_same_files(&mut jassets_jar_file, &mut jassets_output_jar_file).unwrap_or(true)
+    let do_copy = if jassets_jar_file.exists() && jassets_output_file.exists() {
+        !are_same_files(&jassets_jar_file, &jassets_output_file).unwrap_or(true)
     } else {
         true
     };
 
     if do_copy {
-        fs_extra::remove_items(vec![format!("{}/jassets", jassets_output_dir)].as_ref())?;
-
-        let ref options = fs_extra::dir::CopyOptions::new();
-        let _ = fs_extra::copy_items(vec![jassets_path].as_ref(), jassets_output_dir, options)?;
+        fs_extra::remove_items(&[format!("{jassets_output_dir}/jassets")])?;
+        fs_extra::copy_items(&[jassets_path], jassets_output_dir, &CopyOptions::new())?;
     }
 
-    let jassets_output_files = glob(format!("{}/jassets/**/*", jassets_output_dir).as_str())?;
+    let jassets_output_files = glob(&format!("{jassets_output_dir}/jassets/**/*"))?;
     for glob_res in jassets_output_files {
         println!("cargo:rerun-if-changed={}", glob_res?.to_str().unwrap());
     }
@@ -204,14 +168,6 @@ impl From<std::env::VarError> for J4rsBuildError {
 
 impl From<std::io::Error> for J4rsBuildError {
     fn from(err: std::io::Error) -> J4rsBuildError {
-        J4rsBuildError {
-            description: format!("{:?}", err),
-        }
-    }
-}
-
-impl From<java_locator::errors::JavaLocatorError> for J4rsBuildError {
-    fn from(err: java_locator::errors::JavaLocatorError) -> J4rsBuildError {
         J4rsBuildError {
             description: format!("{:?}", err),
         }
