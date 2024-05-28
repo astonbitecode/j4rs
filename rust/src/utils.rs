@@ -18,7 +18,6 @@ use std::{self, env, fs, str};
 
 use cesu8::{from_java_cesu8, to_java_cesu8};
 use dunce::canonicalize;
-use fs_extra::dir::get_dir_content;
 use libc::{self, c_char};
 
 use crate::api::{
@@ -86,26 +85,23 @@ pub(crate) fn jassets_path() -> errors::Result<PathBuf> {
 pub(crate) fn default_jassets_path() -> errors::Result<PathBuf> {
     let is_build_script = env::var("OUT_DIR").is_ok();
 
-    let mut jassets_path = if is_build_script {
+    let mut start_path = if is_build_script {
         PathBuf::from(env::var("OUT_DIR")?)
     } else {
         env::current_exe()?
     };
-    jassets_path = canonicalize(jassets_path)?;
+    start_path = canonicalize(start_path)?;
 
-    let mut tmp_vec = Vec::new();
-
-    while tmp_vec.is_empty() {
-        jassets_path.pop();
-        tmp_vec = get_dir_content(&jassets_path)?
-            .directories
-            .into_iter()
-            .filter(|path| path.ends_with("jassets"))
-            .collect();
+    while start_path.pop() {
+        for entry in std::fs::read_dir(&start_path)? {
+            let path = entry?.path();
+            if path.file_name().map(|x| x == "jassets").unwrap_or(false) {
+                return Ok(path);
+            }
+        }
     }
 
-    jassets_path.push("jassets");
-    Ok(jassets_path)
+    Err(errors::J4RsError::GeneralError("Can not find jassets directory".to_owned()))
 }
 
 pub(crate) fn find_j4rs_dynamic_libraries_names() -> errors::Result<Vec<String>> {

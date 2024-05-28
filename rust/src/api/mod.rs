@@ -18,13 +18,12 @@ use std::convert::TryFrom;
 use std::env;
 use std::ops::Drop;
 use std::os::raw::c_void;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::channel;
 use std::{fs, thread, time};
 use std::borrow::Borrow;
 
-use fs_extra::dir::get_dir_content;
 use jni_sys::{
     self, jint, jobject, jsize, jstring, JNIEnv, JavaVM, JavaVMInitArgs, JavaVMOption,
     JNI_EDETACHED, JNI_EEXIST, JNI_EINVAL, JNI_ENOMEM, JNI_ERR, JNI_EVERSION, JNI_OK, JNI_TRUE,
@@ -1846,23 +1845,25 @@ impl<'a> JvmBuilder<'a> {
         } else {
             // The default classpath contains all the jars in the jassets directory
             let jassets_path = self.get_jassets_path()?;
-            let all_jars = get_dir_content(&jassets_path)?.files;
             // This is the j4rs jar that should be included in the classpath
             let j4rs_jar_to_use = format!("j4rs-{}-jar-with-dependencies.jar", j4rs_version());
             let j4rs_testing_jar_to_use = format!("j4rs-testing-{}.jar", j4rs_version());
             let j4rs_javafx_jar_to_use = format!("j4rs-javafx-{}.jar", j4rs_version());
             // Filter out possible incorrect jars of j4rs
-            let filtered_jars: Vec<String> = all_jars
-                .into_iter()
-                .filter(|jar_full_path| {
-                    let jarname = jar_full_path
-                        .split(MAIN_SEPARATOR)
-                        .last()
-                        .unwrap_or(jar_full_path);
-                    !jarname.contains("j4rs-") || jarname.ends_with(&j4rs_jar_to_use) || jarname.ends_with(&j4rs_testing_jar_to_use) || jarname.ends_with(&j4rs_javafx_jar_to_use)
-                })
-                .collect();
-            let cp_string = filtered_jars.join(utils::classpath_sep());
+            let mut cp_string = String::new();
+            for entry in std::fs::read_dir(jassets_path)? {
+                let path = entry?.path();
+                if let Some(file_name) = opt_to_res(path.file_name())?.to_str() {
+                    if !file_name.contains("j4rs-") || file_name.ends_with(&j4rs_jar_to_use) || file_name.ends_with(&j4rs_testing_jar_to_use)  || file_name.ends_with(&j4rs_javafx_jar_to_use) {
+                        if !cp_string.is_empty() {
+                            cp_string.push_str(utils::classpath_sep());
+                        }
+                        if let Some(path) = path.to_str() {
+                            cp_string.push_str(path);
+                        }
+                    }
+                }
+            }
 
             let default_class_path = format!("-Djava.class.path={}", cp_string);
 
@@ -2108,7 +2109,7 @@ mod api_unit_tests {
         let newdir = "./newdir";
         Jvm::copy_j4rs_libs_under(newdir)?;
 
-        let _ = fs_extra::remove_items(&vec![newdir]);
+        let _ = std::fs::remove_dir_all(newdir);
 
         Ok(())
     }
