@@ -25,13 +25,13 @@ use crate::errors::opt_to_res;
 use crate::logger::debug;
 use crate::{api_tweaks as tweaks, errors, jni_utils, utils};
 
-pub(crate) const INST_CLASS_NAME: &'static str =
+pub(crate) const INST_CLASS_NAME: &str =
     "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
-pub(crate) const UTILS_CLASS_NAME: &'static str = "org/astonbitecode/j4rs/utils/Utils";
-pub(crate) const INVO_BASE_NAME: &'static str = "org/astonbitecode/j4rs/api/InstanceBase";
-pub(crate) const INVO_IFACE_NAME: &'static str = "org/astonbitecode/j4rs/api/Instance";
-pub(crate) const UNKNOWN_FOR_RUST: &'static str = "known_in_java_world";
-pub(crate) const J4RS_ARRAY: &'static str = "org.astonbitecode.j4rs.api.dtos.Array";
+pub(crate) const UTILS_CLASS_NAME: &str = "org/astonbitecode/j4rs/utils/Utils";
+pub(crate) const INVO_BASE_NAME: &str = "org/astonbitecode/j4rs/api/InstanceBase";
+pub(crate) const INVO_IFACE_NAME: &str = "org/astonbitecode/j4rs/api/Instance";
+pub(crate) const UNKNOWN_FOR_RUST: &str = "known_in_java_world";
+pub(crate) const J4RS_ARRAY: &str = "org.astonbitecode.j4rs.api.dtos.Array";
 
 pub(crate) type JniGetMethodId = unsafe extern "system" fn(
     *mut jni_sys::JNIEnv,
@@ -225,8 +225,8 @@ lazy_static! {
 }
 
 thread_local! {
-    pub(crate) static JNI_ENV: RefCell<Option<*mut JNIEnv>> = RefCell::new(None);
-    pub(crate) static ACTIVE_JVMS: RefCell<i32> = RefCell::new(0);
+    pub(crate) static JNI_ENV: RefCell<Option<*mut JNIEnv>> = const { RefCell::new(None) };
+    pub(crate) static ACTIVE_JVMS: RefCell<i32> = const { RefCell::new(0) };
     pub(crate) static JNI_GET_METHOD_ID: RefCell<Option<JniGetMethodId>> = RefCell::new(None);
     pub(crate) static JNI_GET_STATIC_METHOD_ID: RefCell<Option<JniGetStaticMethodId>> = RefCell::new(None);
     pub(crate) static JNI_NEW_OBJECT: RefCell<Option<JniNewObject>> = RefCell::new(None);
@@ -257,86 +257,86 @@ thread_local! {
     pub(crate) static JNI_THROW_NEW: RefCell<Option<JniThrowNew>> = RefCell::new(None);
     pub(crate) static JNI_IS_SAME_OBJECT: RefCell<Option<JniIsSameObject>> = RefCell::new(None);
     // This is the Utils class.
-    pub(crate) static UTILS_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static UTILS_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
     // Utils throwableToString method
-    pub(crate) static UTILS_THROWABLE_TO_STRING_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static UTILS_THROWABLE_TO_STRING_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // This is the factory class. It creates instances using reflection. Currently the `NativeInstantiationImpl`.
-    pub(crate) static FACTORY_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static FACTORY_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
     // The constructor method of the `NativeInstantiationImpl`.
-    pub(crate) static FACTORY_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FACTORY_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The method id of the `instantiate` method of the `NativeInstantiation`.
-    pub(crate) static FACTORY_INSTANTIATE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FACTORY_INSTANTIATE_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The method id of the `createForStatic` method of the `NativeInstantiation`.
-    pub(crate) static FACTORY_CREATE_FOR_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FACTORY_CREATE_FOR_STATIC_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The method id of the `createJavaArray` method of the `NativeInstantiation`.
-    pub(crate) static FACTORY_CREATE_JAVA_ARRAY_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FACTORY_CREATE_JAVA_ARRAY_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The method id of the `createJavaList` method of the `NativeInstantiation`.
-    pub(crate) static FACTORY_CREATE_JAVA_LIST_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FACTORY_CREATE_JAVA_LIST_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The method id of the `createJavaMap` method of the `NativeInstantiation`.
-    pub(crate) static FACTORY_CREATE_JAVA_MAP_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static FACTORY_CREATE_JAVA_MAP_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The `Instance` class.
     // This is optional because it exists only in Android for Java7 compatibility
     // because Java7 does not support static method implementations in interfaces.
-    pub(crate) static JAVA_INSTANCE_BASE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static JAVA_INSTANCE_BASE_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
     // The `Instance` class.
-    pub(crate) static JAVA_INSTANCE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static JAVA_INSTANCE_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
     // The Java class for the `InvocationArg`.
-    pub(crate) static INVOCATION_ARG_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static INVOCATION_ARG_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
     // The invoke method
-    pub(crate) static INVOKE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INVOKE_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The invoke static method
-    pub(crate) static INVOKE_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INVOKE_STATIC_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The invoke to channel method
-    pub(crate) static INVOKE_TO_CHANNEL_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INVOKE_TO_CHANNEL_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The method that invokes a Java method that returns Future
-    pub(crate) static INVOKE_ASYNC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INVOKE_ASYNC_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The init callback channel method
-    pub(crate) static INIT_CALLBACK_CHANNEL_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INIT_CALLBACK_CHANNEL_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The field method
-    pub(crate) static FIELD_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static CLASS_TO_INVOKE_CLONE_AND_CAST: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static FIELD_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static CLASS_TO_INVOKE_CLONE_AND_CAST: RefCell<Option<jclass>> = const { RefCell::new(None) };
     // The clone method
-    pub(crate) static CLONE_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static CLONE_STATIC_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The cast method
-    pub(crate) static CAST_STATIC_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static CAST_STATIC_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The get json method
-    pub(crate) static GET_JSON_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static GET_JSON_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The get checkEquals method
-    pub(crate) static CHECK_EQUALS_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static CHECK_EQUALS_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The get object class name method
-    pub(crate) static GET_OBJECT_CLASS_NAME_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static GET_OBJECT_CLASS_NAME_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The get object method
-    pub(crate) static GET_OBJECT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static GET_OBJECT_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The invstatic ocation argument constructor method for objects created by Java
-    pub(crate) static INV_ARG_JAVA_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INV_ARG_JAVA_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The invstatic ocation argument constructor method for objects created by Rust
-    pub(crate) static INV_ARG_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INV_ARG_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // The invstatic ocation argument constructor method for objects of Basic type created by Rust
-    pub(crate) static INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
+    pub(crate) static INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
     // Basic types definitions
-    pub(crate) static INTEGER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static INTEGER_TO_INT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static INTEGER_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static LONG_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static LONG_TO_LONG_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static LONG_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static SHORT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static SHORT_TO_SHORT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static SHORT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static CHARACTER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static CHARACTER_TO_CHAR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static CHARACTER_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static BYTE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static BYTE_TO_BYTE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static BYTE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static FLOAT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static FLOAT_TO_FLOAT_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static FLOAT_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static DOUBLE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static DOUBLE_TO_DOUBLE_METHOD: RefCell<Option<jmethodID>> = RefCell::new(None);
-    pub(crate) static DOUBLE_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static INVOCATION_EXCEPTION_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
-    pub(crate) static STRING_CLASS: RefCell<Option<jclass>> = RefCell::new(None);
+    pub(crate) static INTEGER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static INTEGER_TO_INT_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static INTEGER_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static LONG_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static LONG_TO_LONG_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static LONG_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static SHORT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static SHORT_TO_SHORT_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static SHORT_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static CHARACTER_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static CHARACTER_TO_CHAR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static CHARACTER_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static BYTE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static BYTE_TO_BYTE_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static BYTE_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static FLOAT_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static FLOAT_TO_FLOAT_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static FLOAT_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static DOUBLE_CONSTRUCTOR_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static DOUBLE_TO_DOUBLE_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static DOUBLE_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static INVOCATION_EXCEPTION_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static STRING_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
 }
 
 macro_rules! get_cached {
@@ -375,10 +375,7 @@ pub(crate) fn remove_active_jvm() -> i32 {
 
 pub(crate) fn get_thread_local_env_opt() -> Option<*mut JNIEnv> {
     JNI_ENV.with(
-        |existing_jni_env_opt| match *existing_jni_env_opt.borrow() {
-            Some(env) => Some(env),
-            None => None,
-        },
+        |existing_jni_env_opt| (*existing_jni_env_opt.borrow()),
     )
 }
 
@@ -392,9 +389,7 @@ pub(crate) fn set_thread_local_env(jni_env_opt: Option<*mut JNIEnv>) {
 pub(crate) fn get_thread_local_env() -> errors::Result<*mut JNIEnv> {
     match get_thread_local_env_opt() {
         Some(env) => Ok(env),
-        None => Err(errors::J4RsError::JavaError(format!(
-            "Could not find the JNIEnv in the thread local"
-        ))),
+        None => Err(errors::J4RsError::JavaError("Could not find the JNIEnv in the thread local".to_string())),
     }
 }
 
@@ -825,9 +820,7 @@ pub(crate) fn get_utils_exception_to_string_method() -> errors::Result<jmethodID
         UTILS_THROWABLE_TO_STRING_METHOD,
         {
             let env = get_thread_local_env()?;
-            let throwable_to_string_method_signature = format!(
-                "(Ljava/lang/Throwable;)Ljava/lang/String;"
-            );
+            let throwable_to_string_method_signature = "(Ljava/lang/Throwable;)Ljava/lang/String;".to_string();
             let cstr1 = utils::to_c_string("throwableToString");
             let cstr2 = utils::to_c_string(&throwable_to_string_method_signature);
             let j = unsafe {
@@ -1085,9 +1078,9 @@ pub(crate) fn get_java_instance_base_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, INVO_BASE_NAME)?;
-            let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+            
 
-            j
+            jni_utils::create_global_ref_from_local_ref(c, env)?
         },
         set_java_instance_base_class
     )
@@ -1107,9 +1100,9 @@ pub(crate) fn get_java_instance_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, INVO_IFACE_NAME)?;
-            let j = jni_utils::create_global_ref_from_local_ref(c, env)?;
+            
 
-            j
+            jni_utils::create_global_ref_from_local_ref(c, env)?
         },
         set_java_instance_class
     )
@@ -1205,7 +1198,7 @@ pub(crate) fn get_invoke_to_channel_method() -> errors::Result<jmethodID> {
             let invoke_to_channel_method_signature =
                 "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
             let cstr1 = utils::to_c_string("invokeToChannel");
-            let cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
+            let cstr2 = utils::to_c_string(invoke_to_channel_method_signature);
             // Get the method ID for the `Instance.invokeToChannel`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
@@ -1240,7 +1233,7 @@ pub(crate) fn get_invoke_async_method() -> errors::Result<jmethodID> {
             let invoke_to_channel_method_signature =
                 "(JLjava/lang/String;[Lorg/astonbitecode/j4rs/api/dtos/InvocationArg;)V";
             let cstr1 = utils::to_c_string("invokeAsyncToChannel");
-            let cstr2 = utils::to_c_string(&invoke_to_channel_method_signature);
+            let cstr2 = utils::to_c_string(invoke_to_channel_method_signature);
             // Get the method ID for the `Instance.invokeToChannel`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
@@ -1274,7 +1267,7 @@ pub(crate) fn get_init_callback_channel_method() -> errors::Result<jmethodID> {
 
             let init_callback_channel_method_signature = "(J)V";
             let cstr1 = utils::to_c_string("initializeCallbackChannel");
-            let cstr2 = utils::to_c_string(&init_callback_channel_method_signature);
+            let cstr2 = utils::to_c_string(init_callback_channel_method_signature);
             // Get the method ID for the `Instance.initializeCallbackChannel`
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
@@ -1414,7 +1407,7 @@ pub(crate) fn get_get_json_method() -> errors::Result<jmethodID> {
 
             let get_json_method_signature = "()Ljava/lang/String;";
             let cstr1 = utils::to_c_string("getJson");
-            let cstr2 = utils::to_c_string(get_json_method_signature.as_ref());
+            let cstr2 = utils::to_c_string(get_json_method_signature);
 
             // Get the method ID for the `Instance.getJson`
             let j = unsafe {
@@ -1484,7 +1477,7 @@ pub(crate) fn get_get_object_class_name_method() -> errors::Result<jmethodID> {
 
             let get_object_class_name_method_signature = "()Ljava/lang/String;";
             let cstr1 = utils::to_c_string("getObjectClassName");
-            let cstr2 = utils::to_c_string(get_object_class_name_method_signature.as_ref());
+            let cstr2 = utils::to_c_string(get_object_class_name_method_signature);
 
             // Get the method ID for the `Instance.getObjectClass`
             let j = unsafe {
@@ -1519,7 +1512,7 @@ pub(crate) fn get_get_object_method() -> errors::Result<jmethodID> {
 
             let get_object_method_signature = "()Ljava/lang/Object;";
             let cstr1 = utils::to_c_string("getObject");
-            let cstr2 = utils::to_c_string(get_object_method_signature.as_ref());
+            let cstr2 = utils::to_c_string(get_object_method_signature);
 
             // Get the method ID for the `Instance.getObject`
             let j = unsafe {
@@ -1618,7 +1611,7 @@ pub(crate) fn get_inv_arg_basic_rust_constructor_method() -> errors::Result<jmet
             let inv_arg_basic_rust_constructor_method_signature =
                 "(Ljava/lang/String;Ljava/lang/Object;)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&inv_arg_basic_rust_constructor_method_signature);
+            let cstr2 = utils::to_c_string(inv_arg_basic_rust_constructor_method_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(
                     env,
@@ -1651,13 +1644,13 @@ pub(crate) fn get_class_to_invoke_clone_and_cast() -> errors::Result<jclass> {
             // The java_instance_base_class is used because of Java7 compatibility issues in Android.
             // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
             // and there is a base class created for this reason.
-            let j = if cfg!(target_os = "android") {
+            
+
+            if cfg!(target_os = "android") {
                 get_java_instance_base_class()?
             } else {
                 get_java_instance_class()?
-            };
-
-            j
+            }
         },
         set_class_to_invoke_clone_and_cast
     )
@@ -1698,7 +1691,7 @@ pub(crate) fn get_integer_constructor_method() -> errors::Result<jmethodID> {
 
             let constructor_signature = "(I)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&constructor_signature);
+            let cstr2 = utils::to_c_string(constructor_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_integer_class()?, cstr1, cstr2)
             };
@@ -1726,7 +1719,7 @@ pub(crate) fn get_integer_to_int_method() -> errors::Result<jmethodID> {
 
             let to_int_signature = "()I";
             let cstr1 = utils::to_c_string("intValue");
-            let cstr2 = utils::to_c_string(&to_int_signature);
+            let cstr2 = utils::to_c_string(to_int_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_integer_class()?, cstr1, cstr2)
             };
@@ -1794,7 +1787,7 @@ pub(crate) fn get_long_constructor_method() -> errors::Result<jmethodID> {
 
             let constructor_signature = "(J)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&constructor_signature);
+            let cstr2 = utils::to_c_string(constructor_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_long_class()?, cstr1, cstr2)
             };
@@ -1822,7 +1815,7 @@ pub(crate) fn get_long_to_long_method() -> errors::Result<jmethodID> {
 
             let signature = "()J";
             let cstr1 = utils::to_c_string("longValue");
-            let cstr2 = utils::to_c_string(&signature);
+            let cstr2 = utils::to_c_string(signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_long_class()?, cstr1, cstr2)
             };
@@ -1870,7 +1863,7 @@ pub(crate) fn get_short_constructor_method() -> errors::Result<jmethodID> {
 
             let constructor_signature = "(S)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&constructor_signature);
+            let cstr2 = utils::to_c_string(constructor_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_short_class()?, cstr1, cstr2)
             };
@@ -1898,7 +1891,7 @@ pub(crate) fn get_short_to_short_method() -> errors::Result<jmethodID> {
 
             let signature = "()S";
             let cstr1 = utils::to_c_string("shortValue");
-            let cstr2 = utils::to_c_string(&signature);
+            let cstr2 = utils::to_c_string(signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_short_class()?, cstr1, cstr2)
             };
@@ -1946,7 +1939,7 @@ pub(crate) fn get_character_constructor_method() -> errors::Result<jmethodID> {
 
             let constructor_signature = "(C)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&constructor_signature);
+            let cstr2 = utils::to_c_string(constructor_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_character_class()?, cstr1, cstr2)
             };
@@ -1974,7 +1967,7 @@ pub(crate) fn get_character_to_char_method() -> errors::Result<jmethodID> {
 
             let signature = "()C";
             let cstr1 = utils::to_c_string("charValue");
-            let cstr2 = utils::to_c_string(&signature);
+            let cstr2 = utils::to_c_string(signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_character_class()?, cstr1, cstr2)
             };
@@ -2022,7 +2015,7 @@ pub(crate) fn get_byte_constructor_method() -> errors::Result<jmethodID> {
 
             let constructor_signature = "(B)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&constructor_signature);
+            let cstr2 = utils::to_c_string(constructor_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_byte_class()?, cstr1, cstr2)
             };
@@ -2050,7 +2043,7 @@ pub(crate) fn get_byte_to_byte_method() -> errors::Result<jmethodID> {
 
             let signature = "()B";
             let cstr1 = utils::to_c_string("byteValue");
-            let cstr2 = utils::to_c_string(&signature);
+            let cstr2 = utils::to_c_string(signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_byte_class()?, cstr1, cstr2)
             };
@@ -2102,7 +2095,7 @@ pub(crate) fn get_float_constructor_method() -> errors::Result<jmethodID> {
 
             let constructor_signature = "(F)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&constructor_signature);
+            let cstr2 = utils::to_c_string(constructor_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_float_class()?, cstr1, cstr2)
             };
@@ -2132,7 +2125,7 @@ pub(crate) fn get_float_to_float_method() -> errors::Result<jmethodID> {
 
             let signature = "()F";
             let cstr1 = utils::to_c_string("floatValue");
-            let cstr2 = utils::to_c_string(&signature);
+            let cstr2 = utils::to_c_string(signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_float_class()?, cstr1, cstr2)
             };
@@ -2184,7 +2177,7 @@ pub(crate) fn get_double_constructor_method() -> errors::Result<jmethodID> {
 
             let constructor_signature = "(D)V";
             let cstr1 = utils::to_c_string("<init>");
-            let cstr2 = utils::to_c_string(&constructor_signature);
+            let cstr2 = utils::to_c_string(constructor_signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_double_class()?, cstr1, cstr2)
             };
@@ -2214,7 +2207,7 @@ pub(crate) fn get_double_to_double_method() -> errors::Result<jmethodID> {
 
             let signature = "()D";
             let cstr1 = utils::to_c_string("doubleValue");
-            let cstr2 = utils::to_c_string(&signature);
+            let cstr2 = utils::to_c_string(signature);
             let j = unsafe {
                 (opt_to_res(get_jni_get_method_id())?)(env, get_double_class()?, cstr1, cstr2)
             };

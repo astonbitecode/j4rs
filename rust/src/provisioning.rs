@@ -13,12 +13,11 @@
 // limitations under the License.
 
 use std::cell::RefCell;
-use std::path::PathBuf;
 
 use crate::utils;
 
-const MAVEN_CENTRAL: &'static str = "MavenCentral::https://repo.maven.apache.org/maven2";
-const OSS_SNAPSHOTS: &'static str = "OssSnapshots::https://oss.sonatype.org/content/repositories/snapshots";
+const MAVEN_CENTRAL: &str = "MavenCentral::https://repo.maven.apache.org/maven2";
+const OSS_SNAPSHOTS: &str = "OssSnapshots::https://oss.sonatype.org/content/repositories/snapshots";
 
 thread_local! {
     static MAVEN_SETTINGS: RefCell<MavenSettings> = RefCell::new(MavenSettings::default());
@@ -54,7 +53,7 @@ impl LocalJarArtifact {
     pub fn new(path: &str) -> LocalJarArtifact {
         LocalJarArtifact {
             base: utils::jassets_path()
-                .unwrap_or(PathBuf::new())
+                .unwrap_or_default()
                 .to_str()
                 .unwrap_or("")
                 .to_string(),
@@ -94,11 +93,11 @@ impl From<&[&str]> for MavenArtifact {
     fn from(slice: &[&str]) -> MavenArtifact {
         MavenArtifact {
             base: utils::jassets_path()
-                .unwrap_or(PathBuf::new())
+                .unwrap_or_default()
                 .to_str()
                 .unwrap_or("")
                 .to_string(),
-            group: slice.get(0).unwrap_or(&"").to_string(),
+            group: slice.first().unwrap_or(&"").to_string(),
             id: slice.get(1).unwrap_or(&"").to_string(),
             version: slice.get(2).unwrap_or(&"").to_string(),
             qualifier: slice.get(3).unwrap_or(&"").to_string(),
@@ -181,7 +180,7 @@ pub struct MavenArtifactRepo {
 impl From<&[&str]> for MavenArtifactRepo {
     fn from(slice: &[&str]) -> MavenArtifactRepo {
         MavenArtifactRepo {
-            _id: slice.get(0).unwrap_or(&"").to_string(),
+            _id: slice.first().unwrap_or(&"").to_string(),
             uri: slice.get(1).unwrap_or(&"").to_string(),
         }
     }

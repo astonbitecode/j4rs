@@ -83,7 +83,7 @@ impl JavaFxSupport for Jvm {
         let event_type_instance = self.static_class_field(&event_class, &field)?;
 
         self.invoke(
-            &instance,
+            instance,
             "addEventHandler",
             &[
                 InvocationArg::try_from(event_type_instance)?,
@@ -100,7 +100,7 @@ impl JavaFxSupport for Jvm {
         let j4rs_event_handler = self.create_instance(CLASS_J4RS_EVENT_HANDLER, InvocationArg::empty())?;
         let action_channel = self.init_callback_channel(&j4rs_event_handler)?;
         self.invoke(
-            &stage,
+            stage,
             "setOnCloseRequest",
             &[InvocationArg::try_from(j4rs_event_handler)?],
         )?;
@@ -160,7 +160,7 @@ impl JavaFxSupport for Jvm {
     }
 
     fn load_fxml(&self, path: &PathBuf, stage: &Instance) -> errors::Result<FxController> {
-        let cloned = self.clone_instance(&stage)?;
+        let cloned = self.clone_instance(stage)?;
         let path_str = opt_to_res(path.to_str())?;
         let controller = self.invoke_static(
             CLASS_J4RS_FXML_LOADER,
