@@ -29,9 +29,7 @@ use futures::channel::oneshot::Canceled;
 pub type Result<T> = result::Result<T, J4RsError>;
 
 pub(crate) fn opt_to_res<T>(opt: Option<T>) -> Result<T> {
-    opt.ok_or(J4RsError::RustError(format!(
-        "Option was found None while converting to result"
-    )))
+    opt.ok_or(J4RsError::RustError("Option was found None while converting to result".to_string()))
 }
 
 #[allow(unused)]
@@ -56,11 +54,11 @@ pub enum J4RsError {
 impl fmt::Display for J4RsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &J4RsError::GeneralError(ref message) => write!(f, "{}", message),
-            &J4RsError::JavaError(ref message) => write!(f, "{}", message),
-            &J4RsError::JniError(ref message) => write!(f, "{}", message),
-            &J4RsError::RustError(ref message) => write!(f, "{}", message),
-            &J4RsError::ParseError(ref message) => write!(f, "{}", message),
+            J4RsError::GeneralError(message) => write!(f, "{}", message),
+            J4RsError::JavaError(message) => write!(f, "{}", message),
+            J4RsError::JniError(message) => write!(f, "{}", message),
+            J4RsError::RustError(message) => write!(f, "{}", message),
+            J4RsError::ParseError(message) => write!(f, "{}", message),
             &J4RsError::Timeout => write!(f, "Timeout"),
         }
     }

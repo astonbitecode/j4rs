@@ -101,7 +101,7 @@ impl Instance {
         Ok(Instance {
             class_name: self.class_name.clone(),
             jinstance: jni_utils::_create_weak_global_ref_from_global_ref(
-                self.jinstance.clone(),
+                self.jinstance,
                 cache::get_thread_local_env()?,
             )?,
             skip_deleting_jobject: false,
@@ -184,7 +184,7 @@ impl<'a> ChainableInstance<'a> {
         instance: &Instance,
         jvm: &'a Jvm,
     ) -> errors::Result<ChainableInstance<'a>> {
-        let cloned = jvm.clone_instance(&instance)?;
+        let cloned = jvm.clone_instance(instance)?;
         Ok(ChainableInstance {
             instance: cloned,
             jvm,
@@ -263,7 +263,7 @@ mod instance_unit_tests {
                 "isNull", 
                 &[InvocationArg::try_from(maybe_null)?])?;
         let is_null: bool = jvm.to_rust(is_null)?;
-        assert_eq!(is_null, true);
+        assert!(is_null);
         Ok(())
     }
 }

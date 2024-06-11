@@ -35,9 +35,9 @@ pub(crate) fn invocation_arg_jobject_from_rust_serialized(
             _s @ &InvocationArg::Java { .. } | _s @ &InvocationArg::RustBasic { .. } => {
                 panic!("Called invocation_arg_jobject_from_rust_serialized for an InvocationArg that contains an object. Please consider opening a bug to the developers.")
             }
-            &InvocationArg::Rust {
-                ref class_name,
-                ref json,
+            InvocationArg::Rust {
+                class_name,
+                json,
                 ..
             } => {
                 debug(&format!(
@@ -91,9 +91,9 @@ pub(crate) fn invocation_arg_jobject_from_rust_basic(
             _s @ &InvocationArg::Rust { .. } => {
                 panic!("Called invocation_arg_jobject_from_rust_basic for an InvocationArg that contains a serialized object. Please consider opening a bug to the developers.")
             }
-            &InvocationArg::RustBasic {
-                ref class_name,
-                ref instance,
+            InvocationArg::RustBasic {
+                class_name,
+                instance,
                 ..
             } => {
                 debug(&format!(
@@ -275,7 +275,7 @@ pub(crate) fn global_jobject_from_str(
 
 pub(crate) fn global_jobject_from_i8(a: &i8, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
-        let tmp = a.clone() as *const i8;
+        let tmp = *a as *const i8;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_byte_class()?,
@@ -303,7 +303,7 @@ pub(crate) unsafe fn i8_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> erro
 
 pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
-        let tmp = a.clone() as *const i16;
+        let tmp = *a as *const i16;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_short_class()?,
@@ -316,7 +316,7 @@ pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::
 
 pub(crate) fn global_jobject_from_u16(a: &u16, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
-        let tmp = a.clone() as *const u16;
+        let tmp = *a as *const u16;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_character_class()?,
@@ -359,7 +359,7 @@ pub(crate) unsafe fn u16_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
 
 pub(crate) fn global_jobject_from_i32(a: &i32, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
-        let tmp = a.clone() as *const i32;
+        let tmp = *a as *const i32;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_integer_class()?,
@@ -387,7 +387,7 @@ pub(crate) unsafe fn i32_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
 
 pub(crate) fn global_jobject_from_i64(a: &i64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
     unsafe {
-        let tmp = a.clone();
+        let tmp = *a;
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
             cache::get_long_class()?,
@@ -414,7 +414,7 @@ pub(crate) unsafe fn i64_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
 }
 
 pub(crate) fn global_jobject_from_f32(a: &f32, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-    let tmp = a.clone();
+    let tmp = *a;
     unsafe {
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
@@ -442,7 +442,7 @@ pub(crate) unsafe fn f32_from_jobject(obj: jobject, jni_env: *mut JNIEnv) -> err
 }
 
 pub(crate) fn global_jobject_from_f64(a: &f64, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
-    let tmp = a.clone();
+    let tmp = *a;
     unsafe {
         let o = (opt_to_res(cache::get_jni_new_object())?)(
             jni_env,
