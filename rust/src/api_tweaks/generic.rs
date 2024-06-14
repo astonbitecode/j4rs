@@ -33,7 +33,7 @@ lazy_static! {
     static ref JVM_LIB: libloading::Library = {
         let full_path = format!(
             "{}{}{}",
-            locate_jvm_dyn_library().expect("Could find the jvm dynamic library"),
+            locate_jvm_dyn_library().expect("Could not find the jvm dynamic library"),
             MAIN_SEPARATOR,
             get_jvm_dyn_lib_file_name()
         );
