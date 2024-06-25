@@ -117,6 +117,13 @@ impl TryFrom<InvocationArg> for Instance {
     }
 }
 
+impl TryFrom<jobject> for Instance {
+    type Error = errors::J4RsError;
+    fn try_from(obj: jobject) -> errors::Result<Instance> {
+        Instance::from_jobject_with_global_ref(obj)
+    }
+}
+
 impl Drop for Instance {
     fn drop(&mut self) {
         debug(&format!("Dropping an instance of {}", self.class_name));
@@ -264,6 +271,14 @@ mod instance_unit_tests {
                 &[InvocationArg::try_from(maybe_null)?])?;
         let is_null: bool = jvm.to_rust(is_null)?;
         assert_eq!(is_null, true);
+        Ok(())
+    }
+
+    #[test]
+    fn try_from_jobject() -> errors::Result<()> {
+        let c = std::ptr::null_mut();
+        let instance = Instance::try_from(c)?;
+        assert!(instance.java_object() == std::ptr::null_mut());
         Ok(())
     }
 }
