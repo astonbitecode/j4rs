@@ -16,7 +16,6 @@ use std::path::MAIN_SEPARATOR;
 
 use java_locator::{get_jvm_dyn_lib_file_name, locate_jvm_dyn_library};
 use jni_sys::{jclass, jint, jsize, JNIEnv, JavaVM};
-use libloading;
 
 use crate::{errors, utils};
 

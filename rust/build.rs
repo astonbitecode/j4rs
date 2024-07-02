@@ -84,7 +84,7 @@ fn copy_jars_from_java(jar_source_path: &Path) -> Result<(), J4rsBuildError> {
 
         // Copy only if the files are not the same
         let do_copy = if destination_jar_file.exists() {
-            !are_same_files(&jar_source_path, &destination_jar_file).unwrap_or(true)
+            !are_same_files(jar_source_path, &destination_jar_file).unwrap_or(true)
         } else {
             true
         };

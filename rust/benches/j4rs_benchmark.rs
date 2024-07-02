@@ -21,7 +21,7 @@ fn do_invocation_w_string_args(jvm: &Jvm, instance: &Instance) -> Instance {
     jvm.invoke(
         instance,
         "echo",
-        &vec![InvocationArg::try_from("a").unwrap()],
+        &[InvocationArg::try_from("a").unwrap()],
     )
     .unwrap()
 }
@@ -30,7 +30,7 @@ fn do_invocation_w_integer_args(jvm: &Jvm, instance: &Instance) -> Instance {
     jvm.invoke(
         instance,
         "echo",
-        &vec![InvocationArg::try_from(33_i32).unwrap()],
+        &[InvocationArg::try_from(33_i32).unwrap()],
     )
     .unwrap()
 }
@@ -40,7 +40,7 @@ fn do_invocation_w_string_args_and_to_rust(jvm: &Jvm, instance: &Instance) {
         .invoke(
             instance,
             "getMyWithArgs",
-            &vec![InvocationArg::try_from("a").unwrap()],
+            &[InvocationArg::try_from("a").unwrap()],
         )
         .unwrap();
     let _: String = jvm.to_rust(s_instance).unwrap();
@@ -51,16 +51,14 @@ fn use_to_rust_deserialized(jvm: &Jvm, instance: &Instance) {
         .invoke(
             instance,
             "addInts",
-            &vec![
-                InvocationArg::try_from(30_i32)
+            &[InvocationArg::try_from(30_i32)
                     .unwrap()
                     .into_primitive()
                     .unwrap(),
                 InvocationArg::try_from(3_i32)
                     .unwrap()
                     .into_primitive()
-                    .unwrap(),
-            ],
+                    .unwrap()],
         )
         .unwrap();
     let _: i32 = jvm.to_rust_deserialized(i_instance).unwrap();
@@ -71,16 +69,14 @@ fn use_to_rust_boxed(jvm: &Jvm, instance: &Instance) {
         .invoke(
             instance,
             "addInts",
-            &vec![
-                InvocationArg::try_from(30_i32)
+            &[InvocationArg::try_from(30_i32)
                     .unwrap()
                     .into_primitive()
                     .unwrap(),
                 InvocationArg::try_from(3_i32)
                     .unwrap()
                     .into_primitive()
-                    .unwrap(),
-            ],
+                    .unwrap()],
         )
         .unwrap();
     let _: Box<i32> = jvm.to_rust_boxed(i_instance).unwrap();
