@@ -739,6 +739,17 @@ However, it also supports console logging, which is configured with setting the 
 
 Accepted values are `debug`, `info`, `warn`, `error` and `disabled`.
 
+## Running project tests
+
+First install java 17, this exact version is required.
+Then run the `run_tests.sh` script.
+This script will:
+
+* build and install j4rs and some java test code into the local maven repository on your machine.
+* run `cargo test` which relies on the above installed code.
+
+So you should rerun the full script every time you run tests.
+
 ## Licence
 
 At your option, under:

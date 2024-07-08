@@ -33,4 +33,4 @@ jobs:
       - name: Build Rust with Cargo
         run: cargo build --manifest-path ./rust/Cargo.toml --verbose
       - name: Test Rust with Cargo
-        run: cargo test --manifest-path ./rust/Cargo.toml --verbose
+        run: cargo test --manifest-path ./rust/Cargo.toml --verbose -- --test-threads 1
