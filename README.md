@@ -741,7 +741,7 @@ Accepted values are `debug`, `info`, `warn`, `error` and `disabled`.
 
 ## Running project tests
 
-First install java 17, this exact version is required.
+First install a java version >= 9.
 Then run the `run_tests.sh` script.
 This script will:
 
