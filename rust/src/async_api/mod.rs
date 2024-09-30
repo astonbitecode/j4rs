@@ -147,15 +147,9 @@ impl Jvm {
 #[cfg(test)]
 mod api_unit_tests {
     use super::*;
-    use crate::{api, JvmBuilder, MavenArtifact};
+    use crate::lib_unit_tests::create_tests_jvm;
     use futures::Future;
     use tokio;
-
-    fn create_tests_jvm() -> errors::Result<Jvm> {
-        let jvm: Jvm = JvmBuilder::new().build()?;
-        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", api::j4rs_version()).as_str()))?;
-        Ok(jvm)
-    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn invoke_async_success_w_tokio() -> errors::Result<()> {

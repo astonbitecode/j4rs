@@ -166,17 +166,23 @@ mod lib_unit_tests {
     use std::ptr::null_mut;
     use std::thread::JoinHandle;
     use std::{thread, time};
-
+    use std::sync::Mutex;
     use crate::api::{self, JavaClass};
     use crate::provisioning::JavaArtifact;
     use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings, Null};
-
     use super::utils::jassets_path;
     use super::{errors, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
 
-    fn create_tests_jvm() -> errors::Result<Jvm> {
+    lazy_static! {
+        static ref SYNC_GUARD: Mutex<()> = Mutex::new(());
+    }
+
+    pub(crate) fn create_tests_jvm() -> errors::Result<Jvm> {
         let jvm: Jvm = JvmBuilder::new().build()?;
-        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", api::j4rs_version()).as_str()))?;
+        {
+            let _guard = SYNC_GUARD.lock().unwrap();
+            jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", api::j4rs_version()).as_str()))?;
+        }
         Ok(jvm)
     }
 

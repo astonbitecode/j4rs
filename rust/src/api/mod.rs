@@ -2086,13 +2086,8 @@ impl<'a> ToString for JavaOpt<'a> {
 
 #[cfg(test)]
 mod api_unit_tests {
+    use crate::lib_unit_tests::create_tests_jvm;
     use super::*;
-
-    fn create_tests_jvm() -> errors::Result<Jvm> {
-        let jvm: Jvm = JvmBuilder::new().build()?;
-        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", j4rs_version()).as_str()))?;
-        Ok(jvm)
-    }
 
     #[test]
     fn jvm_builder() -> errors::Result<()> {

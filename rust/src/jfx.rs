@@ -571,15 +571,8 @@ fn fx_event_type_to_event_class_and_field(event_type: FxEventType) -> (String, S
 
 #[cfg(test)]
 mod api_unit_tests {
-    use crate::JvmBuilder;
-
     use super::*;
-
-    fn create_tests_jvm() -> errors::Result<Jvm> {
-        let jvm: Jvm = JvmBuilder::new().build()?;
-        jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", api::j4rs_version()).as_str()))?;
-        Ok(jvm)
-    }
+    use crate::lib_unit_tests::create_tests_jvm;
 
     #[test]
     #[should_panic]
