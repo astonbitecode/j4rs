@@ -162,18 +162,18 @@ impl InvocationArg {
     fn make_primitive(&mut self) -> errors::Result<()> {
         match utils::primitive_of(self) {
             Some(primitive_repr) => {
-                match self {
-                    &mut InvocationArg::Java {
+                match *self {
+                    InvocationArg::Java {
                         instance: _,
                         ref mut class_name,
                         serialized: _,
                     } => *class_name = primitive_repr,
-                    &mut InvocationArg::Rust {
+                    InvocationArg::Rust {
                         json: _,
                         ref mut class_name,
                         serialized: _,
                     } => *class_name = primitive_repr,
-                    &mut InvocationArg::RustBasic {
+                    InvocationArg::RustBasic {
                         instance: _,
                         ref mut class_name,
                         serialized: _,

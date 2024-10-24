@@ -1801,7 +1801,8 @@ impl<'a> JvmBuilder<'a> {
     ///
     /// If not, you will get exceptions like the following:
     ///
-    /// > java.lang.NoSuchMethodError: java.net.URLClassLoader.`<init>`(Ljava/lang/String;[Ljava/net/URL;Ljava/lang/ClassLoader;)V
+    /// ```text
+    /// java.lang.NoSuchMethodError: java.net.URLClassLoader.`<init>`(Ljava/lang/String;[Ljava/net/URL;Ljava/lang/ClassLoader;)V
     ///         at org.astonbitecode.j4rs.api.deploy.J4rsClassLoader.`<init>`(J4rsClassLoader.java:22)
     ///         at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
     ///         at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
@@ -1812,6 +1813,7 @@ impl<'a> JvmBuilder<'a> {
     ///         at java.security.AccessController.doPrivileged(Native Method)
     ///         at java.lang.ClassLoader.initSystemClassLoader(ClassLoader.java:1449)
     ///         at java.lang.ClassLoader.getSystemClassLoader(ClassLoader.java:1429)
+    /// ```
     pub fn with_default_classloader(&'a mut self) -> &'a mut JvmBuilder {
         self.default_classloader = true;
         self
