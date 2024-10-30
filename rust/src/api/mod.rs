@@ -31,7 +31,6 @@ use jni_sys::{
 };
 use libc::c_char;
 use serde::de::DeserializeOwned;
-use serde_json;
 
 use instance::{ChainableInstance, Instance, InstanceReceiver};
 
@@ -51,39 +50,39 @@ pub(crate) mod invocation_arg;
 // Initialize the environment
 include!(concat!(env!("OUT_DIR"), "/j4rs_init.rs"));
 
-const CLASS_STRING: &'static str = "java.lang.String";
-const CLASS_BOOLEAN: &'static str = "java.lang.Boolean";
-const CLASS_BYTE: &'static str = "java.lang.Byte";
-const CLASS_CHARACTER: &'static str = "java.lang.Character";
-const CLASS_SHORT: &'static str = "java.lang.Short";
-const CLASS_INTEGER: &'static str = "java.lang.Integer";
-const CLASS_LONG: &'static str = "java.lang.Long";
-const CLASS_FLOAT: &'static str = "java.lang.Float";
-const CLASS_DOUBLE: &'static str = "java.lang.Double";
-const CLASS_LIST: &'static str = "java.util.List";
-pub(crate) const PRIMITIVE_BOOLEAN: &'static str = "boolean";
-pub(crate) const PRIMITIVE_BYTE: &'static str = "byte";
-pub(crate) const PRIMITIVE_SHORT: &'static str = "short";
-pub(crate) const PRIMITIVE_INT: &'static str = "int";
-pub(crate) const PRIMITIVE_LONG: &'static str = "long";
-pub(crate) const PRIMITIVE_FLOAT: &'static str = "float";
-pub(crate) const PRIMITIVE_DOUBLE: &'static str = "double";
-pub(crate) const PRIMITIVE_CHAR: &'static str = "char";
+const CLASS_STRING: &str = "java.lang.String";
+const CLASS_BOOLEAN: &str = "java.lang.Boolean";
+const CLASS_BYTE: &str = "java.lang.Byte";
+const CLASS_CHARACTER: &str = "java.lang.Character";
+const CLASS_SHORT: &str = "java.lang.Short";
+const CLASS_INTEGER: &str = "java.lang.Integer";
+const CLASS_LONG: &str = "java.lang.Long";
+const CLASS_FLOAT: &str = "java.lang.Float";
+const CLASS_DOUBLE: &str = "java.lang.Double";
+const CLASS_LIST: &str = "java.util.List";
+pub(crate) const PRIMITIVE_BOOLEAN: &str = "boolean";
+pub(crate) const PRIMITIVE_BYTE: &str = "byte";
+pub(crate) const PRIMITIVE_SHORT: &str = "short";
+pub(crate) const PRIMITIVE_INT: &str = "int";
+pub(crate) const PRIMITIVE_LONG: &str = "long";
+pub(crate) const PRIMITIVE_FLOAT: &str = "float";
+pub(crate) const PRIMITIVE_DOUBLE: &str = "double";
+pub(crate) const PRIMITIVE_CHAR: &str = "char";
 
-pub(crate) const PRIMITIVE_BOOLEAN_ARRAY: &'static str = "[Z";
-pub(crate) const PRIMITIVE_BYTE_ARRAY: &'static str = "[B";
-pub(crate) const PRIMITIVE_SHORT_ARRAY: &'static str = "[S";
-pub(crate) const PRIMITIVE_INT_ARRAY: &'static str = "[I";
-pub(crate) const PRIMITIVE_LONG_ARRAY: &'static str = "[J";
-pub(crate) const PRIMITIVE_FLOAT_ARRAY: &'static str = "[F";
-pub(crate) const PRIMITIVE_DOUBLE_ARRAY: &'static str = "[D";
-pub(crate) const PRIMITIVE_CHAR_ARRAY: &'static str = "[C";
+pub(crate) const PRIMITIVE_BOOLEAN_ARRAY: &str = "[Z";
+pub(crate) const PRIMITIVE_BYTE_ARRAY: &str = "[B";
+pub(crate) const PRIMITIVE_SHORT_ARRAY: &str = "[S";
+pub(crate) const PRIMITIVE_INT_ARRAY: &str = "[I";
+pub(crate) const PRIMITIVE_LONG_ARRAY: &str = "[J";
+pub(crate) const PRIMITIVE_FLOAT_ARRAY: &str = "[F";
+pub(crate) const PRIMITIVE_DOUBLE_ARRAY: &str = "[D";
+pub(crate) const PRIMITIVE_CHAR_ARRAY: &str = "[C";
 
-pub(crate) const CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT: &'static str =
+pub(crate) const CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT: &str =
     "org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport";
-pub(crate) const CLASS_J4RS_EVENT_HANDLER: &'static str =
+pub(crate) const CLASS_J4RS_EVENT_HANDLER: &str =
     "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
-pub(crate) const CLASS_J4RS_FXML_LOADER: &'static str =
+pub(crate) const CLASS_J4RS_FXML_LOADER: &str =
     "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
 pub const _JNI_VERSION_10: jint = 0x000a0000;
 
@@ -181,7 +180,7 @@ impl Jvm {
 
                 cstrings_to_drop
                     .into_iter()
-                    .for_each(|cstr| utils::drop_c_string(cstr));
+                    .for_each(utils::drop_c_string);
 
                 int_result
             };
@@ -214,7 +213,7 @@ impl Jvm {
                 jvm.invoke_static(
                     CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT,
                     "initialize",
-                    &vec![InvocationArg::try_from(libname)?],
+                    &[InvocationArg::try_from(libname)?],
                 )?;
                 debug("NativeCallbackSupport initialized");
             }
@@ -423,9 +422,7 @@ impl Jvm {
                         Ok(jvm)
                     }
                 }
-                (_, _, _) => Err(J4RsError::JniError(format!(
-                    "Could not initialize the JVM: Error while trying to retrieve JNI functions."
-                ))),
+                (_, _, _) => Err(J4RsError::JniError("Could not initialize the JVM: Error while trying to retrieve JNI functions.".to_string())),
             }
         } else {
             // Use the environment from the Thread Local
@@ -455,7 +452,7 @@ impl Jvm {
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(class_name, self.jni_env)?;
 
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -474,7 +471,7 @@ impl Jvm {
             for i in 0..size {
                 // Create an InvocationArg Java Object
                 let inv_arg_java =
-                    (&inv_args[i as usize]).borrow().as_java_ptr_with_global_ref(self.jni_env)?;
+                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -524,7 +521,7 @@ impl Jvm {
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(class_name, self.jni_env)?;
 
             // Call the method of the factory that creates a Instance for static calls to methods of class `class_name`.
             // This returns a Instance that acts like a proxy to the Java world.
@@ -561,7 +558,7 @@ impl Jvm {
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(class_name, self.jni_env)?;
 
             // Factory invocation - rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -660,7 +657,7 @@ impl Jvm {
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&class_name, jni_env)?;
+                jni_utils::global_jobject_from_str(class_name, jni_env)?;
 
             // Factory invocation - rest of the arguments: Create a new object list of class InvocationArg
             let size = inv_args.len() as i32;
@@ -739,9 +736,9 @@ impl Jvm {
 
         for (key, val) in inv_args.drain() {
             inv_args_results.insert(i, key.try_into());
-            i = i + 1;
+            i += 1;
             inv_args_results.insert(i, val.try_into());
-            i = i + 1;
+            i += 1;
         }
         let inv_args: Result<Vec<InvocationArg>, J4RsError> = inv_args_results
             .into_iter()
@@ -770,10 +767,10 @@ impl Jvm {
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the key_class_name
             let key_class_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&key_class_name, jni_env)?;
+                jni_utils::global_jobject_from_str(key_class_name, jni_env)?;
             // Factory invocation - second argument: create a jstring to pass as argument for the value_class_name
             let value_class_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&value_class_name, jni_env)?;
+                jni_utils::global_jobject_from_str(value_class_name, jni_env)?;
 
             // Factory invocation - rest of the arguments: Create a new object list of class InvocationArg
             let size = inv_args.len() as i32;
@@ -854,7 +851,7 @@ impl Jvm {
         unsafe {
             // First argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(method_name, self.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -926,7 +923,7 @@ impl Jvm {
         unsafe {
             // First argument: create a jstring to pass as argument for the field_name
             let field_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&field_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(field_name, self.jni_env)?;
 
             // Call the method of the instance
             let java_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
@@ -967,7 +964,7 @@ impl Jvm {
             field_name, class_name
         ));
         let i = self.static_class(class_name)?;
-        self.field(&i, &field_name)
+        self.field(&i, field_name)
     }
 
     /// Invokes the method `method_name` of a created `Instance`, passing an array of `InvocationArg`s.
@@ -991,7 +988,7 @@ impl Jvm {
 
             // Second argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(method_name, self.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -1022,7 +1019,7 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let _ = (opt_to_res(cache::get_jni_call_void_method())?)(
+            (opt_to_res(cache::get_jni_call_void_method())?)(
                 self.jni_env,
                 instance.jinstance,
                 cache::get_invoke_to_channel_method()?,
@@ -1050,7 +1047,7 @@ impl Jvm {
     /// It returns a Result of `InstanceReceiver` that may be used to get an underlying `Receiver<Instance>`.
     /// The `NativeCallbackToRustChannelSupport` Instance which is passed as argument, will be sending `Instance`s via this Receiver.
     pub fn init_callback_channel(&self, instance: &Instance) -> errors::Result<InstanceReceiver> {
-        debug(&format!("Initializing callback channel"));
+        debug("Initializing callback channel");
         unsafe {
             // Create the channel
             let (sender, rx) = channel();
@@ -1062,7 +1059,7 @@ impl Jvm {
             let address = u64::from_str_radix(&address_string[2..], 16).unwrap();
 
             // Call the method of the instance
-            let _ = (opt_to_res(cache::get_jni_call_void_method())?)(
+            (opt_to_res(cache::get_jni_call_void_method())?)(
                 self.jni_env,
                 instance.jinstance,
                 cache::get_init_callback_channel_method()?,
@@ -1090,7 +1087,7 @@ impl Jvm {
         unsafe {
             // Factory invocation - first argument: create a jstring to pass as argument for the class_name
             let class_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&class_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(class_name, self.jni_env)?;
             // Call the method of the factory that creates a Instance for static calls to methods of class `class_name`.
             // This returns a Instance that acts like a proxy to the Java world.
             let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
@@ -1102,7 +1099,7 @@ impl Jvm {
 
             // First argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&method_name, self.jni_env)?;
+                jni_utils::global_jobject_from_str(method_name, self.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -1182,7 +1179,7 @@ impl Jvm {
             // First argument is the jobject that is inside the from_instance
             // Second argument: create a jstring to pass as argument for the to_class
             let to_class_jstring: jstring =
-                jni_utils::global_jobject_from_str(&to_class, self.jni_env)?;
+                jni_utils::global_jobject_from_str(to_class, self.jni_env)?;
 
             // Call the cast method
             let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
@@ -1251,7 +1248,7 @@ impl Jvm {
 
     /// Consumes the `Jvm` and returns its `JNIEnv`
     pub fn into_raw(self) -> *mut JNIEnv {
-        debug(&format!("Getting the raw JNIEnv from the Jvm"));
+        debug("Getting the raw JNIEnv from the Jvm");
 
         self.jni_env
     }
@@ -1288,7 +1285,9 @@ impl Jvm {
         }
 
         let t_type = TypeId::of::<T>();
-        let to_ret = unsafe {
+        
+
+        unsafe {
             // Call the getClassName method. This returns a localref
             let object_class_name_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
@@ -1299,8 +1298,7 @@ impl Jvm {
                 object_class_name_instance,
                 self.jni_env,
             )?;
-            let ref class_name =
-                jni_utils::string_from_jobject(object_class_name_instance, self.jni_env)?;
+            let class_name = &(jni_utils::string_from_jobject(object_class_name_instance, self.jni_env)?);
             jni_utils::delete_java_ref(self.jni_env, object_class_name_instance);
             if t_type == TypeId::of::<String>() && JavaClass::String.get_class_str() == class_name {
                 rust_box_from_java_object!(jni_utils::string_from_jobject)
@@ -1368,9 +1366,7 @@ impl Jvm {
             } else {
                 Ok(Box::new(self.to_rust_deserialized(instance)?))
             }
-        };
-
-        to_ret
+        }
     }
 
     /// Returns the Rust representation of the provided instance
@@ -1397,7 +1393,7 @@ impl Jvm {
             debug("Transforming jstring to rust String");
             let global_json_instance =
                 jni_utils::create_global_ref_from_local_ref(json_instance, self.jni_env)?;
-            let json = jni_utils::jstring_to_rust_string(&self, global_json_instance as jstring)?;
+            let json = jni_utils::jstring_to_rust_string(self, global_json_instance as jstring)?;
             jni_utils::delete_java_ref(self.jni_env, global_json_instance);
             Self::do_return(self.jni_env, serde_json::from_str(&json)?)
         }
@@ -1414,10 +1410,8 @@ impl Jvm {
             for repo in get_maven_settings().repos.into_iter() {
                 let instance = self.create_instance(
                     "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
-                    &vec![
-                        InvocationArg::try_from(repo.uri)?,
-                        InvocationArg::try_from(&maven_artifact.base)?,
-                    ],
+                    &[InvocationArg::try_from(repo.uri)?,
+                        InvocationArg::try_from(&maven_artifact.base)?],
                 )?;
 
                 let res = self.invoke(
@@ -1440,13 +1434,13 @@ impl Jvm {
         } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
             let instance = self.create_instance(
                 "org.astonbitecode.j4rs.api.deploy.FileSystemDeployer",
-                &vec![InvocationArg::try_from(&local_jar_artifact.base)?],
+                &[InvocationArg::try_from(&local_jar_artifact.base)?],
             )?;
 
             let _ = self.invoke(
                 &instance,
                 "deploy",
-                &vec![InvocationArg::try_from(&local_jar_artifact.path)?],
+                &[InvocationArg::try_from(&local_jar_artifact.path)?],
             )?;
             Ok(())
         } else {
@@ -1471,7 +1465,7 @@ impl Jvm {
         let default_jassets_path_string = default_jassets_path_buf.to_str().unwrap().to_owned();
 
         // Copy the jassets
-        let ref mut options = fs_extra::dir::CopyOptions::new();
+        let options = &mut fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         let _ = fs_extra::copy_items(vec![default_jassets_path_string].as_ref(), path, options)?;
 
@@ -1507,12 +1501,12 @@ impl Jvm {
 
     /// Initiates a chain of operations on Instances.
     pub fn chain(&self, instance: &Instance) -> errors::Result<ChainableInstance> {
-        ChainableInstance::new_with_instance_ref(&instance, &self)
+        ChainableInstance::new_with_instance_ref(instance, self)
     }
 
     /// Initiates a chain of operations on Instances.
     pub fn into_chain(&self, instance: Instance) -> ChainableInstance {
-        ChainableInstance::new(instance, &self)
+        ChainableInstance::new(instance, self)
     }
 
     /// Throws an exception in the Java World
@@ -1807,7 +1801,8 @@ impl<'a> JvmBuilder<'a> {
     ///
     /// If not, you will get exceptions like the following:
     ///
-    /// > java.lang.NoSuchMethodError: java.net.URLClassLoader.`<init>`(Ljava/lang/String;[Ljava/net/URL;Ljava/lang/ClassLoader;)V
+    /// ```text
+    /// java.lang.NoSuchMethodError: java.net.URLClassLoader.`<init>`(Ljava/lang/String;[Ljava/net/URL;Ljava/lang/ClassLoader;)V
     ///         at org.astonbitecode.j4rs.api.deploy.J4rsClassLoader.`<init>`(J4rsClassLoader.java:22)
     ///         at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
     ///         at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
@@ -1818,6 +1813,7 @@ impl<'a> JvmBuilder<'a> {
     ///         at java.security.AccessController.doPrivileged(Native Method)
     ///         at java.lang.ClassLoader.initSystemClassLoader(ClassLoader.java:1449)
     ///         at java.lang.ClassLoader.getSystemClassLoader(ClassLoader.java:1429)
+    /// ```
     pub fn with_default_classloader(&'a mut self) -> &'a mut JvmBuilder {
         self.default_classloader = true;
         self
@@ -1918,10 +1914,10 @@ impl<'a> JvmBuilder<'a> {
                 vec![default_lib_name]
             };
 
-            let lib_name_opt = if found_libs.len() > 0 {
+            let lib_name_opt = if !found_libs.is_empty() {
                 let a_lib = found_libs[0].clone().replace("lib", "");
 
-                let dot_splitted: Vec<&str> = a_lib.split(".").collect();
+                let dot_splitted: Vec<&str> = a_lib.split('.').collect();
                 let name = dot_splitted[0].to_string();
                 info(&format!(
                     "Passing to the Java world the name of the library to load: {}",
@@ -1945,11 +1941,11 @@ impl<'a> JvmBuilder<'a> {
 
         provisioning::set_maven_settings(&self.maven_settings);
 
-        Jvm::new(&jvm_options, lib_name_opt).and_then(|mut jvm| {
+        Jvm::new(&jvm_options, lib_name_opt).map(|mut jvm| {
             if !self.detach_thread_on_drop {
                 jvm.detach_thread_on_drop(false);
             }
-            Ok(jvm)
+            jvm
         })
     }
 

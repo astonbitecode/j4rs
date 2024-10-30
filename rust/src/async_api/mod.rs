@@ -41,7 +41,7 @@ impl Jvm {
         // Create the channel
         let (sender, rx) = oneshot::channel::<errors::Result<Instance>>();
         unsafe {
-            Self::handle_channel_sender(self, sender, &instance, &method_name, inv_args.as_ref())?;
+            Self::handle_channel_sender(self, sender, instance, method_name, inv_args)?;
         }
         // Create and return the Instance
         let instance = rx.await?;
@@ -91,7 +91,7 @@ impl Jvm {
 
             // Second argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring =
-                jni_utils::global_jobject_from_str(&method_name, s.jni_env)?;
+                jni_utils::global_jobject_from_str(method_name, s.jni_env)?;
 
             // Rest of the arguments: Create a new objectarray of class InvocationArg
             let size = inv_args.len() as i32;
@@ -122,7 +122,7 @@ impl Jvm {
             }
 
             // Call the method of the instance
-            let _ = (opt_to_res(cache::get_jni_call_void_method())?)(
+            (opt_to_res(cache::get_jni_call_void_method())?)(
                 s.jni_env,
                 instance.jinstance,
                 cache::get_invoke_async_method()?,

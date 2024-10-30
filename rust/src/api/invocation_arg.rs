@@ -18,7 +18,6 @@ use std::ptr;
 
 use jni_sys::{jobject, JNIEnv};
 use serde::Serialize;
-use serde_json;
 
 use crate::api::instance::Instance;
 use crate::api::{JavaClass, Jvm, Null};
@@ -153,7 +152,7 @@ impl InvocationArg {
         } else {
             let json = serde_json::to_string(arg)?;
             Ok(InvocationArg::Rust {
-                json: json,
+                json,
                 class_name: class_name.to_string(),
                 serialized: true,
             })
@@ -163,18 +162,18 @@ impl InvocationArg {
     fn make_primitive(&mut self) -> errors::Result<()> {
         match utils::primitive_of(self) {
             Some(primitive_repr) => {
-                match self {
-                    &mut InvocationArg::Java {
+                match *self {
+                    InvocationArg::Java {
                         instance: _,
                         ref mut class_name,
                         serialized: _,
                     } => *class_name = primitive_repr,
-                    &mut InvocationArg::Rust {
+                    InvocationArg::Rust {
                         json: _,
                         ref mut class_name,
                         serialized: _,
                     } => *class_name = primitive_repr,
-                    &mut InvocationArg::RustBasic {
+                    InvocationArg::RustBasic {
                         instance: _,
                         ref mut class_name,
                         serialized: _,
@@ -184,7 +183,7 @@ impl InvocationArg {
             }
             None => Err(errors::J4RsError::JavaError(format!(
                 "Cannot transform to primitive: {}",
-                utils::get_class_name(&self)
+                utils::get_class_name(self)
             ))),
         }
     }
@@ -203,13 +202,13 @@ impl InvocationArg {
     pub fn as_java_ptr_with_global_ref(&self, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
         match self {
             _s @ &InvocationArg::Java { .. } => {
-                jni_utils::invocation_arg_jobject_from_java(&self, jni_env, true)
+                jni_utils::invocation_arg_jobject_from_java(self, jni_env, true)
             }
             _s @ &InvocationArg::Rust { .. } => {
-                jni_utils::invocation_arg_jobject_from_rust_serialized(&self, jni_env, true)
+                jni_utils::invocation_arg_jobject_from_rust_serialized(self, jni_env, true)
             }
             _s @ &InvocationArg::RustBasic { .. } => {
-                jni_utils::invocation_arg_jobject_from_rust_basic(&self, jni_env, true)
+                jni_utils::invocation_arg_jobject_from_rust_basic(self, jni_env, true)
             }
         }
     }
@@ -218,13 +217,13 @@ impl InvocationArg {
     pub fn as_java_ptr_with_local_ref(&self, jni_env: *mut JNIEnv) -> errors::Result<jobject> {
         match self {
             _s @ &InvocationArg::Java { .. } => {
-                jni_utils::invocation_arg_jobject_from_java(&self, jni_env, false)
+                jni_utils::invocation_arg_jobject_from_java(self, jni_env, false)
             }
             _s @ &InvocationArg::Rust { .. } => {
-                jni_utils::invocation_arg_jobject_from_rust_serialized(&self, jni_env, false)
+                jni_utils::invocation_arg_jobject_from_rust_serialized(self, jni_env, false)
             }
             _s @ &InvocationArg::RustBasic { .. } => {
-                jni_utils::invocation_arg_jobject_from_rust_basic(&self, jni_env, false)
+                jni_utils::invocation_arg_jobject_from_rust_basic(self, jni_env, false)
             }
         }
     }
@@ -233,30 +232,26 @@ impl InvocationArg {
     pub fn instance(self) -> errors::Result<Instance> {
         match self {
             InvocationArg::Java { instance: i, .. } => Ok(i),
-            InvocationArg::RustBasic { .. } => Err(errors::J4RsError::RustError(format!(
-                "Invalid operation: Cannot get the instance of an InvocationArg::RustBasic"
-            ))),
-            InvocationArg::Rust { .. } => Err(errors::J4RsError::RustError(format!(
-                "Cannot get the instance from an InvocationArg::Rust"
-            ))),
+            InvocationArg::RustBasic { .. } => Err(errors::J4RsError::RustError("Invalid operation: Cannot get the instance of an InvocationArg::RustBasic".to_string())),
+            InvocationArg::Rust { .. } => Err(errors::J4RsError::RustError("Cannot get the instance from an InvocationArg::Rust".to_string())),
         }
     }
 
     pub fn class_name(&self) -> &str {
         match self {
-            &InvocationArg::Java {
+            InvocationArg::Java {
                 instance: _,
-                ref class_name,
+                class_name,
                 serialized: _,
             } => class_name,
-            &InvocationArg::Rust {
+            InvocationArg::Rust {
                 json: _,
-                ref class_name,
+                class_name,
                 serialized: _,
             } => class_name,
-            &InvocationArg::RustBasic {
+            InvocationArg::RustBasic {
                 instance: _,
-                ref class_name,
+                class_name,
                 serialized: _,
             } => class_name,
         }
@@ -291,8 +286,8 @@ impl From<Instance> for InvocationArg {
         let class_name = instance.class_name.to_owned();
 
         InvocationArg::Java {
-            instance: instance,
-            class_name: class_name,
+            instance,
+            class_name,
             serialized: false,
         }
     }
@@ -331,7 +326,7 @@ impl<'a> TryFrom<&'a [String]> for InvocationArg {
     fn try_from(vec: &'a [String]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -379,7 +374,7 @@ impl<'a> TryFrom<&'a [bool]> for InvocationArg {
     fn try_from(vec: &'a [bool]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -399,7 +394,7 @@ impl<'a> TryFrom<&'a [i8]> for InvocationArg {
     fn try_from(vec: &'a [i8]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -423,7 +418,7 @@ impl<'a> TryFrom<&'a [char]> for InvocationArg {
     fn try_from(vec: &'a [char]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -447,7 +442,7 @@ impl<'a> TryFrom<&'a [i16]> for InvocationArg {
     fn try_from(vec: &'a [i16]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -471,7 +466,7 @@ impl<'a> TryFrom<&'a [u16]> for InvocationArg {
     fn try_from(vec: &'a [u16]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -495,7 +490,7 @@ impl<'a> TryFrom<&'a [i32]> for InvocationArg {
     fn try_from(vec: &'a [i32]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -515,7 +510,7 @@ impl<'a> TryFrom<&'a [i64]> for InvocationArg {
     fn try_from(vec: &'a [i64]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -539,7 +534,7 @@ impl<'a> TryFrom<&'a [f32]> for InvocationArg {
     fn try_from(vec: &'a [f32]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);
@@ -563,7 +558,7 @@ impl<'a> TryFrom<&'a [f64]> for InvocationArg {
     fn try_from(vec: &'a [f64]) -> errors::Result<InvocationArg> {
         let args: errors::Result<Vec<InvocationArg>> = vec
             .iter()
-            .map(|elem| InvocationArg::try_from(elem))
+            .map(InvocationArg::try_from)
             .collect();
         let res =
             Jvm::do_create_java_list(cache::get_thread_local_env()?, cache::J4RS_ARRAY, &args?);

@@ -386,12 +386,12 @@ mod lib_unit_tests {
         // Use the clones as arguments
         let invocation_res = jvm.create_instance(
             "org.astonbitecode.j4rs.tests.MyTest",
-            &vec![InvocationArg::from(i1)],
+            &[InvocationArg::from(i1)],
         );
         assert!(invocation_res.is_ok());
         let invocation_res = jvm.create_instance(
             "org.astonbitecode.j4rs.tests.MyTest",
-            &vec![InvocationArg::from(i2)],
+            &[InvocationArg::from(i2)],
         );
         assert!(invocation_res.is_ok());
 
@@ -661,7 +661,7 @@ mod lib_unit_tests {
             let instance = jvm
                 .create_instance("java.lang.String", instantiation_args.as_ref())
                 ?;
-            let ref tid_from_java: String = jvm.to_rust(instance)?;
+            let tid_from_java: &String = &(jvm.to_rust(instance)?);
             assert!(&tid == tid_from_java);
         }
         {
@@ -670,7 +670,7 @@ mod lib_unit_tests {
             let instance = jvm
                 .create_instance("java.lang.String", instantiation_args.as_ref())
                 ?;
-            let ref tid_from_java: String = jvm.to_rust(instance)?;
+            let tid_from_java: &String = &(jvm.to_rust(instance)?);
             assert!(&tid == tid_from_java);
         }
 
@@ -688,7 +688,7 @@ mod lib_unit_tests {
                 let instance = jvm
                     .create_instance("java.lang.String", instantiation_args.as_ref())
                     .unwrap();
-                let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
+                let tid_from_java: &String = &jvm.to_rust(instance).unwrap();
                 assert!(&tid == tid_from_java);
             }
             {
@@ -697,7 +697,7 @@ mod lib_unit_tests {
                 let instance = jvm
                     .create_instance("java.lang.String", instantiation_args.as_ref())
                     .unwrap();
-                let ref tid_from_java: String = jvm.to_rust(instance).unwrap();
+                let tid_from_java: &String = &jvm.to_rust(instance).unwrap();
                 assert!(&tid == tid_from_java);
             }
             true
@@ -807,7 +807,7 @@ mod lib_unit_tests {
             .invoke(
                 &test_instance,
                 "getMyWithArgsList",
-                &vec![InvocationArg::from(arr_instance)],
+                &[InvocationArg::from(arr_instance)],
             )
             ?;
 
@@ -836,7 +836,7 @@ mod lib_unit_tests {
             .invoke(
                 &test_instance,
                 "addInts",
-                &vec![InvocationArg::from(arr_instance)],
+                &[InvocationArg::from(arr_instance)],
             )
             ?;
 
@@ -866,7 +866,7 @@ mod lib_unit_tests {
             .invoke_static(
                 "org.astonbitecode.j4rs.tests.MyTest",
                 "useLongPrimitivesArray",
-                &vec![InvocationArg::from(arr_instance)],
+                &[InvocationArg::from(arr_instance)],
             )
             ?;
 
@@ -879,7 +879,7 @@ mod lib_unit_tests {
         let instance = jvm
             .create_instance(
                 "org.astonbitecode.j4rs.tests.MyTest",
-                &vec![InvocationArg::try_from("string")?],
+                &[InvocationArg::try_from("string")?],
             )
             ?;
 
@@ -888,7 +888,7 @@ mod lib_unit_tests {
             ?
             .invoke(
                 "appendToMyString",
-                &vec![InvocationArg::try_from("_is_appended")?],
+                &[InvocationArg::try_from("_is_appended")?],
             )
             ?
             .invoke("length", InvocationArg::empty())
@@ -908,7 +908,7 @@ mod lib_unit_tests {
         let instance = jvm
             .create_instance(
                 "org.astonbitecode.j4rs.tests.MyTest",
-                &vec![InvocationArg::try_from("string")?],
+                &[InvocationArg::try_from("string")?],
             )
             ?;
 
@@ -916,7 +916,7 @@ mod lib_unit_tests {
             .into_chain(instance)
             .invoke(
                 "appendToMyString",
-                &vec![InvocationArg::try_from("_is_appended")?],
+                &[InvocationArg::try_from("_is_appended")?],
             )
             ?
             .invoke("length", InvocationArg::empty())
@@ -971,7 +971,7 @@ mod lib_unit_tests {
             ?
             .invoke(
                 "println",
-                &vec![InvocationArg::try_from("Hello World")?],
+                &[InvocationArg::try_from("Hello World")?],
             )
             ?
             .collect();
@@ -1019,10 +1019,8 @@ mod lib_unit_tests {
             .invoke(
                 &dummy_map,
                 "put",
-                &vec![
-                    InvocationArg::try_from("three")?,
-                    InvocationArg::try_from(3)?,
-                ],
+                &[InvocationArg::try_from("three")?,
+                    InvocationArg::try_from(3)?],
             )
             ?;
 
@@ -1253,7 +1251,7 @@ mod lib_unit_tests {
             .invoke(
                 &test_instance,
                 "echo",
-                &vec![InvocationArg::try_from(true)?],
+                &[InvocationArg::try_from(true)?],
             )
             ?;
         let _: Box<bool> = jvm.to_rust_boxed(i)?;
@@ -1261,7 +1259,7 @@ mod lib_unit_tests {
             .invoke(
                 &test_instance,
                 "echo",
-                &vec![InvocationArg::try_from(33_i8)?],
+                &[InvocationArg::try_from(33_i8)?],
             )
             ?;
         let _: Box<i8> = jvm.to_rust_boxed(i)?;
@@ -1269,7 +1267,7 @@ mod lib_unit_tests {
             .invoke(
                 &test_instance,
                 "echo",
-                &vec![InvocationArg::try_from(33_i16)?],
+                &[InvocationArg::try_from(33_i16)?],
             )
             ?;
         let _: Box<i16> = jvm.to_rust_boxed(i)?;
@@ -1277,7 +1275,7 @@ mod lib_unit_tests {
             .invoke(
                 &test_instance,
                 "echo",
-                &vec![InvocationArg::try_from(33_i32)?],
+                &[InvocationArg::try_from(33_i32)?],
             )
             ?;
         let _: Box<i32> = jvm.to_rust_boxed(i)?;
@@ -1285,7 +1283,7 @@ mod lib_unit_tests {
             .invoke(
                 &test_instance,
                 "echo",
-                &vec![InvocationArg::try_from(33_i64)?],
+                &[InvocationArg::try_from(33_i64)?],
             )
             ?;
         let _: Box<i64> = jvm.to_rust_boxed(i)?;
