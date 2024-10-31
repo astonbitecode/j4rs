@@ -280,7 +280,7 @@ pub(crate) fn global_jobject_from_i8(a: &i8, jni_env: *mut JNIEnv) -> errors::Re
             jni_env,
             cache::get_byte_class()?,
             cache::get_byte_constructor_method()?,
-            tmp as *const i8,
+            tmp,
         );
         create_global_ref_from_local_ref(o, jni_env)
     }
@@ -308,7 +308,7 @@ pub(crate) fn global_jobject_from_i16(a: &i16, jni_env: *mut JNIEnv) -> errors::
             jni_env,
             cache::get_short_class()?,
             cache::get_short_constructor_method()?,
-            tmp as *const i16,
+            tmp,
         );
         create_global_ref_from_local_ref(o, jni_env)
     }
@@ -321,7 +321,7 @@ pub(crate) fn global_jobject_from_u16(a: &u16, jni_env: *mut JNIEnv) -> errors::
             jni_env,
             cache::get_character_class()?,
             cache::get_character_constructor_method()?,
-            tmp as *const u16,
+            tmp,
         );
         create_global_ref_from_local_ref(o, jni_env)
     }
@@ -364,7 +364,7 @@ pub(crate) fn global_jobject_from_i32(a: &i32, jni_env: *mut JNIEnv) -> errors::
             jni_env,
             cache::get_integer_class()?,
             cache::get_integer_constructor_method()?,
-            tmp as *const i32,
+            tmp,
         );
         create_global_ref_from_local_ref(o, jni_env)
     }

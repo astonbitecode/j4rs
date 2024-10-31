@@ -125,7 +125,7 @@ pub extern "C" fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallbackToRus
         let tx = unsafe { Box::from_raw(p) };
 
         let result = tx.send(Ok(instance));
-        if let Err(_) = result {
+        if result.is_err() {
             panic!("Could not send to the defined callback channel to complete the future");
         }
     } else {
@@ -150,7 +150,7 @@ pub unsafe extern "C" fn Java_org_astonbitecode_j4rs_api_invocation_NativeCallba
         let tx = unsafe { Box::from_raw(p) };
 
         let result = tx.send(Err(errors::J4RsError::JavaError(st)));
-        if let Err(_) = result {
+        if result.is_err() {
             panic!("Could not send to the defined callback channel to fail a future");
         }
     } else {

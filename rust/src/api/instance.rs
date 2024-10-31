@@ -231,17 +231,13 @@ impl<'a> ChainableInstance<'a> {
     }
 
     /// Returns the Rust representation of the provided instance
-    pub fn to_rust<T: Any>(self) -> errors::Result<T>
-    where
-        T: DeserializeOwned,
+    pub fn to_rust<T: Any + DeserializeOwned>(self) -> errors::Result<T>
     {
         self.jvm.to_rust(self.instance)
     }
 
     /// Returns the Rust representation of the provided instance, boxed
-    pub fn to_rust_boxed<T: Any>(self) -> errors::Result<Box<T>>
-    where
-        T: DeserializeOwned,
+    pub fn to_rust_boxed<T: Any + DeserializeOwned>(self) -> errors::Result<Box<T>>
     {
         self.jvm.to_rust_boxed(self.instance)
     }

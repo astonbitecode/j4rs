@@ -346,14 +346,14 @@ macro_rules! get_cached {
         } else {
             None
         };
-        if jopt.is_none() {
+        if let Some(jopt) = jopt {
+            Ok(jopt)
+        } else {
             let j = { $do_retrieve };
             if CLASS_CACHING_ENABLED {
                 $setter_name(j);
             }
             Ok(j)
-        } else {
-            Ok(jopt.unwrap())
         }
     }};
 }

@@ -86,8 +86,8 @@ impl JavaFxSupport for Jvm {
             instance,
             "addEventHandler",
             &[
-                InvocationArg::try_from(event_type_instance)?,
-                InvocationArg::try_from(j4rs_event_handler)?,
+                InvocationArg::from(event_type_instance),
+                InvocationArg::from(j4rs_event_handler),
             ],
         )?;
         Ok(btn_action_channel)
@@ -102,7 +102,7 @@ impl JavaFxSupport for Jvm {
         self.invoke(
             stage,
             "setOnCloseRequest",
-            &[InvocationArg::try_from(j4rs_event_handler)?],
+            &[InvocationArg::from(j4rs_event_handler)],
         )?;
         Ok(action_channel)
     }
@@ -165,7 +165,7 @@ impl JavaFxSupport for Jvm {
         let controller = self.invoke_static(
             CLASS_J4RS_FXML_LOADER,
             "loadFxml",
-            &[InvocationArg::try_from(cloned)?, InvocationArg::try_from(path_str)?],
+            &[InvocationArg::from(cloned), InvocationArg::try_from(path_str)?],
         )?;
         Ok(FxController::new(controller))
     }
@@ -200,7 +200,7 @@ impl FxController {
         jvm.invoke(
             &self.controller,
             "addControllerInitializedCallback",
-            &[InvocationArg::try_from(channel_support)?],
+            &[InvocationArg::from(channel_support)],
         )?;
         instance_receiver
     }
@@ -221,8 +221,8 @@ impl FxController {
             "addEventHandler",
             &[
                 InvocationArg::try_from(node_id)?,
-                InvocationArg::try_from(j4rs_event_handler)?,
-                InvocationArg::try_from(event_type_instance)?,
+                InvocationArg::from(j4rs_event_handler),
+                InvocationArg::from(event_type_instance),
             ],
         )?;
         Ok(event_channel)
