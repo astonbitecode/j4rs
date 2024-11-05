@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs-javafx</artifactId>
-    <version>0.21.0-SNAPSHOT</version>
+    <version>0.21.0</version>
     <name>j4rs-javafx</name>
     <description>Java for Rust - JavaFX support</description>
     <url>https://github.com/astonbitecode/j4rs</url>
