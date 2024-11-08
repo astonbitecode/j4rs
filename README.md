@@ -79,7 +79,7 @@ let state = jvm.static_class("java.lang.Thread$State")?;
 ```rust
 let rust_vec = vec!["arg1", "arg2", "arg3", "arg33"];
 
-// Generate a Java List. The Java List implementation is the one that is returned by java.util.Arrays#asList
+// Generate a Java List<String>. The Java List implementation is the one that is returned by java.util.Arrays#asList
 let java_list_instance = jvm.java_list(
     JavaClass::String,
     rust_vec)?;
@@ -124,7 +124,13 @@ let my_vec: Vec<String> = vec![
     "def".to_owned(),
     "ghi".to_owned()];
 
+// Creates List<String>
 let i10 = InvocationArg::try_from(my_vec.as_slice())?;
+
+let another_vec: Vec<f64> = vec![0.0, 1.0, 3.6];
+
+// Creates List<Float>
+let i11 = InvocationArg::try_from(another_vec.as_slice())?;
 ```
 
 The `j4rs` apis accept `InvocationArg`s either as references, or values:
@@ -281,7 +287,7 @@ jvm.cast(&instance, "java.lang.Object")?;
 ### Java arrays and variadics
 
 ```rust
-// Create a Java array of Strings
+// Create a Java array of Strings `String []`
 let s1 = InvocationArg::try_from("string1")?;
 let s2 = InvocationArg::try_from("string2")?;
 let s3 = InvocationArg::try_from("string3")?;
@@ -289,6 +295,24 @@ let s3 = InvocationArg::try_from("string3")?;
 let arr_instance = jvm.create_java_array("java.lang.String", &[s1, s2, s3])?;
 // Invoke the Arrays.asList(...) and retrieve a java.util.List<String>
 let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[InvocationArg::from(arr_instance)])?;
+```
+
+When creating an array of primitives, each `InvocationArg` item needs to be converted to one containing primitive value.
+
+```rust
+let doubles = vec![0.1, 466.5, 21.37];
+
+// Creates Java `double` primitives within a Rust `Vec`
+let double_args: Vec<InvocationArg> = doubles.iter()
+    .map(|value| Ok::<_, J4RsError>(
+        InvocationArg::try_from(value)?.into_primitive()?
+    ))
+    .collect::<Result<_, J4RsError>>()?
+
+// Creates an instance of `double []`
+let doubles_array = InvocationArg::try_from(
+    jvm.create_java_array("double", &double_args)?
+)?;
 ```
 
 ### Java Generics
