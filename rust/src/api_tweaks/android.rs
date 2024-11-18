@@ -15,16 +15,17 @@ use std::collections::HashMap;
 use std::os::raw::c_void;
 use std::sync::Mutex;
 
-use jni_sys::{jclass, jint, jsize, JNIEnv, JavaVM, JNI_OK};
+use jni_sys::{jclass, jint, jobject, jsize, JNIEnv, JavaVM, JNI_OK, JNI_TRUE};
 
 use crate::errors::opt_to_res;
 use crate::jni_utils::create_global_ref_from_local_ref;
-use crate::{errors, utils};
+use crate::{cache, errors, jni_utils, utils};
 
 lazy_static! {
     static ref MUTEX: Mutex<Option<J4rsAndroidJavaVM>> = Mutex::new(None);
     // Cache the classes in order to avoid classloading issues when spawning threads
     static ref CLASSES: Mutex<HashMap<String, J4rsAndroidJclass>> = Mutex::new(HashMap::new());
+    static ref CLASSLOADER: Mutex<Option<J4rsAndroidClassloader>> = Mutex::new(None);
 }
 
 pub fn get_created_java_vms(
@@ -56,9 +57,26 @@ pub(crate) fn set_java_vm(java_vm: *mut JavaVM) {
     *g = Some(J4rsAndroidJavaVM { java_vm });
 }
 
+pub(crate) fn cache_classloader_of(env: *mut JNIEnv, obj: jobject) -> errors::Result<()> {
+    unsafe {
+        let classloader_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
+            env,
+            obj,
+            cache::get_get_classloader_method()?,
+        );
+        let mut g = CLASSLOADER.lock().unwrap();
+        let classloader_instance = jni_utils::create_global_ref_from_local_ref(classloader_instance, env)?;
+
+        *g = Some(J4rsAndroidClassloader {
+            class_loader: classloader_instance,
+        });
+        Ok(())
+    }
+}
+
 pub(crate) fn create_java_vm(
-    _pvm: *mut *mut JavaVM,
-    _penv: *mut *mut c_void,
+    _jvm: *mut *mut JavaVM,
+    _env: *mut *mut c_void,
     _args: *mut c_void,
 ) -> jint {
     panic!("Cannot create Java VM in Android.")
@@ -68,28 +86,25 @@ pub(crate) fn create_java_vm(
 pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     unsafe {
         let mut add_to_cache = false;
-        let found = match CLASSES.lock() {
-            Ok(g) => match g.get(classname) {
-                Some(j4rs_class) => Some(j4rs_class.class.clone()),
-                None => {
-                    let fc = (**env).v1_6.FindClass;
-                    let cstr = utils::to_c_string(classname);
-                    let found: jclass = (fc)(env, cstr);
-                    add_to_cache = true;
-                    utils::drop_c_string(cstr);
-                    Some(found)
-                },
-            },
-            Err(error) => {
-                error!("Could not get the lock for the jclass cache: {:?}", error);
-                None
+
+        let found_in_cache_opt = CLASSES
+            .lock()?
+            .get(classname)
+            .map(|j4rs_class| j4rs_class.class.clone());
+
+        let found: errors::Result<jclass> = match found_in_cache_opt {
+            Some(class) => Ok(class),
+            None => {
+                add_to_cache = true;
+                find_class_default(env, classname)
+                    .or_else(|_| find_class_using_cached_classloader(env, classname))
             }
         };
 
-        let to_ret = opt_to_res(found)?;
         if add_to_cache {
-            let global = create_global_ref_from_local_ref(to_ret, env)?;
-            CLASSES.lock()?.insert(
+            let mut g = CLASSES.lock()?;
+            let global = create_global_ref_from_local_ref(found?, env)?;
+            g.insert(
                 classname.to_string(),
                 J4rsAndroidJclass {
                     class: global.clone(),
@@ -97,7 +112,53 @@ pub(crate) fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jc
             );
             Ok(global as jclass)
         } else {
-            Ok(to_ret)
+            Ok(found?)
+        }
+    }
+}
+
+unsafe fn find_class_default(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
+    let fc = (**env).v1_6.FindClass;
+    let cstr = utils::to_c_string(classname);
+    let found: jclass = (fc)(env, cstr);
+    let found = do_return(env, found, classname);
+    utils::drop_c_string(cstr);
+    found
+}
+
+unsafe fn find_class_using_cached_classloader(
+    env: *mut JNIEnv,
+    classname: &str,
+) -> errors::Result<jclass> {
+    let g = CLASSLOADER.lock()?;
+    if g.is_some() {
+        let cstr = jni_utils::local_jobject_from_str(classname, env).unwrap();
+        let classloader_instance = g.as_ref().unwrap().class_loader;
+        let found = cache::get_jni_call_object_method().unwrap()(
+            env,
+            classloader_instance,
+            cache::get_load_class_method().unwrap(),
+            cstr,
+        );
+
+        let found = do_return(env, found, classname);
+        found
+    } else {
+        Err(errors::J4RsError::JavaError(format!(
+            "Class not found {classname}"
+        )))
+    }
+}
+
+fn do_return<T>(jni_env: *mut JNIEnv, to_return: T, message: &str) -> errors::Result<T> {
+    unsafe {
+        if (opt_to_res(cache::get_jni_exception_check())?)(jni_env) == JNI_TRUE {
+            (opt_to_res(cache::get_jni_exception_clear())?)(jni_env);
+            Err(errors::J4RsError::JavaError(format!(
+                "Class not found {message}"
+            )))
+        } else {
+            Ok(to_return)
         }
     }
 }
@@ -122,3 +183,14 @@ pub(crate) struct J4rsAndroidJclass {
 unsafe impl Send for J4rsAndroidJclass {}
 
 unsafe impl Sync for J4rsAndroidJclass {}
+
+pub(crate) struct J4rsAndroidClassloader {
+    class_loader: jobject,
+}
+
+// Implementing Send and Sync is actually safe and proposed for Android to avoid classloading issues
+// when creating new threads.
+// https://developer.android.com/training/articles/perf-jni
+unsafe impl Send for J4rsAndroidClassloader {}
+
+unsafe impl Sync for J4rsAndroidClassloader {}

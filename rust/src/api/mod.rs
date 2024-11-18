@@ -34,13 +34,15 @@ use serde::de::DeserializeOwned;
 
 use instance::{ChainableInstance, Instance, InstanceReceiver};
 
-use crate::errors;
+use crate::{errors, set_java_vm};
 use crate::errors::{opt_to_res, J4RsError};
 use crate::jni_utils;
 use crate::provisioning;
 use crate::provisioning::{get_maven_settings, JavaArtifact, LocalJarArtifact, MavenArtifact};
 use crate::utils;
 use crate::{api_tweaks as tweaks, cache, InvocationArg, MavenSettings};
+
+use self::tweaks::cache_classloader_of;
 
 use super::logger::{debug, error, info, warn};
 
@@ -1689,6 +1691,8 @@ pub struct JvmBuilder<'a> {
     maven_settings: MavenSettings,
     javafx: bool,
     default_classloader: bool,
+    java_vm_opt: Option<*mut JavaVM>,
+    jobject_within_valid_classloader_opt: Option<jobject>,
 }
 
 impl<'a> JvmBuilder<'a> {
@@ -1705,6 +1709,8 @@ impl<'a> JvmBuilder<'a> {
             maven_settings: MavenSettings::default(),
             javafx: false,
             default_classloader: false,
+            java_vm_opt: None,
+            jobject_within_valid_classloader_opt: None
         }
     }
 
@@ -1765,7 +1771,7 @@ impl<'a> JvmBuilder<'a> {
         self
     }
 
-    /// Instructs the builder not to instruct the Java world j4rs code not to load the native library.
+    /// Configures the builder not to instruct the Java world j4rs code to load the native library.
     /// (most probably because it is already loaded)
     pub fn skip_setting_native_lib(&'a mut self) -> &'a mut JvmBuilder {
         self.skip_setting_native_lib = true;
@@ -1789,6 +1795,42 @@ impl<'a> JvmBuilder<'a> {
     pub fn with_javafx_support(&'a mut self) -> &'a mut JvmBuilder {
         self.javafx = true;
         self
+    }
+
+    /// Create the j4rs `Jvm` using an already created jni `JavaVM`.
+    /// 
+    /// Useful for Android apps, where the JVM is automatically created.
+    pub fn with_java_vm(&'a mut self, java_vm: *mut JavaVM) -> &'a mut JvmBuilder {
+        self.java_vm_opt = Some(java_vm);
+        self
+    }
+
+    /// Instructs j4rs to use the classloader associated to the specified `jobject` when searching for classes.
+    /// 
+    /// Useful for pure native Android apps.
+    /// 
+    /// As described in Android documentation, the native libraries that spawn new threads cannot locate and use Java classes correctly.
+    ///
+    /// From the [docs]((https://developer.android.com/training/articles/perf-jni#faq:-why-didnt-findclass-find-my-class)):
+    /// 
+    /// > You can get into trouble if you create a thread yourself (perhaps by calling pthread_create and then attaching it with AttachCurrentThread). 
+    /// > Now there are no stack frames from your application. If you call FindClass from this thread, the JavaVM will start in the "system" class loader 
+    /// > instead of the one associated with your application, so attempts to find app-specific classes will fail.
+    /// 
+    /// Even if it is proposed to load and cache classes during `JNI_OnLoad` (j4rs documentation about it [here](https://github.com/astonbitecode/j4rs?tab=readme-ov-file#j4rs-in-android))
+    /// `JNI_OnLoad` is not called on pure native apps. One solution to find the app-specific classes in this case, is to use the classloader 
+    /// of the `Activity` to find and use classes. `j4rs` will use the `jobject` passed here (the `jobject` of the `Activity`) to get the 
+    /// proper classloader and use it when needed.
+    /// #[cfg(target_os = "android")]
+    pub fn with_classloader_of_activity_(&'a mut self, jobject_within_valid_classloader: jobject) -> &'a mut JvmBuilder {
+        self.jobject_within_valid_classloader_opt = Some(jobject_within_valid_classloader);
+        // If the `jobject_within_valid_classloader_opt` is provided, it means that the object's classloader
+        // should be used to load classes in case the traditional `FindClass` invocations fail.
+        // Apply here the needed configuration for it to happen.
+        // Do not detach the thread on drop. This would make the Activity to fail.
+        let tmp = self.detach_thread_on_drop(false);
+        let tmp = tmp.with_no_implicit_classpath();
+        tmp
     }
 
     /// `j4rs` uses a custom ClassLoader (namely the `J4rsClassLoader`),
@@ -1895,7 +1937,7 @@ impl<'a> JvmBuilder<'a> {
             .for_each(|opt| jvm_options.push(opt.to_string()));
 
         // Pass to the Java world the name of the j4rs library.
-        let lib_name_opt = if self.lib_name_opt.is_none() && !self.skip_setting_native_lib {
+        let lib_name_opt = if self.lib_name_opt.is_none() && !self.skip_setting_native_lib && cfg!(not(target_os = "android")) {
             let deps_dir = utils::deps_dir()?;
             let found_libs: Vec<String> = if Path::new(&deps_dir).exists() {
                 utils::find_j4rs_dynamic_libraries_names()?
@@ -1941,11 +1983,22 @@ impl<'a> JvmBuilder<'a> {
 
         provisioning::set_maven_settings(&self.maven_settings);
 
-        Jvm::new(&jvm_options, lib_name_opt).map(|mut jvm| {
+        let jvm_res = if self.java_vm_opt.is_some() {
+            // If the `java_vm` is already created and provided, just attach the current thread.
+            set_java_vm(self.java_vm_opt.unwrap());
+            Jvm::attach_thread()
+        } else {
+            Jvm::new(&jvm_options, lib_name_opt)
+        };
+
+        jvm_res.and_then(|mut jvm| {
             if !self.detach_thread_on_drop {
                 jvm.detach_thread_on_drop(false);
             }
-            jvm
+            if self.jobject_within_valid_classloader_opt.is_some() {
+                cache_classloader_of(jvm.jni_env, self.jobject_within_valid_classloader_opt.unwrap())?;
+            }
+            Ok(jvm)
         })
     }
 

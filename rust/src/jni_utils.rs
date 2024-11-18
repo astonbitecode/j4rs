@@ -265,11 +265,18 @@ pub(crate) fn global_jobject_from_str(
     string: &str,
     jni_env: *mut JNIEnv,
 ) -> errors::Result<jobject> {
+    let obj = local_jobject_from_str(string, jni_env)?;
+    let gr = create_global_ref_from_local_ref(obj, jni_env)?;
+    Ok(gr)
+}
+
+pub(crate) fn local_jobject_from_str(
+    string: &str,
+    jni_env: *mut JNIEnv,
+) -> errors::Result<jobject> {
     unsafe {
         let tmp = utils::to_c_string_struct(string);
-        let obj = (opt_to_res(cache::get_jni_new_string_utf())?)(jni_env, tmp.as_ptr());
-        let gr = create_global_ref_from_local_ref(obj, jni_env)?;
-        Ok(gr)
+        Ok((opt_to_res(cache::get_jni_new_string_utf())?)(jni_env, tmp.as_ptr()))
     }
 }
 

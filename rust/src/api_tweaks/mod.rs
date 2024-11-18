@@ -14,7 +14,7 @@ use std::os::raw::c_void;
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::errors;
-use jni_sys::{jclass, jint, jsize, JNIEnv, JavaVM};
+use jni_sys::{jclass, jint, jobject, jsize, JNIEnv, JavaVM};
 
 #[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
 mod generic;
@@ -41,6 +41,8 @@ pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     generic::find_class(env, classname)
 }
 
+#[cfg(all(not(feature = "no-runtime-libloading"), not(target_os = "android")))]
+pub fn cache_classloader_of(_env: *mut JNIEnv, _obj: jobject) -> errors::Result<()> {Ok(())}
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ //
 
 #[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
@@ -68,6 +70,8 @@ pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     no_runtime_lib_loading::find_class(env, classname)
 }
 
+#[cfg(all(feature = "no-runtime-libloading", not(target_os = "android")))]
+pub fn cache_classloader_of(_env: *mut JNIEnv, _obj: jobject) -> errors::Result<()> {Ok(())}
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ //
 
 #[cfg(target_os = "android")]
@@ -95,4 +99,9 @@ pub fn create_java_vm(pvm: *mut *mut JavaVM, penv: *mut *mut c_void, args: *mut 
 #[cfg(target_os = "android")]
 pub fn find_class(env: *mut JNIEnv, classname: &str) -> errors::Result<jclass> {
     android::find_class(env, classname)
+}
+
+#[cfg(target_os = "android")]
+pub fn cache_classloader_of(env: *mut JNIEnv, obj: jobject) -> errors::Result<()> {
+    android::cache_classloader_of(env, obj)
 }

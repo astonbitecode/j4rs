@@ -337,6 +337,11 @@ thread_local! {
     pub(crate) static DOUBLE_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
     pub(crate) static INVOCATION_EXCEPTION_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
     pub(crate) static STRING_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static CLASSLOADER_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static GET_CLASSLOADER_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static ANDROID_CONTEXT_WRAPPER_CLASS: RefCell<Option<jclass>> = const { RefCell::new(None) };
+    pub(crate) static GET_CLASS_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
+    pub(crate) static GET_LOAD_CLASS_METHOD: RefCell<Option<jmethodID>> = const { RefCell::new(None) };
 }
 
 macro_rules! get_cached {
@@ -2239,5 +2244,101 @@ pub(crate) fn get_string_class() -> errors::Result<jclass> {
             jni_utils::create_global_ref_from_local_ref(c, env)?
         },
         set_string_class
+    )
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn set_classloader_class(j: jclass) {
+    debug("Called set_classloader_class");
+    CLASSLOADER_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn get_classloader_class() -> errors::Result<jclass> {
+    get_cached!(
+        CLASSLOADER_CLASS,
+        {
+            let env = get_thread_local_env()?;
+            let c = tweaks::find_class(env, "java/lang/ClassLoader")?;
+            jni_utils::create_global_ref_from_local_ref(c, env)?
+        },
+        set_classloader_class
+    )
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn set_get_classloader_method(j: jmethodID) {
+    debug("Called set_get_classloader_method");
+    GET_CLASSLOADER_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn get_get_classloader_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        GET_CLASSLOADER_METHOD,
+        {
+            let env = get_thread_local_env()?;
+            let cstr1 = utils::to_c_string("getClassLoader");
+            let cstr2 = utils::to_c_string("()Ljava/lang/ClassLoader;");
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(env, get_android_context_wrapper_class()?, cstr1, cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+            j
+        },
+        set_get_classloader_method
+    )
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn set_load_class_method(j: jmethodID) {
+    debug("Called set_load_class_method");
+    GET_LOAD_CLASS_METHOD.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn get_load_class_method() -> errors::Result<jmethodID> {
+    get_cached!(
+        GET_LOAD_CLASS_METHOD,
+        {
+            let env = get_thread_local_env()?;
+            let cstr1 = utils::to_c_string("loadClass");
+            let cstr2 = utils::to_c_string("(Ljava/lang/String;)Ljava/lang/Class;");
+            let j = unsafe {
+                (opt_to_res(get_jni_get_method_id())?)(env, get_classloader_class()?, cstr1, cstr2)
+            };
+            utils::drop_c_string(cstr1);
+            utils::drop_c_string(cstr2);
+            j
+        },
+        set_load_class_method
+    )
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn set_android_context_wrapper_class(j: jclass) {
+    debug("Called set_android_context_wrapper_class");
+    ANDROID_CONTEXT_WRAPPER_CLASS.with(|opt| {
+        *opt.borrow_mut() = Some(j);
+    });
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn get_android_context_wrapper_class() -> errors::Result<jclass> {
+    get_cached!(
+        ANDROID_CONTEXT_WRAPPER_CLASS,
+        {
+            let env = get_thread_local_env()?;
+            let c = tweaks::find_class(env, "android/content/ContextWrapper")?;
+            jni_utils::create_global_ref_from_local_ref(c, env)?
+        },
+        set_android_context_wrapper_class
     )
 }
