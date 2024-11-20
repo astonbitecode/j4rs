@@ -1822,7 +1822,7 @@ impl<'a> JvmBuilder<'a> {
     /// of the `Activity` to find and use classes. `j4rs` will use the `jobject` passed here (the `jobject` of the `Activity`) to get the 
     /// proper classloader and use it when needed.
     /// #[cfg(target_os = "android")]
-    pub fn with_classloader_of_activity_(&'a mut self, jobject_within_valid_classloader: jobject) -> &'a mut JvmBuilder {
+    pub fn with_classloader_of_activity(&'a mut self, jobject_within_valid_classloader: jobject) -> &'a mut JvmBuilder {
         self.jobject_within_valid_classloader_opt = Some(jobject_within_valid_classloader);
         // If the `jobject_within_valid_classloader_opt` is provided, it means that the object's classloader
         // should be used to load classes in case the traditional `FindClass` invocations fail.
