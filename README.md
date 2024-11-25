@@ -22,7 +22,7 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
   * [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
 * **[Java -> Rust support](#Java-to-Rust-support) (Call Rust from Java).**
 * **[JavaFX support](#JavaFX-support) (including FXML support).**
-* **Tested on Linux, Windows and Android.**
+* **Tested on Linux, Windows and [Android](#j4rs-in-android).**
 
 ## Usage
 
@@ -489,7 +489,13 @@ Use like this in order to avoid possible classloading errors.
 
 ## j4rs in android
 
-### Rust side
+`j4rs` can be used in Android either to call a Rust native library (Java -> Rust direction), or with a native-only approach ([Android NativeActivity](https://developer.android.com/ndk/reference/group/native-activity)) (Rust -> Java direction, using [android-activity](https://crates.io/crates/android-activity) crate, [ndk-context](https://crates.io/crates/ndk-context) crate, or similar).
+
+### Android Java -> Rust direction
+
+Here is what is needed when you have a Java/Kotlin app and you need to call a function from a Rust native library.
+
+#### Rust side
 
 1. Define your crate as cdylib in the `Cargo.toml`:
 
@@ -513,7 +519,7 @@ pub extern fn jni_onload(env: *mut JavaVM, _reserved: jobject) -> jint {
 }
 ```
 
-### Java side
+#### Java side
 
 Create an `Activity` and define your native methods normally, as described [here](#java-to-rust-support).
 
@@ -529,7 +535,36 @@ This is why there is a `Java 7` version of `j4rs`:
 </dependency>
 ```
 
-Update: Java 7 is no more supported. `j4rs` 0.13.1 is the last version.
+Update: Java 7 is no more supported. `j4rs` 0.13.1 is the last version supporting Java 7.
+
+### Full Example
+
+Please see [here](https://github.com/astonbitecode/j4rs-android-test).
+
+### Android Rust -> Java direction
+
+When you need to call Java from Rust, using crates like [android-activity](https://crates.io/crates/android-activity), you will need to initialize the `Jvm`, providing the `JavaVM` and `Activity` from the JNI:
+
+```rust
+use android_activity::AndroidApp;
+use j4rs::{InvocationArg, JvmBuilder};
+use j4rs::jni_sys::{JavaVM, jobject};
+
+#[no_mangle]
+fn android_main(app: AndroidApp) {
+    let java_vm: *mut JavaVM = app.vm_as_ptr().cast();
+    let activity_obj: jobject = app.activity_as_ptr().cast();
+    let jvm = JvmBuilder::new()
+        .with_java_vm(java_vm.clone())
+        .with_classloader_of_activity(activity_obj.clone())
+        .build()
+        .unwrap();
+}
+```
+
+### Full Example
+
+Please see [here](https://github.com/astonbitecode/j4rs-android-activity).
 
 ## JavaFX support
 (v0.13.0 onwards)

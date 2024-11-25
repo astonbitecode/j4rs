@@ -22,7 +22,7 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
   * [Simple Maven artifacts download and deployment.](#Using-Maven-artifacts)
 * **[Java -> Rust support](#Java-to-Rust-support) (Call Rust from Java).**
 * **[JavaFX support](#JavaFX-support) (including FXML support).**
-* **Tested on Linux, Windows and Android.**
+* **Tested on Linux, Windows and [Android](#j4rs-in-android).**
 
 ## Usage
 
@@ -79,7 +79,7 @@ let state = jvm.static_class("java.lang.Thread$State")?;
 ```rust
 let rust_vec = vec!["arg1", "arg2", "arg3", "arg33"];
 
-// Generate a Java List. The Java List implementation is the one that is returned by java.util.Arrays#asList
+// Generate a Java List<String>. The Java List implementation is the one that is returned by java.util.Arrays#asList
 let java_list_instance = jvm.java_list(
     JavaClass::String,
     rust_vec)?;
@@ -124,7 +124,13 @@ let my_vec: Vec<String> = vec![
     "def".to_owned(),
     "ghi".to_owned()];
 
+// Creates List<String>
 let i10 = InvocationArg::try_from(my_vec.as_slice())?;
+
+let another_vec: Vec<f64> = vec![0.0, 1.0, 3.6];
+
+// Creates List<Float>
+let i11 = InvocationArg::try_from(another_vec.as_slice())?;
 ```
 
 The `j4rs` apis accept `InvocationArg`s either as references, or values:
@@ -281,7 +287,7 @@ jvm.cast(&instance, "java.lang.Object")?;
 ### Java arrays and variadics
 
 ```rust
-// Create a Java array of Strings
+// Create a Java array of Strings `String []`
 let s1 = InvocationArg::try_from("string1")?;
 let s2 = InvocationArg::try_from("string2")?;
 let s3 = InvocationArg::try_from("string3")?;
@@ -289,6 +295,24 @@ let s3 = InvocationArg::try_from("string3")?;
 let arr_instance = jvm.create_java_array("java.lang.String", &[s1, s2, s3])?;
 // Invoke the Arrays.asList(...) and retrieve a java.util.List<String>
 let list_instance = jvm.invoke_static("java.util.Arrays", "asList", &[InvocationArg::from(arr_instance)])?;
+```
+
+When creating an array of primitives, each `InvocationArg` item needs to be converted to one containing primitive value.
+
+```rust
+let doubles = vec![0.1, 466.5, 21.37];
+
+// Creates Java `double` primitives within a Rust `Vec`
+let double_args: Vec<InvocationArg> = doubles.iter()
+    .map(|value| Ok::<_, J4RsError>(
+        InvocationArg::try_from(value)?.into_primitive()?
+    ))
+    .collect::<Result<_, J4RsError>>()?
+
+// Creates an instance of `double []`
+let doubles_array = InvocationArg::try_from(
+    jvm.create_java_array("double", &double_args)?
+)?;
 ```
 
 ### Java Generics
@@ -465,7 +489,13 @@ Use like this in order to avoid possible classloading errors.
 
 ## j4rs in android
 
-### Rust side
+`j4rs` can be used in Android either to call a Rust native library (Java -> Rust direction), or with a native-only approach ([Android NativeActivity](https://developer.android.com/ndk/reference/group/native-activity)) (Rust -> Java direction, using [android-activity](https://crates.io/crates/android-activity) crate, [ndk-context](https://crates.io/crates/ndk-context) crate, or similar).
+
+### Android Java -> Rust direction
+
+Here is what is needed when you have a Java/Kotlin app and you need to call a function from a Rust native library.
+
+#### Rust side
 
 1. Define your crate as cdylib in the `Cargo.toml`:
 
@@ -489,7 +519,7 @@ pub extern fn jni_onload(env: *mut JavaVM, _reserved: jobject) -> jint {
 }
 ```
 
-### Java side
+#### Java side
 
 Create an `Activity` and define your native methods normally, as described [here](#java-to-rust-support).
 
@@ -505,7 +535,36 @@ This is why there is a `Java 7` version of `j4rs`:
 </dependency>
 ```
 
-Update: Java 7 is no more supported. `j4rs` 0.13.1 is the last version.
+Update: Java 7 is no more supported. `j4rs` 0.13.1 is the last version supporting Java 7.
+
+### Full Example
+
+Please see [here](https://github.com/astonbitecode/j4rs-android-test).
+
+### Android Rust -> Java direction
+
+When you need to call Java from Rust, using crates like [android-activity](https://crates.io/crates/android-activity), you will need to initialize the `Jvm`, providing the `JavaVM` and `Activity` from the JNI:
+
+```rust
+use android_activity::AndroidApp;
+use j4rs::{InvocationArg, JvmBuilder};
+use j4rs::jni_sys::{JavaVM, jobject};
+
+#[no_mangle]
+fn android_main(app: AndroidApp) {
+    let java_vm: *mut JavaVM = app.vm_as_ptr().cast();
+    let activity_obj: jobject = app.activity_as_ptr().cast();
+    let jvm = JvmBuilder::new()
+        .with_java_vm(java_vm.clone())
+        .with_classloader_of_activity(activity_obj.clone())
+        .build()
+        .unwrap();
+}
+```
+
+### Full Example
+
+Please see [here](https://github.com/astonbitecode/j4rs-android-activity).
 
 ## JavaFX support
 (v0.13.0 onwards)
@@ -520,7 +579,7 @@ A good idea is that this happens during build time, in order the dependencies to
 This can happen by adding the following in a [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html?highlight=build,scrpit#build-scripts):
 
 ```rust
-	use j4rs::JvmBuilder;
+  use j4rs::JvmBuilder;
 use j4rs::jfx::JavaFxSupport;
 
 fn main() {
