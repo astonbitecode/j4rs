@@ -1092,7 +1092,7 @@ impl Jvm {
                 jni_utils::global_jobject_from_str(class_name, self.jni_env)?;
             // Call the method of the factory that creates a Instance for static calls to methods of class `class_name`.
             // This returns a Instance that acts like a proxy to the Java world.
-            let java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
+            let tmp_java_instance = (opt_to_res(cache::get_jni_call_static_object_method())?)(
                 self.jni_env,
                 cache::get_factory_class()?,
                 cache::get_factory_create_for_static_method()?,
@@ -1132,11 +1132,14 @@ impl Jvm {
             // Call the method of the instance
             let java_instance = (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
-                java_instance,
+                tmp_java_instance,
                 cache::get_invoke_static_method()?,
                 method_name_jstring,
                 array_ptr,
             );
+            // Delete temp ref
+            jni_utils::delete_java_local_ref(self.jni_env, tmp_java_instance);
+            jni_utils::delete_java_ref(self.jni_env, class_name_jstring);
             // Check for exceptions before creating the globalref
             Self::do_return(self.jni_env, ())?;
 
@@ -1539,7 +1542,9 @@ impl Jvm {
             cache::get_utils_exception_to_string_method()?,
             throwable,
         );
-        jni_utils::string_from_jobject(java_string, jni_env)
+        let to_ret = jni_utils::string_from_jobject(java_string, jni_env);
+        jni_utils::delete_java_local_ref(jni_env, java_string);
+        to_ret
     }
 
     // Retrieves a JNIEnv in the case that a JVM is already created even from another thread.
