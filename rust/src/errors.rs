@@ -21,6 +21,7 @@ use std::sync::mpsc::RecvError;
 use std::sync::{PoisonError, TryLockError};
 use std::{fmt, result};
 
+use cesu8::Cesu8DecodingError;
 use fs_extra;
 use serde_json;
 
@@ -134,5 +135,11 @@ impl From<VarError> for J4RsError {
 impl From<Canceled> for J4RsError {
     fn from(err: Canceled) -> J4RsError {
         J4RsError::RustError(format!("{:?}", err))
+    }
+}
+
+impl From<Cesu8DecodingError> for J4RsError {
+    fn from(err: Cesu8DecodingError) -> J4RsError {
+        J4RsError::ParseError(format!("{:?}", err))
     }
 }
