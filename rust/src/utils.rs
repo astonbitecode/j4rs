@@ -26,8 +26,8 @@ use crate::api::{
 };
 use crate::{cache, errors, InvocationArg, JavaClass};
 
-pub fn to_rust_string(pointer: *const c_char) -> errors::Result<String> {
-    let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };
+pub unsafe fn to_rust_string(pointer: *const c_char) -> errors::Result<String> {
+    let slice = CStr::from_ptr(pointer).to_bytes();
     Ok(from_java_cesu8(slice)?.to_string())
 }
 
