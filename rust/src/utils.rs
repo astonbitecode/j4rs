@@ -26,36 +26,36 @@ use crate::api::{
 };
 use crate::{cache, errors, InvocationArg, JavaClass};
 
-pub unsafe fn to_rust_string(pointer: *const c_char) -> errors::Result<String> {
+pub(crate) unsafe fn to_rust_string(pointer: *const c_char) -> errors::Result<String> {
     let slice = CStr::from_ptr(pointer).to_bytes();
     Ok(from_java_cesu8(slice)?.to_string())
 }
 
-pub fn to_c_string(string: &str) -> *mut c_char {
+pub(crate) fn to_c_string(string: &str) -> *mut c_char {
     let cs = CString::new(string.as_bytes()).unwrap();
     cs.into_raw()
 }
 
-pub fn to_c_string_struct(string: &str) -> CString {
+pub(crate) fn to_c_string_struct(string: &str) -> CString {
     let enc = to_java_cesu8(string).into_owned();
     unsafe { CString::from_vec_unchecked(enc) }
 }
 
-pub unsafe fn drop_c_string(ptr: *mut c_char) {
+pub(crate) unsafe fn drop_c_string(ptr: *mut c_char) {
     let _ = CString::from_raw(ptr);
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn classpath_sep() -> &'static str {
+pub(crate) fn classpath_sep() -> &'static str {
     ":"
 }
 
 #[cfg(target_os = "windows")]
-pub fn classpath_sep() -> &'static str {
+pub(crate) fn classpath_sep() -> &'static str {
     ";"
 }
 
-pub fn java_library_path() -> errors::Result<String> {
+pub(crate) fn java_library_path() -> errors::Result<String> {
     let default = format!("-Djava.library.path={}", deps_dir()?);
     if cfg!(windows) {
         Ok(default)
