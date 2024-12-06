@@ -41,8 +41,8 @@ pub fn to_c_string_struct(string: &str) -> CString {
     unsafe { CString::from_vec_unchecked(enc) }
 }
 
-pub fn drop_c_string(ptr: *mut c_char) {
-    let _ = unsafe { CString::from_raw(ptr) };
+pub unsafe fn drop_c_string(ptr: *mut c_char) {
+    let _ = CString::from_raw(ptr);
 }
 
 #[cfg(not(target_os = "windows"))]

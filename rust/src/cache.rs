@@ -820,7 +820,7 @@ pub(crate) fn set_utils_exception_to_string_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_utils_exception_to_string_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_utils_exception_to_string_method() -> errors::Result<jmethodID> {
     get_cached!(
         UTILS_THROWABLE_TO_STRING_METHOD,
         {
@@ -873,7 +873,7 @@ pub(crate) fn set_factory_constructor_method(j: jmethodID) {
 }
 
 #[allow(dead_code)]
-pub(crate) fn get_factory_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_factory_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         FACTORY_CONSTRUCTOR_METHOD,
         {
@@ -900,7 +900,7 @@ pub(crate) fn set_factory_instantiate_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_factory_instantiate_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_factory_instantiate_method() -> errors::Result<jmethodID> {
     get_cached!(
         FACTORY_INSTANTIATE_METHOD,
         {
@@ -935,7 +935,7 @@ pub(crate) fn set_factory_create_for_static_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_factory_create_for_static_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_factory_create_for_static_method() -> errors::Result<jmethodID> {
     get_cached!(
         FACTORY_CREATE_FOR_STATIC_METHOD,
         {
@@ -969,7 +969,7 @@ pub(crate) fn set_factory_create_java_array_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_factory_create_java_array_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_factory_create_java_array_method() -> errors::Result<jmethodID> {
     get_cached!(
         FACTORY_CREATE_JAVA_ARRAY_METHOD,
         {
@@ -1005,7 +1005,7 @@ pub(crate) fn set_factory_create_java_list_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_factory_create_java_list_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_factory_create_java_list_method() -> errors::Result<jmethodID> {
     get_cached!(
         FACTORY_CREATE_JAVA_LIST_METHOD,
         {
@@ -1041,7 +1041,7 @@ pub(crate) fn set_factory_create_java_map_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_factory_create_java_map_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_factory_create_java_map_method() -> errors::Result<jmethodID> {
     get_cached!(
         FACTORY_CREATE_JAVA_MAP_METHOD,
         {
@@ -1120,7 +1120,7 @@ pub(crate) fn set_invoke_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_invoke_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_invoke_method() -> errors::Result<jmethodID> {
     get_cached!(
         INVOKE_METHOD,
         {
@@ -1157,7 +1157,7 @@ pub(crate) fn set_invoke_static_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_invoke_static_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_invoke_static_method() -> errors::Result<jmethodID> {
     get_cached!(
         INVOKE_STATIC_METHOD,
         {
@@ -1194,7 +1194,7 @@ pub(crate) fn set_invoke_to_channel_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_invoke_to_channel_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_invoke_to_channel_method() -> errors::Result<jmethodID> {
     get_cached!(
         INVOKE_TO_CHANNEL_METHOD,
         {
@@ -1229,7 +1229,7 @@ pub(crate) fn set_invoke_async_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_invoke_async_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_invoke_async_method() -> errors::Result<jmethodID> {
     get_cached!(
         INVOKE_ASYNC_METHOD,
         {
@@ -1264,7 +1264,7 @@ pub(crate) fn set_init_callback_channel_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_init_callback_channel_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_init_callback_channel_method() -> errors::Result<jmethodID> {
     get_cached!(
         INIT_CALLBACK_CHANNEL_METHOD,
         {
@@ -1298,7 +1298,7 @@ pub(crate) fn set_field_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_field_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_field_method() -> errors::Result<jmethodID> {
     get_cached!(
         FIELD_METHOD,
         {
@@ -1332,7 +1332,7 @@ pub(crate) fn set_clone_static_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_clone_static_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_clone_static_method() -> errors::Result<jmethodID> {
     get_cached!(
         CLONE_STATIC_METHOD,
         {
@@ -1366,7 +1366,7 @@ pub(crate) fn set_cast_static_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_cast_static_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_cast_static_method() -> errors::Result<jmethodID> {
     get_cached!(
         CAST_STATIC_METHOD,
         {
@@ -1404,7 +1404,7 @@ pub(crate) fn set_get_json_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_get_json_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_get_json_method() -> errors::Result<jmethodID> {
     get_cached!(
         GET_JSON_METHOD,
         {
@@ -1439,7 +1439,7 @@ pub(crate) fn set_check_equals_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_check_equals_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_check_equals_method() -> errors::Result<jmethodID> {
     get_cached!(
         CHECK_EQUALS_METHOD,
         {
@@ -1474,7 +1474,7 @@ pub(crate) fn set_get_object_class_name_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_get_object_class_name_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_get_object_class_name_method() -> errors::Result<jmethodID> {
     get_cached!(
         GET_OBJECT_CLASS_NAME_METHOD,
         {
@@ -1509,7 +1509,7 @@ pub(crate) fn set_get_object_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_get_object_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_get_object_method() -> errors::Result<jmethodID> {
     get_cached!(
         GET_OBJECT_METHOD,
         {
@@ -1544,7 +1544,7 @@ pub(crate) fn set_inv_arg_java_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_inv_arg_java_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_inv_arg_java_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         INV_ARG_JAVA_CONSTRUCTOR_METHOD,
         {
@@ -1578,7 +1578,7 @@ pub(crate) fn set_inv_arg_rust_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_inv_arg_rust_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_inv_arg_rust_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         INV_ARG_RUST_CONSTRUCTOR_METHOD,
         {
@@ -1607,7 +1607,7 @@ pub(crate) fn set_inv_arg_basic_rust_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_inv_arg_basic_rust_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_inv_arg_basic_rust_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         INV_ARG_BASIC_RUST_CONSTRUCTOR_METHOD,
         {
@@ -1688,7 +1688,7 @@ pub(crate) fn set_integer_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_integer_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_integer_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         INTEGER_CONSTRUCTOR_METHOD,
         {
@@ -1716,7 +1716,7 @@ pub(crate) fn set_integer_to_int_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_integer_to_int_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_integer_to_int_method() -> errors::Result<jmethodID> {
     get_cached!(
         INTEGER_TO_INT_METHOD,
         {
@@ -1784,7 +1784,7 @@ pub(crate) fn set_long_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_long_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_long_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         LONG_CONSTRUCTOR_METHOD,
         {
@@ -1812,7 +1812,7 @@ pub(crate) fn set_long_to_long_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_long_to_long_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_long_to_long_method() -> errors::Result<jmethodID> {
     get_cached!(
         LONG_TO_LONG_METHOD,
         {
@@ -1860,7 +1860,7 @@ pub(crate) fn set_short_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_short_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_short_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         SHORT_CONSTRUCTOR_METHOD,
         {
@@ -1888,7 +1888,7 @@ pub(crate) fn set_short_to_short_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_short_to_short_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_short_to_short_method() -> errors::Result<jmethodID> {
     get_cached!(
         SHORT_TO_SHORT_METHOD,
         {
@@ -1936,7 +1936,7 @@ pub(crate) fn set_character_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_character_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_character_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         CHARACTER_CONSTRUCTOR_METHOD,
         {
@@ -1964,7 +1964,7 @@ pub(crate) fn set_character_to_char_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_character_to_char_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_character_to_char_method() -> errors::Result<jmethodID> {
     get_cached!(
         CHARACTER_TO_CHAR_METHOD,
         {
@@ -2012,7 +2012,7 @@ pub(crate) fn set_byte_constructor_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_byte_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_byte_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         BYTE_CONSTRUCTOR_METHOD,
         {
@@ -2040,7 +2040,7 @@ pub(crate) fn set_byte_to_byte_method(j: jmethodID) {
     });
 }
 
-pub(crate) fn get_byte_to_byte_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_byte_to_byte_method() -> errors::Result<jmethodID> {
     get_cached!(
         BYTE_TO_BYTE_METHOD,
         {
@@ -2092,7 +2092,7 @@ pub(crate) fn set_float_constructor_method(j: jmethodID) {
 }
 
 #[allow(dead_code)]
-pub(crate) fn get_float_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_float_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         FLOAT_CONSTRUCTOR_METHOD,
         {
@@ -2122,7 +2122,7 @@ pub(crate) fn set_float_to_float_method(j: jmethodID) {
 }
 
 #[allow(dead_code)]
-pub(crate) fn get_float_to_float_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_float_to_float_method() -> errors::Result<jmethodID> {
     get_cached!(
         FLOAT_TO_FLOAT_METHOD,
         {
@@ -2174,7 +2174,7 @@ pub(crate) fn set_double_constructor_method(j: jmethodID) {
 }
 
 #[allow(dead_code)]
-pub(crate) fn get_double_constructor_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_double_constructor_method() -> errors::Result<jmethodID> {
     get_cached!(
         DOUBLE_CONSTRUCTOR_METHOD,
         {
@@ -2204,7 +2204,7 @@ pub(crate) fn set_double_to_double_method(j: jmethodID) {
 }
 
 #[allow(dead_code)]
-pub(crate) fn get_double_to_double_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_double_to_double_method() -> errors::Result<jmethodID> {
     get_cached!(
         DOUBLE_TO_DOUBLE_METHOD,
         {
@@ -2277,7 +2277,7 @@ pub(crate) fn set_get_classloader_method(j: jmethodID) {
 }
 
 #[cfg(target_os = "android")]
-pub(crate) fn get_get_classloader_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_get_classloader_method() -> errors::Result<jmethodID> {
     get_cached!(
         GET_CLASSLOADER_METHOD,
         {
@@ -2304,7 +2304,7 @@ pub(crate) fn set_load_class_method(j: jmethodID) {
 }
 
 #[cfg(target_os = "android")]
-pub(crate) fn get_load_class_method() -> errors::Result<jmethodID> {
+pub(crate) unsafe fn get_load_class_method() -> errors::Result<jmethodID> {
     get_cached!(
         GET_LOAD_CLASS_METHOD,
         {

@@ -182,7 +182,7 @@ impl Jvm {
 
                 cstrings_to_drop
                     .into_iter()
-                    .for_each(utils::drop_c_string);
+                    .for_each(|s| unsafe {utils::drop_c_string(s)});
 
                 int_result
             };
