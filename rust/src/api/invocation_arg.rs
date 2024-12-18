@@ -627,7 +627,7 @@ impl<'a> TryFrom<&'a u16> for InvocationArg {
     }
 }
 
-impl<'a, 'b> TryFrom<&'a i32> for InvocationArg {
+impl<'a> TryFrom<&'a i32> for InvocationArg {
     type Error = errors::J4RsError;
     fn try_from(arg: &'a i32) -> errors::Result<InvocationArg> {
         InvocationArg::new_2(
