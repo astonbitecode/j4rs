@@ -1720,7 +1720,7 @@ impl<'a> JvmBuilder<'a> {
     }
 
     /// Adds a classpath entry.
-    pub fn classpath_entry(&'a mut self, cp_entry: ClasspathEntry<'a>) -> &'a mut JvmBuilder {
+    pub fn classpath_entry(&'a mut self, cp_entry: ClasspathEntry<'a>) -> &'a mut JvmBuilder<'a> {
         self.classpath_entries.push(cp_entry);
         self
     }
@@ -1729,7 +1729,7 @@ impl<'a> JvmBuilder<'a> {
     pub fn classpath_entries(
         &'a mut self,
         cp_entries: Vec<ClasspathEntry<'a>>,
-    ) -> &'a mut JvmBuilder {
+    ) -> &'a mut JvmBuilder<'a> {
         for cp_entry in cp_entries {
             self.classpath_entries.push(cp_entry);
         }
@@ -1737,13 +1737,13 @@ impl<'a> JvmBuilder<'a> {
     }
 
     /// Adds a Java option.
-    pub fn java_opt(&'a mut self, opt: JavaOpt<'a>) -> &'a mut JvmBuilder {
+    pub fn java_opt(&'a mut self, opt: JavaOpt<'a>) -> &'a mut JvmBuilder<'a> {
         self.java_opts.push(opt);
         self
     }
 
     /// Adds Java options.
-    pub fn java_opts(&'a mut self, opts: Vec<JavaOpt<'a>>) -> &'a mut JvmBuilder {
+    pub fn java_opts(&'a mut self, opts: Vec<JavaOpt<'a>>) -> &'a mut JvmBuilder<'a> {
         for opt in opts {
             self.java_opts.push(opt);
         }
@@ -1752,7 +1752,7 @@ impl<'a> JvmBuilder<'a> {
 
     /// By default, the created `Jvm`s include an implicit classpath entry that includes the j4rs jar.
     /// When `with_no_implicit_classpath()` is called, this classpath will not be added to the Jvm.
-    pub fn with_no_implicit_classpath(&'a mut self) -> &'a mut JvmBuilder {
+    pub fn with_no_implicit_classpath(&'a mut self) -> &'a mut JvmBuilder<'a> {
         self.no_implicit_classpath = true;
         self
     }
@@ -1762,7 +1762,7 @@ impl<'a> JvmBuilder<'a> {
     ///
     /// This is useful when in the Java world a native method is called and in the native code someone needs to create a j4rs Jvm.
     /// If that Jvm detaches its current thread when being dropped, there will be problems for the Java world code to continue executing.
-    pub fn detach_thread_on_drop(&'a mut self, detach_thread_on_drop: bool) -> &'a mut JvmBuilder {
+    pub fn detach_thread_on_drop(&'a mut self, detach_thread_on_drop: bool) -> &'a mut JvmBuilder<'a> {
         self.detach_thread_on_drop = detach_thread_on_drop;
         self
     }
@@ -1771,33 +1771,33 @@ impl<'a> JvmBuilder<'a> {
     /// library instead of the default one.
     ///
     /// This function defines the native library name to load.
-    pub fn with_native_lib_name(&'a mut self, lib_name: &str) -> &'a mut JvmBuilder {
+    pub fn with_native_lib_name(&'a mut self, lib_name: &str) -> &'a mut JvmBuilder<'a> {
         self.lib_name_opt = Some(lib_name.to_string());
         self
     }
 
     /// Configures the builder not to instruct the Java world j4rs code to load the native library.
     /// (most probably because it is already loaded)
-    pub fn skip_setting_native_lib(&'a mut self) -> &'a mut JvmBuilder {
+    pub fn skip_setting_native_lib(&'a mut self) -> &'a mut JvmBuilder<'a> {
         self.skip_setting_native_lib = true;
         self
     }
 
     /// Defines the location of the jassets and deps directory.
     /// The jassets contains the j4rs jar and the deps the j4rs dynamic library.
-    pub fn with_base_path(&'a mut self, base_path: &str) -> &'a mut JvmBuilder {
+    pub fn with_base_path(&'a mut self, base_path: &str) -> &'a mut JvmBuilder<'a> {
         self.base_path = Some(base_path.to_string());
         self
     }
 
     /// Defines the maven settings to use for provisioning maven artifacts.
-    pub fn with_maven_settings(&'a mut self, maven_settings: MavenSettings) -> &'a mut JvmBuilder {
+    pub fn with_maven_settings(&'a mut self, maven_settings: MavenSettings) -> &'a mut JvmBuilder<'a> {
         self.maven_settings = maven_settings;
         self
     }
 
     /// Adds JavaFX support to the created JVM
-    pub fn with_javafx_support(&'a mut self) -> &'a mut JvmBuilder {
+    pub fn with_javafx_support(&'a mut self) -> &'a mut JvmBuilder<'a> {
         self.javafx = true;
         self
     }
@@ -1805,7 +1805,7 @@ impl<'a> JvmBuilder<'a> {
     /// Create the j4rs `Jvm` using an already created jni `JavaVM`.
     /// 
     /// Useful for Android apps, where the JVM is automatically created.
-    pub fn with_java_vm(&'a mut self, java_vm: *mut JavaVM) -> &'a mut JvmBuilder {
+    pub fn with_java_vm(&'a mut self, java_vm: *mut JavaVM) -> &'a mut JvmBuilder<'a> {
         self.java_vm_opt = Some(java_vm);
         self
     }
@@ -1827,7 +1827,7 @@ impl<'a> JvmBuilder<'a> {
     /// of the `Activity` to find and use classes. `j4rs` will use the `jobject` passed here (the `jobject` of the `Activity`) to get the 
     /// proper classloader and use it when needed.
     /// #[cfg(target_os = "android")]
-    pub fn with_classloader_of_activity(&'a mut self, jobject_within_valid_classloader: jobject) -> &'a mut JvmBuilder {
+    pub fn with_classloader_of_activity(&'a mut self, jobject_within_valid_classloader: jobject) -> &'a mut JvmBuilder<'a> {
         self.jobject_within_valid_classloader_opt = Some(jobject_within_valid_classloader);
         // If the `jobject_within_valid_classloader_opt` is provided, it means that the object's classloader
         // should be used to load classes in case the traditional `FindClass` invocations fail.
@@ -1861,7 +1861,7 @@ impl<'a> JvmBuilder<'a> {
     ///         at java.lang.ClassLoader.initSystemClassLoader(ClassLoader.java:1449)
     ///         at java.lang.ClassLoader.getSystemClassLoader(ClassLoader.java:1429)
     /// ```
-    pub fn with_default_classloader(&'a mut self) -> &'a mut JvmBuilder {
+    pub fn with_default_classloader(&'a mut self) -> &'a mut JvmBuilder<'a> {
         self.default_classloader = true;
         self
     }

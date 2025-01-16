@@ -183,7 +183,7 @@ pub struct ChainableInstance<'a> {
 }
 
 impl<'a> ChainableInstance<'a> {
-    pub(crate) fn new(instance: Instance, jvm: &'a Jvm) -> ChainableInstance {
+    pub(crate) fn new(instance: Instance, jvm: &'a Jvm) -> ChainableInstance<'a> {
         ChainableInstance { instance, jvm }
     }
 
