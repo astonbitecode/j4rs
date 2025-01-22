@@ -1,7 +1,7 @@
-# j4rs
+# <img src="./static/j4rs-small.png" alt="j4rs">
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.21.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.22.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
 ![Build](https://github.com/astonbitecode/j4rs/actions/workflows/ci-workflow.yml/badge.svg)
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
@@ -23,6 +23,10 @@ j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code fro
 * **[Java -> Rust support](#Java-to-Rust-support) (Call Rust from Java).**
 * **[JavaFX support](#JavaFX-support) (including FXML support).**
 * **Tested on Linux, Windows and [Android](#j4rs-in-android).**
+
+## Instead of donating to the dev
+
+With the hope that you find this project useful, please consider donating to [charity](./charity/README_CHARITY.md). 
 
 ## Usage
 
@@ -579,7 +583,7 @@ A good idea is that this happens during build time, in order the dependencies to
 This can happen by adding the following in a [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html?highlight=build,scrpit#build-scripts):
 
 ```rust
-	use j4rs::JvmBuilder;
+    use j4rs::JvmBuilder;
 use j4rs::jfx::JavaFxSupport;
 
 fn main() {
