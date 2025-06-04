@@ -28,7 +28,6 @@ use crate::{api_tweaks as tweaks, errors, jni_utils, utils};
 pub(crate) const INST_CLASS_NAME: &str =
     "org/astonbitecode/j4rs/api/instantiation/NativeInstantiationImpl";
 pub(crate) const UTILS_CLASS_NAME: &str = "org/astonbitecode/j4rs/utils/Utils";
-pub(crate) const INVO_BASE_NAME: &str = "org/astonbitecode/j4rs/api/InstanceBase";
 pub(crate) const INVO_IFACE_NAME: &str = "org/astonbitecode/j4rs/api/Instance";
 pub(crate) const UNKNOWN_FOR_RUST: &str = "known_in_java_world";
 pub(crate) const J4RS_ARRAY: &str = "org.astonbitecode.j4rs.api.dtos.Array";
@@ -1069,28 +1068,6 @@ pub(crate) unsafe fn get_factory_create_java_map_method() -> errors::Result<jmet
     )
 }
 
-pub(crate) fn set_java_instance_base_class(j: jclass) {
-    debug("Called set_java_instance_base_class");
-    JAVA_INSTANCE_BASE_CLASS.with(|opt| {
-        *opt.borrow_mut() = Some(j);
-    });
-}
-
-pub(crate) fn get_java_instance_base_class() -> errors::Result<jclass> {
-    get_cached!(
-        JAVA_INSTANCE_BASE_CLASS,
-        {
-            let env = get_thread_local_env()?;
-
-            let c = tweaks::find_class(env, INVO_BASE_NAME)?;
-            
-
-            jni_utils::create_global_ref_from_local_ref(c, env)?
-        },
-        set_java_instance_base_class
-    )
-}
-
 pub(crate) fn set_java_instance_class(j: jclass) {
     debug("Called set_java_instance_class");
     JAVA_INSTANCE_CLASS.with(|opt| {
@@ -1645,17 +1622,7 @@ pub(crate) fn get_class_to_invoke_clone_and_cast() -> errors::Result<jclass> {
     get_cached!(
         CLASS_TO_INVOKE_CLONE_AND_CAST,
         {
-            // The class to invoke the cloneInstance into, is not the same in Android target os.
-            // The java_instance_base_class is used because of Java7 compatibility issues in Android.
-            // In Java8 and later, the static implementation in the interfaces is used. This is not supported in Java7
-            // and there is a base class created for this reason.
-            
-
-            if cfg!(target_os = "android") {
-                get_java_instance_base_class()?
-            } else {
-                get_java_instance_class()?
-            }
+          get_java_instance_class()?
         },
         set_class_to_invoke_clone_and_cast
     )
