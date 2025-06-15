@@ -31,25 +31,24 @@ fn main() -> Result<(), J4rsBuildError> {
     let source_jar_location = PathBuf::from(format!(
         "../java/target/j4rs-{VERSION}-jar-with-dependencies.jar"
     ));
-    if Path::new(&source_jar_location).exists() {
+    if source_jar_location.exists() {
         println!(
             "cargo:rerun-if-changed={}",
             source_jar_location.to_string_lossy()
         );
     }
+    generate_src(&out_dir)?;
 
-    let target_os_res = env::var("CARGO_CFG_TARGET_OS");
-    let target_os = target_os_res.as_ref().map(|x| &**x).unwrap_or("unknown");
-    if target_os == "android" {
-        generate_src(&out_dir)?;
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        // skip the rest of setup on android
         return Ok(());
     }
 
     // Copy the needed jar files if they are available
     // (that is, if the build is done with the full source-code - not in crates.io)
     copy_jars_from_java(&source_jar_location)?;
-    copy_jars_to_exec_directory(&out_dir)?;
-    generate_src(&out_dir)?;
+
+    copy_jars_to_target_directory(&out_dir)?;
 
     Ok(())
 }
@@ -75,9 +74,7 @@ pub(crate) fn java_fx_version() -> &'static str {{
 fn copy_jars_from_java(jar_source_path: &Path) -> Result<(), J4rsBuildError> {
     if jar_source_path.exists() {
         // Find the destination file
-        let home = env::var("CARGO_MANIFEST_DIR")?;
-        let jassets_path_buf = Path::new(&home).join("jassets");
-        let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
+        let jassets_path = Path::new(&env::var("CARGO_MANIFEST_DIR")?).join("jassets");
 
         let destination_jar_file =
             Path::new(&jassets_path).join(format!("j4rs-{VERSION}-jar-with-dependencies.jar"));
@@ -92,8 +89,9 @@ fn copy_jars_from_java(jar_source_path: &Path) -> Result<(), J4rsBuildError> {
         if do_copy {
             fs_extra::remove_items(&[&jassets_path])?;
 
-            let _ = fs::create_dir_all(&jassets_path_buf)
-                .map_err(|error| panic!("Cannot create dir '{jassets_path_buf:?}': {error:?}"));
+            fs::create_dir_all(&jassets_path)
+                .map_err(|error| panic!("Cannot create dir '{jassets_path:?}': {error:?}"))
+                .ok();
 
             fs_extra::copy_items(&[jar_source_path], jassets_path, &CopyOptions::new())?;
         }
@@ -105,22 +103,17 @@ fn are_same_files(path1: &Path, path2: &Path) -> Result<bool, J4rsBuildError> {
     Ok(std::fs::read(path1)? == std::fs::read(path2)?)
 }
 
-// Copies the jars to the exec directory.
-fn copy_jars_to_exec_directory(out_dir: &str) -> Result<(), J4rsBuildError> {
-    let mut exec_dir_path_buf = PathBuf::from(out_dir);
-    exec_dir_path_buf.pop();
-    exec_dir_path_buf.pop();
-    exec_dir_path_buf.pop();
+// Copies the jars to CARGO_TARGET_DIR/*/jassets
+fn copy_jars_to_target_directory(out_dir: &str) -> Result<(), J4rsBuildError> {
+    let mut target_dir = PathBuf::from(out_dir);
+    target_dir.pop();
+    target_dir.pop();
+    target_dir.pop();
 
-    let jassets_output_dir = exec_dir_path_buf.to_str().unwrap();
+    let jassets_path = Path::new(&env::var("CARGO_MANIFEST_DIR")?).join("jassets");
+    let jassets_jar_file = jassets_path.join(format!("j4rs-{VERSION}-jar-with-dependencies.jar"));
 
-    let home = env::var("CARGO_MANIFEST_DIR")?;
-    let jassets_path_buf = Path::new(&home).join("jassets");
-    let jassets_path = jassets_path_buf.to_str().unwrap().to_owned();
-
-    let jassets_jar_file =
-        Path::new(&jassets_path).join(format!("j4rs-{VERSION}-jar-with-dependencies.jar"));
-    let jassets_output_file = Path::new(&jassets_output_dir)
+    let jassets_output_file = target_dir
         .join("jassets")
         .join(format!("j4rs-{VERSION}-jar-with-dependencies.jar"));
 
@@ -132,8 +125,8 @@ fn copy_jars_to_exec_directory(out_dir: &str) -> Result<(), J4rsBuildError> {
     };
 
     if do_copy {
-        fs_extra::remove_items(&[format!("{jassets_output_dir}/jassets")])?;
-        fs_extra::copy_items(&[jassets_path], jassets_output_dir, &CopyOptions::new())?;
+        fs_extra::remove_items(&[target_dir.join("jassets")])?;
+        fs_extra::copy_items(&[jassets_path], target_dir, &CopyOptions::new())?;
     }
 
     Ok(())
