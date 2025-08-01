@@ -65,4 +65,16 @@ public class MyTestTest {
         });
         return result;
     }
+
+    public<T> Integer overloadedMethod(T val) {
+        if (val instanceof Integer) {
+            return ((Integer) val) * 2;
+        } else {
+            throw new IllegalArgumentException("Unsupported type");
+        }
+    }
+
+    public Integer overloadedMethod(Integer arg) {
+        return arg;
+    }
 }
