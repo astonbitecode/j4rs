@@ -29,6 +29,7 @@ import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -244,6 +245,10 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         return future;
     }
 
+    Long getGenericTypeCount(Method m) {
+        return Arrays.stream(m.getGenericParameterTypes()).filter(t -> t instanceof TypeVariable).count();
+    }
+
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
         // Get the declared and methods defined in the interfaces of the class.
         Set<Method> methods = new HashSet<>(Arrays.asList(clazz.getDeclaredMethods()));
@@ -256,6 +261,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                 .filter(m -> m.getName().equals(methodName))
                 // Match the params number
                 .filter(m -> m.getGenericParameterTypes().length == argTypes.length)
+                // Sort the methods to prefer methods with specific parameter types over methods with generic types
+                .sorted((m1, m2) -> Long.compare(getGenericTypeCount(m1), getGenericTypeCount(m2)))
                 // Match the actual parameters
                 .filter(m -> {
                     // Each element of the matchedParams list shows whether a parameter is matched

@@ -298,6 +298,15 @@ public class JsonInvocationImplTest {
     }
 
     @Test
+    public void invokeOverloadWithGenerics() throws ClassNotFoundException {
+        JsonInvocationImpl instance = new JsonInvocationImpl(new MyTestTest(), MyTestTest.class);
+        Integer val = Integer.valueOf(42);
+
+        Instance result = instance.invoke("overloadedMethod", new InvocationArg(val.getClass().getName(), val));
+        assert (result.getObject().equals(val));
+    }
+
+    @Test
     public void checkEquals() {
         JsonInvocationImpl i1 = new JsonInvocationImpl(Integer.valueOf(3), Integer.class);
         JsonInvocationImpl i2 = new JsonInvocationImpl(Integer.valueOf(3), Integer.class);
