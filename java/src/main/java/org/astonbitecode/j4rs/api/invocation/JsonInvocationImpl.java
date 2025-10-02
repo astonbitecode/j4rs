@@ -261,8 +261,6 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                 .filter(m -> m.getName().equals(methodName))
                 // Match the params number
                 .filter(m -> m.getGenericParameterTypes().length == argTypes.length)
-                // Sort the methods to prefer methods with specific parameter types over methods with generic types
-                .sorted((m1, m2) -> Long.compare(getGenericTypeCount(m1), getGenericTypeCount(m2)))
                 // Match the actual parameters
                 .filter(m -> {
                     // Each element of the matchedParams list shows whether a parameter is matched
@@ -317,8 +315,14 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                     }
                     return matchedParams.stream().allMatch(Boolean::booleanValue);
                 }).collect(Collectors.toList());
-        if (!found.isEmpty()) {
+        if (found.size() == 1) {
             return found.get(0);
+        } else if(found.size() > 1) {
+            return found.stream()
+            // Sort the methods to prefer methods with specific parameter types over methods with generic types
+            .sorted((m1, m2) -> Long.compare(getGenericTypeCount(m1), getGenericTypeCount(m2)))
+            .findFirst()
+            .get();
         } else {
             Class<?> superclass = clazz.getSuperclass();
             if (superclass == null) {
