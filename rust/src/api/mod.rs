@@ -1505,12 +1505,12 @@ impl Jvm {
     }
 
     /// Initiates a chain of operations on Instances.
-    pub fn chain(&self, instance: &Instance) -> errors::Result<ChainableInstance> {
+    pub fn chain(&self, instance: &Instance) -> errors::Result<ChainableInstance<'_>> {
         ChainableInstance::new_with_instance_ref(instance, self)
     }
 
     /// Initiates a chain of operations on Instances.
-    pub fn into_chain(&self, instance: Instance) -> ChainableInstance {
+    pub fn into_chain(&self, instance: Instance) -> ChainableInstance<'_> {
         ChainableInstance::new(instance, self)
     }
 
@@ -2111,7 +2111,7 @@ pub enum Null<'a> {
 pub struct ClasspathEntry<'a>(&'a str);
 
 impl<'a> ClasspathEntry<'a> {
-    pub fn new(classpath_entry: &str) -> ClasspathEntry {
+    pub fn new(classpath_entry: &str) -> ClasspathEntry<'_> {
         ClasspathEntry(classpath_entry)
     }
 }
@@ -2127,7 +2127,7 @@ impl<'a> ToString for ClasspathEntry<'a> {
 pub struct JavaOpt<'a>(&'a str);
 
 impl<'a> JavaOpt<'a> {
-    pub fn new(java_opt: &str) -> JavaOpt {
+    pub fn new(java_opt: &str) -> JavaOpt<'_> {
         JavaOpt(java_opt)
     }
 }

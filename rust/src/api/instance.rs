@@ -207,25 +207,25 @@ impl<'a> ChainableInstance<'a> {
         &self,
         method_name: &str,
         inv_args: &[InvocationArg],
-    ) -> errors::Result<ChainableInstance> {
+    ) -> errors::Result<ChainableInstance<'_>> {
         let instance = self.jvm.invoke(&self.instance, method_name, inv_args)?;
         Ok(ChainableInstance::new(instance, self.jvm))
     }
 
     /// Creates a clone of the Instance
-    pub fn clone_instance(&self) -> errors::Result<ChainableInstance> {
+    pub fn clone_instance(&self) -> errors::Result<ChainableInstance<'_>> {
         let instance = self.jvm.clone_instance(&self.instance)?;
         Ok(ChainableInstance::new(instance, self.jvm))
     }
 
     /// Invokes the static method `method_name` of the class `class_name`, passing an array of `InvocationArg`s. It returns an `Instance` as the result of the invocation.
-    pub fn cast(&self, to_class: &str) -> errors::Result<ChainableInstance> {
+    pub fn cast(&self, to_class: &str) -> errors::Result<ChainableInstance<'_>> {
         let instance = self.jvm.cast(&self.instance, to_class)?;
         Ok(ChainableInstance::new(instance, self.jvm))
     }
 
     /// Retrieves the field `field_name` of the `Instance`.
-    pub fn field(&self, field_name: &str) -> errors::Result<ChainableInstance> {
+    pub fn field(&self, field_name: &str) -> errors::Result<ChainableInstance<'_>> {
         let instance = self.jvm.field(&self.instance, field_name)?;
         Ok(ChainableInstance::new(instance, self.jvm))
     }

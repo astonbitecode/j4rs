@@ -19,6 +19,7 @@ use jni_sys::{jclass, jint, jsize, JNIEnv, JavaVM};
 
 use crate::{errors, utils};
 
+#[allow(non_snake_case)]
 type JNIGetCreatedJavaVMs =
     unsafe extern "system" fn(vmBuf: *mut *mut JavaVM, bufLen: jsize, nVMs: *mut jsize) -> jint;
 
