@@ -288,7 +288,7 @@ let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref
 jvm.cast(&instance, "java.lang.Object")?;
 ```
 
-### Java arrays and variadics
+### Java arrays and variadics (varargs)
 
 ```rust
 // Create a Java array of Strings `String []`
@@ -318,6 +318,8 @@ let doubles_array = InvocationArg::try_from(
     jvm.create_java_array("double", &double_args)?
 )?;
 ```
+
+__Note__: variadics (or varargs) are actually arrays in Java. A Java method that takes variadics as argument may be called by creating an array and putting it in an `InvocationArg` as described above.
 
 ### Java Generics
 
