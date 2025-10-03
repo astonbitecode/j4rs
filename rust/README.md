@@ -288,7 +288,9 @@ let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref
 jvm.cast(&instance, "java.lang.Object")?;
 ```
 
-### Java arrays and variadics
+### Java arrays and variadics/varargs
+
+In java varargs are internally implemented as arrays, so to keep the j4rs implementation simple, j4rs also handles varargs by passing an array in place of the varargs argument.
 
 ```rust
 // Create a Java array of Strings `String []`
