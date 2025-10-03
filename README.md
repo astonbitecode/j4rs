@@ -802,6 +802,10 @@ However, it also supports console logging, which is configured with setting the 
 
 Accepted values are `debug`, `info`, `warn`, `error` and `disabled`.
 
+## More documentation
+
+If you did not find here what you wanted, you may have a look at these advanced j4rs use cases [here](./documentation/advanced_j4rs.md).
+
 ## Licence
 
 At your option, under:
