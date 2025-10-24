@@ -1,7 +1,7 @@
 # <img src="./static/j4rs-small.png" alt="j4rs">
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.22.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.23.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
 ![Build](https://github.com/astonbitecode/j4rs/actions/workflows/ci-workflow.yml/badge.svg)
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
@@ -482,7 +482,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.22.0</version>
+    <version>0.23.0</version>
     <scope>provided</scope>
 </dependency>
 ```

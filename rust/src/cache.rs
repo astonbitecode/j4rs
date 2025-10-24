@@ -379,7 +379,7 @@ pub(crate) fn remove_active_jvm() -> i32 {
 
 pub(crate) fn get_thread_local_env_opt() -> Option<*mut JNIEnv> {
     JNI_ENV.with(
-        |existing_jni_env_opt| (*existing_jni_env_opt.borrow()),
+        |existing_jni_env_opt| *existing_jni_env_opt.borrow(),
     )
 }
 
