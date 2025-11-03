@@ -87,7 +87,7 @@ impl Jvm {
             let raw_ptr = Box::into_raw(tx);
             // Find the address of tx
             let address_string = format!("{:p}", raw_ptr);
-            let address = i64::from_str_radix(&address_string[2..], 16).unwrap();
+            let address = u64::from_str_radix(&address_string[2..], 16).unwrap();
 
             // Second argument: create a jstring to pass as argument for the method_name
             let method_name_jstring: jstring =
