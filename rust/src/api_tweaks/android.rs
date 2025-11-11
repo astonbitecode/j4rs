@@ -21,12 +21,10 @@ use crate::errors::opt_to_res;
 use crate::jni_utils::create_global_ref_from_local_ref;
 use crate::{cache, errors, jni_utils, utils};
 
-lazy_static! {
-    static ref MUTEX: Mutex<Option<J4rsAndroidJavaVM>> = Mutex::new(None);
-    // Cache the classes in order to avoid classloading issues when spawning threads
-    static ref CLASSES: Mutex<HashMap<String, J4rsAndroidJclass>> = Mutex::new(HashMap::new());
-    static ref CLASSLOADER: Mutex<Option<J4rsAndroidClassloader>> = Mutex::new(None);
-}
+static MUTEX: LazyLock<Mutex<Option<J4rsAndroidJavaVM>>> = LazyLock::new(|| { Mutex::new(None) });
+// Cache the classes in order to avoid classloading issues when spawning threads
+static CLASSES: LazyLock<Mutex<HashMap<String, J4rsAndroidJclass>>> = LazyLock::new(|| { Mutex::new(HashMap::new()) });
+static CLASSLOADER: LazyLock<Mutex<Option<J4rsAndroidClassloader>>> = LazyLock::new(|| { Mutex::new(None) });
 
 pub fn get_created_java_vms(
     vm_buf: &mut Vec<*mut JavaVM>,

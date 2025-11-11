@@ -11,26 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::env;
+use std::{env, sync::LazyLock};
 
-lazy_static! {
-    static ref CONSOLE_ENABLED: i8 = {
-        let var_level = env::var("J4RS_CONSOLE_LOG_LEVEL")
-            .unwrap_or("warn".to_owned())
-            .to_lowercase();
-        match var_level.as_str() {
-            "disabled" => 0,
-            "error" => 1,
-            "warn" => 2,
-            "info" => 3,
-            "debug" => 4,
-            _ => {
-                println!("WARN: The env variable 'J4RS_CONSOLE_LOG_LEVEL' is not correctly set. Please use one of the 'debug', 'info', 'warn', 'error', or 'disabled'. Defaulting to warning");
-                2
-            }
+static CONSOLE_ENABLED: LazyLock<i8> = LazyLock::new(|| {
+    let var_level = env::var("J4RS_CONSOLE_LOG_LEVEL")
+        .unwrap_or("warn".to_owned())
+        .to_lowercase();
+    match var_level.as_str() {
+        "disabled" => 0,
+        "error" => 1,
+        "warn" => 2,
+        "info" => 3,
+        "debug" => 4,
+        _ => {
+            println!("WARN: The env variable 'J4RS_CONSOLE_LOG_LEVEL' is not correctly set. Please use one of the 'debug', 'info', 'warn', 'error', or 'disabled'. Defaulting to warning");
+            2
         }
-    };
-}
+    }
+});
 
 pub fn debug(message: &str) {
     if is_console_debug_enabled() {

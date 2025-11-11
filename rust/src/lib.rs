@@ -21,10 +21,6 @@
 //!j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
 //! 
 //! Please see the [README](https://github.com/astonbitecode/j4rs) for more details
-
-
-#[macro_use]
-extern crate lazy_static;
 extern crate libc;
 #[macro_use]
 extern crate log;
@@ -166,16 +162,16 @@ mod lib_unit_tests {
     use std::ptr::null_mut;
     use std::thread::JoinHandle;
     use std::{thread, time};
-    use std::sync::Mutex;
+    use std::sync::{LazyLock, Mutex};
     use crate::api::{self, JavaClass};
     use crate::provisioning::JavaArtifact;
     use crate::{LocalJarArtifact, MavenArtifactRepo, MavenSettings, Null};
     use super::utils::jassets_path;
     use super::{errors, InvocationArg, Jvm, JvmBuilder, MavenArtifact};
 
-    lazy_static! {
-        static ref SYNC_GUARD: Mutex<()> = Mutex::new(());
-    }
+    static SYNC_GUARD: LazyLock<Mutex<()>> = LazyLock::new(|| {
+        Mutex::new(())
+    });
 
     pub(crate) fn create_tests_jvm() -> errors::Result<Jvm> {
         let jvm: Jvm = JvmBuilder::new().build()?;

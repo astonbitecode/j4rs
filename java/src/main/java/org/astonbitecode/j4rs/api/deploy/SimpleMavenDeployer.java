@@ -100,8 +100,9 @@ public class SimpleMavenDeployer {
 
         ReadableByteChannel readableByteChannel = Channels
                 .newChannel(new File(pathString).toURI().toURL().openStream());
-        FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName);
-        fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
+        try (FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName)) {
+            fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
+        }
     }
 
     String generateArtifactName(String artifactId, String version, String qualifier) {

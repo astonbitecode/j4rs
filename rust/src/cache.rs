@@ -14,7 +14,7 @@
 
 use std::cell::RefCell;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 use jni_sys::{self, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass,
               jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray,
@@ -216,12 +216,10 @@ pub(crate) type JniIsSameObject =
 
 const CLASS_CACHING_ENABLED: bool = !(cfg!(target_os = "android"));
 
-lazy_static! {
-    // Synchronize the creation of Jvm
-    pub(crate) static ref MUTEX: Mutex<bool> = Mutex::new(false);
-    // If a Jvm is created with defining a jassets_path other than the default, this is set here
-    pub(crate) static ref JASSETS_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
-}
+// Synchronize the creation of Jvm
+pub(crate) static MUTEX: LazyLock<Mutex<bool>> = LazyLock::new(|| {Mutex::new(false)});
+// If a Jvm is created with defining a jassets_path other than the default, this is set here
+pub(crate) static JASSETS_PATH: LazyLock<Mutex<Option<PathBuf>>> = LazyLock::new(|| {Mutex::new(None)});
 
 thread_local! {
     pub(crate) static JNI_ENV: RefCell<Option<*mut JNIEnv>> = const { RefCell::new(None) };
