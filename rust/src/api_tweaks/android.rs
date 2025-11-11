@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::collections::HashMap;
-use std::os::raw::c_void;
+use std::{os::raw::c_void, sync::LazyLock};
 use std::sync::Mutex;
 
 use jni_sys::{jclass, jint, jobject, jsize, JNIEnv, JavaVM, JNI_OK, JNI_TRUE};
