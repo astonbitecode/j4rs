@@ -1638,9 +1638,8 @@ impl Jvm {
     pub fn select(instance_receivers: &[&InstanceReceiver]) -> errors::Result<(usize, Instance)> {
         loop {
             for (index, ir) in instance_receivers.iter().enumerate() {
-                let res = ir.rx.try_recv();
-                if res.is_ok() {
-                    return Ok((index, res.unwrap()));
+                if let Ok(res) = ir.rx.try_recv() {
+                    return Ok((index, res));
                 }
             }
             thread::yield_now();
@@ -1660,9 +1659,8 @@ impl Jvm {
         let start = time::Instant::now();
         loop {
             for (index, ir) in instance_receivers.iter().enumerate() {
-                let res = ir.rx.try_recv();
-                if res.is_ok() {
-                    return Ok((index, res.unwrap()));
+                if let Ok(res) = ir.rx.try_recv() {
+                    return Ok((index, res));
                 }
             }
             if &start.elapsed() > timeout {
@@ -1883,7 +1881,7 @@ impl<'a> JvmBuilder<'a> {
             self.classpath_entries
                 .iter()
                 .fold(".".to_string(), |all, elem| {
-                    format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
+                    format!("{}{}{}", all, utils::classpath_sep(), elem)
                 })
         } else {
             // The default classpath contains all the jars in the jassets directory
@@ -1913,7 +1911,7 @@ impl<'a> JvmBuilder<'a> {
             self.classpath_entries
                 .iter()
                 .fold(default_class_path, |all, elem| {
-                    format!("{}{}{}", all, utils::classpath_sep(), elem.to_string())
+                    format!("{}{}{}", all, utils::classpath_sep(), elem)
                 })
         };
         info(&format!("Setting classpath to {}", classpath));
@@ -2116,9 +2114,9 @@ impl<'a> ClasspathEntry<'a> {
     }
 }
 
-impl<'a> ToString for ClasspathEntry<'a> {
-    fn to_string(&self) -> String {
-        self.0.to_string()
+impl<'a> std::fmt::Display for ClasspathEntry<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -2132,9 +2130,9 @@ impl<'a> JavaOpt<'a> {
     }
 }
 
-impl<'a> ToString for JavaOpt<'a> {
-    fn to_string(&self) -> String {
-        self.0.to_string()
+impl<'a> std::fmt::Display for JavaOpt<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 

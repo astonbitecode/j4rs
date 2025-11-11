@@ -33,15 +33,6 @@ pub(crate) fn opt_to_res<T>(opt: Option<T>) -> Result<T> {
     opt.ok_or(J4RsError::RustError("Option was found None while converting to result".to_string()))
 }
 
-#[allow(unused)]
-pub(crate) fn res_to_opt<T>(res: Result<T>) -> Option<T> {
-    if res.is_err() {
-        None
-    } else {
-        Some(res.unwrap())
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum J4RsError {
     GeneralError(String),
