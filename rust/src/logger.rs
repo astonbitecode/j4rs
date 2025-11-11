@@ -33,14 +33,14 @@ lazy_static! {
 }
 
 pub fn debug(message: &str) {
-    if CONSOLE_ENABLED.to_owned() > 3 {
+    if is_console_debug_enabled() {
         println!("DEBUG: {}", message);
     }
     debug!("{}", message);
 }
 
 pub fn info(message: &str) {
-    if CONSOLE_ENABLED.to_owned() > 2 {
+    if is_console_info_enabled() {
         println!("INFO: {}", message);
     }
     info!("{}", message);
@@ -48,7 +48,7 @@ pub fn info(message: &str) {
 
 #[allow(dead_code)]
 pub fn warn(message: &str) {
-    if CONSOLE_ENABLED.to_owned() > 1 {
+    if is_console_warn_enabled() {
         println!("WARN: {}", message);
     }
     warn!("{}", message);
@@ -56,8 +56,24 @@ pub fn warn(message: &str) {
 
 #[allow(dead_code)]
 pub fn error(message: &str) {
-    if CONSOLE_ENABLED.to_owned() > 0 {
+    if is_console_error_enabled() {
         println!("ERROR: {}", message);
     }
     error!("{}", message);
+}
+
+pub fn is_console_debug_enabled() -> bool {
+    return CONSOLE_ENABLED.to_owned() > 3;
+}
+
+pub fn is_console_info_enabled() -> bool {
+    return CONSOLE_ENABLED.to_owned() > 2;
+}
+
+pub fn is_console_warn_enabled() -> bool {
+    return CONSOLE_ENABLED.to_owned() > 1;
+}
+
+pub fn is_console_error_enabled() -> bool {
+    return CONSOLE_ENABLED.to_owned() > 0;
 }

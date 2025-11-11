@@ -18,7 +18,7 @@ use std::ptr;
 
 use jni_sys::{jint, jobject, jobjectRefType, jstring, JNIEnv, JNI_TRUE};
 
-use crate::cache;
+use crate::{cache, logger};
 use crate::errors;
 use crate::errors::opt_to_res;
 use crate::logger::{debug, error};
@@ -193,7 +193,9 @@ pub fn create_global_ref_from_local_ref(
         }
         // Exception check
         if (exc)(jni_env) == JNI_TRUE {
-            (exd)(jni_env);
+            if logger::is_console_debug_enabled() {
+                (exd)(jni_env);
+            }
             (exclear)(jni_env);
             Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating global ref... Please check the logs or the console.".to_string()))
         } else {
@@ -216,7 +218,9 @@ pub(crate) fn _create_weak_global_ref_from_global_ref(
         let global = nwgr(jni_env, global_ref);
         // Exception check
         if (exc)(jni_env) == JNI_TRUE {
-            (exd)(jni_env);
+            if logger::is_console_debug_enabled() {
+                (exd)(jni_env);
+            }
             (exclear)(jni_env);
             Err(errors::J4RsError::JavaError("An Exception was thrown by Java while creating a weak global ref... Please check the logs or the console.".to_string()))
         } else {
@@ -234,7 +238,9 @@ pub fn delete_java_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
         let exclear = (**jni_env).v1_6.ExceptionClear;
         dgr(jni_env, jinstance);
         if (exc)(jni_env) == JNI_TRUE {
-            (exd)(jni_env);
+            if logger::is_console_debug_enabled() {
+                (exd)(jni_env);
+            }
             (exclear)(jni_env);
             error(
                 "An Exception was thrown by Java... Please check the logs or the console.",
@@ -252,7 +258,9 @@ pub(crate) fn delete_java_local_ref(jni_env: *mut JNIEnv, jinstance: jobject) {
         let exclear = (**jni_env).v1_6.ExceptionClear;
         dlr(jni_env, jinstance);
         if (exc)(jni_env) == JNI_TRUE {
-            (exd)(jni_env);
+            if logger::is_console_debug_enabled() {
+                (exd)(jni_env);
+            }
             (exclear)(jni_env);
             error(
                 "An Exception was thrown by Java... Please check the logs or the console.",
