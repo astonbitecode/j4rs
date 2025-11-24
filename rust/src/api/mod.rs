@@ -1461,8 +1461,8 @@ impl Jvm {
     /// This is useful for cases when `with_base_path` method is used when building a Jvm with
     /// the JvmBuilder.
     /// Build scripts should use this method.
-    pub fn copy_j4rs_libs_under(path: &str) -> errors::Result<()> {
-        let mut pb = PathBuf::from(path);
+    pub fn copy_j4rs_libs_under<P: AsRef<Path>>(path: P) -> errors::Result<()> {
+        let mut pb = PathBuf::from(path.as_ref());
         pb.push("deps");
         fs::create_dir_all(&pb)?;
 
@@ -1686,13 +1686,13 @@ impl Drop for Jvm {
 
 /// A builder for Jvm
 pub struct JvmBuilder<'a> {
-    classpath_entries: Vec<ClasspathEntry<'a>>,
+    classpath_entries: Vec<ClasspathEntry>,
     java_opts: Vec<JavaOpt<'a>>,
     no_implicit_classpath: bool,
     detach_thread_on_drop: bool,
     lib_name_opt: Option<String>,
     skip_setting_native_lib: bool,
-    base_path: Option<String>,
+    base_path: Option<PathBuf>,
     maven_settings: MavenSettings,
     javafx: bool,
     default_classloader: bool,
@@ -1720,7 +1720,7 @@ impl<'a> JvmBuilder<'a> {
     }
 
     /// Adds a classpath entry.
-    pub fn classpath_entry(&'a mut self, cp_entry: ClasspathEntry<'a>) -> &'a mut JvmBuilder<'a> {
+    pub fn classpath_entry(&'a mut self, cp_entry: ClasspathEntry) -> &'a mut JvmBuilder<'a> {
         self.classpath_entries.push(cp_entry);
         self
     }
@@ -1728,7 +1728,7 @@ impl<'a> JvmBuilder<'a> {
     /// Adds classpath entries.
     pub fn classpath_entries(
         &'a mut self,
-        cp_entries: Vec<ClasspathEntry<'a>>,
+        cp_entries: Vec<ClasspathEntry>,
     ) -> &'a mut JvmBuilder<'a> {
         for cp_entry in cp_entries {
             self.classpath_entries.push(cp_entry);
@@ -1785,8 +1785,8 @@ impl<'a> JvmBuilder<'a> {
 
     /// Defines the location of the jassets and deps directory.
     /// The jassets contains the j4rs jar and the deps the j4rs dynamic library.
-    pub fn with_base_path(&'a mut self, base_path: &str) -> &'a mut JvmBuilder<'a> {
-        self.base_path = Some(base_path.to_string());
+    pub fn with_base_path<P: AsRef<Path>>(&'a mut self, base_path: P) -> &'a mut JvmBuilder<'a> {
+        self.base_path = Some(base_path.as_ref().to_owned());
         self
     }
 
@@ -2108,17 +2108,17 @@ pub enum Null<'a> {
 
 /// A classpath entry.
 #[derive(Debug, Clone)]
-pub struct ClasspathEntry<'a>(&'a str);
+pub struct ClasspathEntry(PathBuf);
 
-impl<'a> ClasspathEntry<'a> {
-    pub fn new(classpath_entry: &str) -> ClasspathEntry<'_> {
-        ClasspathEntry(classpath_entry)
+impl ClasspathEntry {
+    pub fn new<P: AsRef<Path>>(classpath_entry: P) -> ClasspathEntry {
+        ClasspathEntry(classpath_entry.as_ref().to_owned())
     }
 }
 
-impl<'a> ToString for ClasspathEntry<'a> {
+impl ToString for ClasspathEntry {
     fn to_string(&self) -> String {
-        self.0.to_string()
+        self.0.to_string_lossy().to_string()
     }
 }
 
