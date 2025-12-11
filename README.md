@@ -802,6 +802,12 @@ However, it also supports console logging, which is configured with setting the 
 
 Accepted values are `debug`, `info`, `warn`, `error` and `disabled`.
 
+### Can I access private or protected methods of classes using `j4rs`?
+
+`j4rs` is not designed to interfere with Classes' access definitions. It calls Java just like normal Java code calls APIs of other packages. 
+
+This keeps things simple, enforces cleaner code design, applies better security and behavior predictability and offers better compatibility with different JDK versions.
+
 ## More documentation
 
 If you did not find here what you wanted, you may have a look at these advanced j4rs use cases [here](./documentation/advanced_j4rs.md).

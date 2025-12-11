@@ -288,7 +288,7 @@ let instance = jvm.create_instance("java.lang.String", instantiation_args.as_ref
 jvm.cast(&instance, "java.lang.Object")?;
 ```
 
-### Java arrays and variadics (varargs)
+### Java arrays and variadics
 
 ```rust
 // Create a Java array of Strings `String []`
@@ -318,8 +318,6 @@ let doubles_array = InvocationArg::try_from(
     jvm.create_java_array("double", &double_args)?
 )?;
 ```
-
-__Note__: variadics (or varargs) are actually arrays in Java. A Java method that takes variadics as argument may be called by creating an array and putting it in an `InvocationArg` as described above.
 
 ### Java Generics
 
@@ -804,9 +802,15 @@ However, it also supports console logging, which is configured with setting the 
 
 Accepted values are `debug`, `info`, `warn`, `error` and `disabled`.
 
+### Can I access private or protected methods of classes using `j4rs`?
+
+`j4rs` is not designed to interfere with Classes' access definitions. It calls Java just like normal Java code calls APIs of other packages. 
+
+This keeps things simple, enforces cleaner code design, applies better security and behavior predictability and offers better compatibility with different JDK versions.
+
 ## More documentation
 
-In case you did not find what you wanted, you may have a look at these advanced j4rs use cases [here](../documentation/advanced_j4rs.md).
+If you did not find here what you wanted, you may have a look at these advanced j4rs use cases [here](../documentation/advanced_j4rs.md).
 
 ## Licence
 
