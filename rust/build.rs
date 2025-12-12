@@ -27,6 +27,10 @@ fn main() -> Result<(), J4rsBuildError> {
     // ensure build.rs is not rerun when there are no `rerun-if-*` printed
     println!("cargo:rerun-if-changed=build.rs");
 
+    println!(
+        "cargo::rerun-if-env-changed=J4RS_FORCE_BUILD"
+    );
+
     let out_dir = env::var("OUT_DIR")?;
     let source_jar_location = PathBuf::from(format!(
         "../java/target/j4rs-{VERSION}-jar-with-dependencies.jar"
