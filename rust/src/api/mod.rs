@@ -623,18 +623,6 @@ impl Jvm {
         }
     }
 
-    /// Creates a new Java List with elements of the class `class_name`.
-    /// The array will have the `InvocationArg`s populated.
-    /// The `InvocationArg`s __must__ be of type _class_name_.
-    #[deprecated(since = "0.15.0", note = "Please use `java_list` instead")]
-    pub fn create_java_list(
-        &self,
-        class_name: &str,
-        inv_args: &[InvocationArg],
-    ) -> errors::Result<Instance> {
-        Jvm::do_create_java_list(self.jni_env, class_name, inv_args)
-    }
-
     /// Creates a new Java List with elements of the class `inner_class_name`.
     pub fn java_list<'a>(
         &self,

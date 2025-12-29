@@ -58,22 +58,6 @@ impl Instance {
         self.jinstance
     }
 
-    #[deprecated(
-        since = "0.12.0",
-        note = "Please use Instance::from_jobject or Instance::from_jobject_with_global_ref instead"
-    )]
-    pub fn from(obj: jobject) -> errors::Result<Instance> {
-        let _jvm = cache::get_thread_local_env().map_err(|_| Jvm::attach_thread());
-
-        let global =
-            jni_utils::create_global_ref_from_local_ref(obj, cache::get_thread_local_env()?)?;
-        Ok(Instance {
-            jinstance: global,
-            class_name: cache::UNKNOWN_FOR_RUST.to_string(),
-            skip_deleting_jobject: false,
-        })
-    }
-
     pub fn from_jobject(obj: jobject) -> errors::Result<Instance> {
         let _jvm = cache::get_thread_local_env().map_err(|_| Jvm::attach_thread());
 
