@@ -785,7 +785,11 @@ pub(crate) fn get_factory_class() -> errors::Result<jclass> {
         {
             let env = get_thread_local_env()?;
             let c = tweaks::find_class(env, INST_CLASS_NAME)?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_factory_class
     )
@@ -804,7 +808,11 @@ pub(crate) fn get_utils_class() -> errors::Result<jclass> {
         {
             let env = get_thread_local_env()?;
             let c = tweaks::find_class(env, UTILS_CLASS_NAME)?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_utils_class
     )
@@ -855,7 +863,11 @@ pub(crate) fn get_invocation_arg_class() -> errors::Result<jclass> {
         {
             let env = get_thread_local_env()?;
             let c = tweaks::find_class(env, "org/astonbitecode/j4rs/api/dtos/InvocationArg")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_invocation_arg_class
     )
@@ -1082,7 +1094,11 @@ pub(crate) fn get_java_instance_class() -> errors::Result<jclass> {
             let c = tweaks::find_class(env, INVO_IFACE_NAME)?;
             
 
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_java_instance_class
     )
@@ -1640,7 +1656,11 @@ pub(crate) fn get_integer_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/Integer")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_integer_class
     )
@@ -1716,7 +1736,11 @@ pub(crate) fn get_long_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/Long")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_long_class
     )
@@ -1736,7 +1760,11 @@ pub(crate) fn get_invocation_exception_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "org/astonbitecode/j4rs/errors/InvocationException")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_invocation_exception_class
     )
@@ -1812,7 +1840,11 @@ pub(crate) fn get_short_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/Short")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_short_class
     )
@@ -1888,7 +1920,11 @@ pub(crate) fn get_character_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/Character")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_character_class
     )
@@ -1964,7 +2000,11 @@ pub(crate) fn get_byte_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/Byte")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_byte_class
     )
@@ -2042,7 +2082,11 @@ pub(crate) fn get_float_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/Float")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_float_class
     )
@@ -2124,7 +2168,11 @@ pub(crate) fn get_double_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/Double")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_double_class
     )
@@ -2206,7 +2254,11 @@ pub(crate) fn get_string_class() -> errors::Result<jclass> {
             let env = get_thread_local_env()?;
 
             let c = tweaks::find_class(env, "java/lang/String")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_string_class
     )
@@ -2227,7 +2279,11 @@ pub(crate) fn get_classloader_class() -> errors::Result<jclass> {
         {
             let env = get_thread_local_env()?;
             let c = tweaks::find_class(env, "java/lang/ClassLoader")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_classloader_class
     )
@@ -2302,7 +2358,11 @@ pub(crate) fn get_android_context_wrapper_class() -> errors::Result<jclass> {
         {
             let env = get_thread_local_env()?;
             let c = tweaks::find_class(env, "android/content/ContextWrapper")?;
-            jni_utils::create_global_ref_from_local_ref(c, env)?
+            if CLASS_CACHING_ENABLED {
+                jni_utils::create_global_ref_from_local_ref(c, env)?
+            } else {
+                c
+            }
         },
         set_android_context_wrapper_class
     )
