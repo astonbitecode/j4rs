@@ -20,7 +20,7 @@ use std::{env, fs};
 use fs_extra::dir::CopyOptions;
 
 // This is the version of the jar that should be used
-const VERSION: &str = "0.24.0";
+const VERSION: &str = "0.25.0-SNAPSHOT";
 const JAVA_FX_VERSION: &str = "21.0.2";
 
 fn main() -> Result<(), J4rsBuildError> {
