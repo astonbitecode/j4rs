@@ -1662,6 +1662,26 @@ impl Jvm {
 
     
     /// Dynamically registers native methods for a given class.
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// extern "C" fn hello(jni_env: *mut jni_sys::JNIEnv, _this: jobject) -> jstring {
+    ///     unsafe {
+    ///         let cstring = std::ffi::CString::new("Hello from Rust!").unwrap();
+    ///         ((**jni_env).v1_6.NewStringUTF)(jni_env, cstring.as_ptr())
+    ///     }
+    /// }
+    ///
+    /// jvm.register_natives(
+    ///     "org/astonbitecode/j4rs/tests/TestDynamicRegister",
+    ///     vec![NativeMethod::new(
+    ///         "sayHello",
+    ///         "()Ljava/lang/String;",
+    ///         hello as *mut c_void,
+    ///     )],
+    /// )?;
+    /// ```
     pub fn register_natives(
         &self,
         class_name: &str,
@@ -1698,6 +1718,15 @@ impl Jvm {
         Ok(())
     }
     
+    /// Unregisters native methods for a given class.
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// jvm.unregister_native(
+    ///     "org/astonbitecode/j4rs/tests/TestDynamicRegister",
+    /// )?;
+    /// ```
     pub fn unregister_native(&self, class_name: &str) -> errors::Result<()> {
         unsafe {
             let class = crate::api_tweaks::find_class(self.jni_env, class_name)?;
