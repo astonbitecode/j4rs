@@ -1666,7 +1666,7 @@ impl Jvm {
         &self,
         class_name: &str,
         methods: Vec<NativeMethod>,
-    ) -> Result<(), J4RsError> {
+    ) -> errors::Result<()> {
         if self.jni_env.is_null() {
             Err(J4RsError::RustError(
                 "Cannot register natives without jni environment".to_string(),
@@ -1696,6 +1696,23 @@ impl Jvm {
         }
 
         Ok(())
+    }
+    
+    pub fn unregister_native(&self, class_name: &str) -> errors::Result<()> {
+        unsafe {
+            let class = crate::api_tweaks::find_class(self.jni_env, class_name)?;
+            let unregister_natives = (**self.jni_env).v1_6.UnregisterNatives;
+            let result =
+                (unregister_natives)(self.jni_env, class);
+
+            if result != 0 {
+                Err(J4RsError::RustError(
+                    "Failed to unregister natives".to_string(),
+                ))?
+            }
+            
+            Ok(())
+        }
     }
 }
 
@@ -2535,6 +2552,16 @@ mod api_unit_tests {
             jvm.to_rust(jvm.invoke(&instance, "sayHello", InvocationArg::empty())?)?;
 
         assert_eq!(result, "Hello from Rust!");
+        
+        let result = jvm.unregister_native("org/astonbitecode/j4rs/tests/TestDynamicRegister");
+        assert_eq!(result, Ok(()));
+        
+        let result = jvm.invoke(&instance, "sayHello", InvocationArg::empty());
+        
+        assert!(result.is_err());
+        let exception_string = format!("{}",result.err().unwrap());
+        assert!(exception_string.contains("java.lang.UnsatisfiedLinkError"));
+
         Ok(())
     }
 }
