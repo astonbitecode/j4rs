@@ -1666,21 +1666,25 @@ impl Jvm {
     /// # Example
     /// 
     /// ```no_run
-    /// extern "C" fn hello(jni_env: *mut jni_sys::JNIEnv, _this: jobject) -> jstring {
+    /// use j4rs::prelude::*;
+    /// use j4rs::{NativeMethod, JvmBuilder};
+    /// 
+    /// extern "C" fn hello(jni_env: *mut JNIEnv, _this: jobject) -> jobject {
     ///     unsafe {
     ///         let cstring = std::ffi::CString::new("Hello from Rust!").unwrap();
     ///         ((**jni_env).v1_6.NewStringUTF)(jni_env, cstring.as_ptr())
     ///     }
     /// }
     ///
+    /// let jvm = JvmBuilder::new().build().unwrap();
     /// jvm.register_natives(
     ///     "org/astonbitecode/j4rs/tests/TestDynamicRegister",
     ///     vec![NativeMethod::new(
     ///         "sayHello",
     ///         "()Ljava/lang/String;",
-    ///         hello as *mut c_void,
+    ///         hello as *mut core::ffi::c_void,
     ///     )],
-    /// )?;
+    /// ).unwrap();
     /// ```
     pub fn register_natives(
         &self,
@@ -1723,9 +1727,12 @@ impl Jvm {
     /// # Example
     /// 
     /// ```no_run
+    /// use j4rs::JvmBuilder;
+    /// 
+    /// let jvm = JvmBuilder::new().build().unwrap();
     /// jvm.unregister_native(
     ///     "org/astonbitecode/j4rs/tests/TestDynamicRegister",
-    /// )?;
+    /// ).unwrap();
     /// ```
     pub fn unregister_native(&self, class_name: &str) -> errors::Result<()> {
         unsafe {

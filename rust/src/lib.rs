@@ -45,6 +45,7 @@ pub use self::api::JavaClass;
 pub use self::api::JavaOpt;
 pub use self::api::Jvm;
 pub use self::api::JvmBuilder;
+pub use self::api::NativeMethod;
 pub use self::api::Null;
 pub use self::api_tweaks::{get_created_java_vms, set_java_vm};
 pub use self::jni_utils::jstring_to_rust_string;
