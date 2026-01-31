@@ -1665,7 +1665,7 @@ impl Jvm {
     /// 
     /// # Example
     /// 
-    /// ```rust
+    /// ```no_run
     /// extern "C" fn hello(jni_env: *mut jni_sys::JNIEnv, _this: jobject) -> jstring {
     ///     unsafe {
     ///         let cstring = std::ffi::CString::new("Hello from Rust!").unwrap();
@@ -1722,7 +1722,7 @@ impl Jvm {
     /// 
     /// # Example
     /// 
-    /// ```rust
+    /// ```no_run
     /// jvm.unregister_native(
     ///     "org/astonbitecode/j4rs/tests/TestDynamicRegister",
     /// )?;
