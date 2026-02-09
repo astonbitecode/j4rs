@@ -33,8 +33,9 @@ import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
-public class SimpleMavenDeployer {
+public class SimpleMavenDeployer implements MavenDeployerApi {
     private static final String MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2";
+    private static final String JAR_ARTIFACT_EXTENSION = "jar";
     private final String M2_CACHE = System.getProperty("user.home") + File.separator + ".m2" + File.separator
             + "repository";
 
@@ -61,15 +62,22 @@ public class SimpleMavenDeployer {
         new File(deployTarget).mkdirs();
     }
 
+    @Override
     public void deploy(String groupId, String artifactId, String version, String qualifier) throws IOException {
-        String jarName = generateArtifactName(artifactId, version, qualifier);
+        String artifactType = JAR_ARTIFACT_EXTENSION;
+        deploy(groupId, artifactId, version, qualifier, artifactType);
+    }
+
+    @Override
+    public void deploy(String groupId, String artifactId, String version, String qualifier, String artifactType) throws IOException {
+        String jarName = DeployUtils.generateArtifactName(artifactId, version, qualifier, artifactType);
         boolean searchRemoteRepo = true;
 
-        if (!artifactExists(groupId, artifactId, version, qualifier)) {
+        if (!DeployUtils.artifactExists(groupId, artifactId, version, qualifier, artifactType, deployTarget)) {
             String fullJarDeployPath = deployTarget + File.separator + jarName;
             if (checkLocalCache) {
                 try {
-                    deployFromLocalCache(groupId, artifactId, version, qualifier);
+                    deployFromLocalCache(groupId, artifactId, version, qualifier, artifactType);
                     searchRemoteRepo = false;
                 } catch (Exception error) {
                     /* ignore */
@@ -87,15 +95,9 @@ public class SimpleMavenDeployer {
         }
     }
 
-    private boolean artifactExists(String groupId, String artifactId, String version, String qualifier) {
-        String jarName = generateArtifactName(artifactId, version, qualifier);
-        String pathString = deployTarget + File.separator + jarName;
-        return new File(pathString).exists();
-    }
-
-    void deployFromLocalCache(String groupId, String artifactId, String version, String qualifier)
+    void deployFromLocalCache(String groupId, String artifactId, String version, String qualifier, String artifactType)
             throws MalformedURLException, IOException {
-        String jarName = generateArtifactName(artifactId, version, qualifier);
+        String jarName = DeployUtils.generateArtifactName(artifactId, version, qualifier, artifactType);
         String pathString = generatePathTagret(M2_CACHE, groupId, artifactId, version, jarName);
 
         ReadableByteChannel readableByteChannel = Channels
@@ -103,15 +105,6 @@ public class SimpleMavenDeployer {
         try (FileOutputStream fileOutputStream = new FileOutputStream(deployTarget + File.separator + jarName)) {
             fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
         }
-    }
-
-    String generateArtifactName(String artifactId, String version, String qualifier) {
-        StringBuilder jarName = new StringBuilder(String.format("%s-%s", artifactId, version));
-        if (qualifier != null && !qualifier.isEmpty()) {
-            jarName.append("-").append(qualifier);
-        }
-        jarName.append(".jar");
-        return jarName.toString();
     }
 
     String generateUrlTagret(String groupId, String artifactId, String version, String jarName) throws IOException {
@@ -145,8 +138,13 @@ public class SimpleMavenDeployer {
                 File.separator, artifactId, File.separator, version, File.separator, jarName);
     }
 
+    @Override
     public String getRepoBase() {
         return repoBase;
     }
 
+    @Override
+    public String getDeployTarget() {
+        return deployTarget;
+    }
 }

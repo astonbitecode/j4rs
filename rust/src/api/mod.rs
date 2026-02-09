@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::any::{Any, TypeId};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
@@ -22,7 +23,6 @@ use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::mpsc::channel;
 use std::{fs, thread, time};
-use std::borrow::Borrow;
 
 use jni_sys::{
     self, jint, jobject, jsize, jstring, JNIEnv, JavaVM, JavaVMInitArgs, JavaVMOption,
@@ -34,13 +34,13 @@ use serde::de::DeserializeOwned;
 
 use instance::{ChainableInstance, Instance, InstanceReceiver};
 
-use crate::{errors, set_java_vm};
 use crate::errors::{opt_to_res, J4RsError};
 use crate::jni_utils;
 use crate::provisioning;
 use crate::provisioning::{get_maven_settings, JavaArtifact, LocalJarArtifact, MavenArtifact};
 use crate::utils;
 use crate::{api_tweaks as tweaks, cache, InvocationArg, MavenSettings};
+use crate::{errors, set_java_vm};
 
 use self::tweaks::cache_classloader_of;
 
@@ -84,8 +84,7 @@ pub(crate) const CLASS_NATIVE_CALLBACK_TO_RUST_CHANNEL_SUPPORT: &str =
     "org.astonbitecode.j4rs.api.invocation.NativeCallbackToRustChannelSupport";
 pub(crate) const CLASS_J4RS_EVENT_HANDLER: &str =
     "org.astonbitecode.j4rs.api.jfx.handlers.J4rsEventHandler";
-pub(crate) const CLASS_J4RS_FXML_LOADER: &str =
-    "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
+pub(crate) const CLASS_J4RS_FXML_LOADER: &str = "org.astonbitecode.j4rs.api.jfx.J4rsFxmlLoader";
 pub const _JNI_VERSION_10: jint = 0x000a0000;
 
 pub type Callback = fn(Jvm, Instance) -> ();
@@ -182,7 +181,7 @@ impl Jvm {
 
                 cstrings_to_drop
                     .into_iter()
-                    .for_each(|s| unsafe {utils::drop_c_string(s)});
+                    .for_each(|s| unsafe { utils::drop_c_string(s) });
 
                 int_result
             };
@@ -286,9 +285,7 @@ impl Jvm {
                 ))
             });
             let _ = cache::get_jni_get_array_length().or_else(|| {
-                cache::set_jni_get_array_length(Some(
-                    (**jni_environment).v1_6.GetArrayLength,
-                ))
+                cache::set_jni_get_array_length(Some((**jni_environment).v1_6.GetArrayLength))
             });
             let _ = cache::get_jni_get_byte_array_elements().or_else(|| {
                 cache::set_jni_get_byte_array_elements(Some(
@@ -424,7 +421,10 @@ impl Jvm {
                         Ok(jvm)
                     }
                 }
-                (_, _, _) => Err(J4RsError::JniError("Could not initialize the JVM: Error while trying to retrieve JNI functions.".to_string())),
+                (_, _, _) => Err(J4RsError::JniError(
+                    "Could not initialize the JVM: Error while trying to retrieve JNI functions."
+                        .to_string(),
+                )),
             }
         } else {
             // Use the environment from the Thread Local
@@ -472,8 +472,9 @@ impl Jvm {
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java =
-                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
+                let inv_arg_java = inv_args[i as usize]
+                    .borrow()
+                    .as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -578,8 +579,9 @@ impl Jvm {
             // Factory invocation - rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java =
-                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
+                let inv_arg_java = inv_args[i as usize]
+                    .borrow()
+                    .as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -627,7 +629,7 @@ impl Jvm {
     pub fn java_list<'a>(
         &self,
         inner_class_name: impl Into<&'a str>,
-        inv_args: Vec<impl TryInto<InvocationArg, Error=J4RsError>>,
+        inv_args: Vec<impl TryInto<InvocationArg, Error = J4RsError>>,
     ) -> errors::Result<Instance> {
         let v: Result<Vec<InvocationArg>, J4RsError> =
             inv_args.into_iter().map(|arg| arg.try_into()).collect();
@@ -715,8 +717,8 @@ impl Jvm {
         key_class_name: impl Into<&'a str>,
         value_class_name: impl Into<&'a str>,
         inv_args: HashMap<
-            impl TryInto<InvocationArg, Error=J4RsError>,
-            impl TryInto<InvocationArg, Error=J4RsError>,
+            impl TryInto<InvocationArg, Error = J4RsError>,
+            impl TryInto<InvocationArg, Error = J4RsError>,
         >,
     ) -> errors::Result<Instance> {
         let mut inv_args_results: Vec<Result<InvocationArg, J4RsError>> =
@@ -859,8 +861,9 @@ impl Jvm {
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java =
-                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
+                let inv_arg_java = inv_args[i as usize]
+                    .borrow()
+                    .as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -996,8 +999,9 @@ impl Jvm {
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java =
-                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
+                let inv_arg_java = inv_args[i as usize]
+                    .borrow()
+                    .as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -1106,8 +1110,9 @@ impl Jvm {
             // Rest of the arguments: populate the array
             for i in 0..size {
                 // Create an InvocationArg Java Object
-                let inv_arg_java =
-                    inv_args[i as usize].borrow().as_java_ptr_with_global_ref(self.jni_env)?;
+                let inv_arg_java = inv_args[i as usize]
+                    .borrow()
+                    .as_java_ptr_with_global_ref(self.jni_env)?;
                 // Set it in the array
                 (opt_to_res(cache::get_jni_set_object_array_element())?)(
                     self.jni_env,
@@ -1197,12 +1202,20 @@ impl Jvm {
         }
     }
 
-    /// Checks whether an Instance a is equal to some InvocationArg. 
-    /// 
+    /// Checks whether an Instance a is equal to some InvocationArg.
+    ///
     /// The check is actually against the Java `Object.equals`, taking into consideration the possibility of null.
     /// `NullPointerException` will not be thrown, even if one of the inputs is null.
-    pub fn check_equals(&self, instance: impl Borrow<Instance>, inv_arg: impl Borrow<InvocationArg>) -> errors::Result<bool> {
-        debug(&format!("Checking equality between instances of {} and {}", instance.borrow().class_name(), inv_arg.borrow().class_name()));
+    pub fn check_equals(
+        &self,
+        instance: impl Borrow<Instance>,
+        inv_arg: impl Borrow<InvocationArg>,
+    ) -> errors::Result<bool> {
+        debug(&format!(
+            "Checking equality between instances of {} and {}",
+            instance.borrow().class_name(),
+            inv_arg.borrow().class_name()
+        ));
         unsafe {
             // Create InvocationArg Java Objects
             let inv_arg_java_b = inv_arg.borrow().as_java_ptr_with_global_ref(self.jni_env)?;
@@ -1215,28 +1228,26 @@ impl Jvm {
             );
 
             // Create and return the boolean
-            Self::do_return(
-                self.jni_env,
-                java_boolean,
-            )
+            Self::do_return(self.jni_env, java_boolean)
         }
     }
 
     /// Consumes an `Instance` and returns its jobject. The returned jobject is a JNI local reference.
     pub fn instance_into_raw_object(&self, instance: Instance) -> errors::Result<jobject> {
-        debug(&format!("Getting the raw jobject from instance of class {}", instance.borrow().class_name()));
+        debug(&format!(
+            "Getting the raw jobject from instance of class {}",
+            instance.borrow().class_name()
+        ));
         // Call the getObjectMethod. This returns a localref
         let object_instance = unsafe {
             (opt_to_res(cache::get_jni_call_object_method())?)(
                 self.jni_env,
                 instance.jinstance,
                 cache::get_get_object_method()?,
-        )};
+            )
+        };
 
-        Self::do_return(
-            self.jni_env,
-            object_instance,
-        )
+        Self::do_return(self.jni_env, object_instance)
     }
 
     /// Consumes the `Jvm` and returns its `JNIEnv`
@@ -1248,8 +1259,8 @@ impl Jvm {
 
     /// Returns the Rust representation of the provided instance, boxed
     pub fn to_rust_boxed<T>(&self, instance: Instance) -> errors::Result<Box<T>>
-        where
-            T: DeserializeOwned + Any,
+    where
+        T: DeserializeOwned + Any,
     {
         // Define the macro inside the function in order to have access to &self
         macro_rules! rust_box_from_java_object {
@@ -1278,7 +1289,6 @@ impl Jvm {
         }
 
         let t_type = TypeId::of::<T>();
-        
 
         unsafe {
             // Call the getClassName method. This returns a localref
@@ -1291,7 +1301,8 @@ impl Jvm {
                 object_class_name_instance,
                 self.jni_env,
             )?;
-            let class_name = &(jni_utils::string_from_jobject(object_class_name_instance, self.jni_env)?);
+            let class_name =
+                &(jni_utils::string_from_jobject(object_class_name_instance, self.jni_env)?);
             jni_utils::delete_java_ref(self.jni_env, object_class_name_instance);
             if t_type == TypeId::of::<String>() && JavaClass::String.get_class_str() == class_name {
                 rust_box_from_java_object!(jni_utils::string_from_jobject)
@@ -1307,8 +1318,9 @@ impl Jvm {
                 && (JavaClass::Short.get_class_str() == class_name || PRIMITIVE_SHORT == class_name)
             {
                 rust_box_from_java_object!(jni_utils::i16_from_jobject)
-            }  else if t_type == TypeId::of::<u16>()
-                && (JavaClass::Character.get_class_str() == class_name || PRIMITIVE_CHAR == class_name)
+            } else if t_type == TypeId::of::<u16>()
+                && (JavaClass::Character.get_class_str() == class_name
+                    || PRIMITIVE_CHAR == class_name)
             {
                 rust_box_from_java_object!(jni_utils::u16_from_jobject)
             } else if t_type == TypeId::of::<i64>()
@@ -1321,40 +1333,24 @@ impl Jvm {
                 rust_box_from_java_object!(jni_utils::f32_from_jobject)
             } else if t_type == TypeId::of::<f64>()
                 && (JavaClass::Double.get_class_str() == class_name
-                || PRIMITIVE_DOUBLE == class_name)
+                    || PRIMITIVE_DOUBLE == class_name)
             {
                 rust_box_from_java_object!(jni_utils::f64_from_jobject)
-            } else if t_type == TypeId::of::<Vec<i8>>()
-                && PRIMITIVE_BYTE_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<i8>>() && PRIMITIVE_BYTE_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::i8_array_from_jobject)
-            } else if t_type == TypeId::of::<Vec<i16>>()
-                && PRIMITIVE_SHORT_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<i16>>() && PRIMITIVE_SHORT_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::i16_array_from_jobject)
-            } else if t_type == TypeId::of::<Vec<u16>>()
-                && PRIMITIVE_CHAR_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<u16>>() && PRIMITIVE_CHAR_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::u16_array_from_jobject)
-            } else if t_type == TypeId::of::<Vec<i32>>()
-                && PRIMITIVE_INT_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<i32>>() && PRIMITIVE_INT_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::i32_array_from_jobject)
-            } else if t_type == TypeId::of::<Vec<i64>>()
-                && PRIMITIVE_LONG_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<i64>>() && PRIMITIVE_LONG_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::i64_array_from_jobject)
-            } else if t_type == TypeId::of::<Vec<f32>>()
-                && PRIMITIVE_FLOAT_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<f32>>() && PRIMITIVE_FLOAT_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::f32_array_from_jobject)
-            } else if t_type == TypeId::of::<Vec<f64>>()
-                && PRIMITIVE_DOUBLE_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<f64>>() && PRIMITIVE_DOUBLE_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::f64_array_from_jobject)
-            } else if t_type == TypeId::of::<Vec<bool>>()
-                && PRIMITIVE_BOOLEAN_ARRAY == class_name
-            {
+            } else if t_type == TypeId::of::<Vec<bool>>() && PRIMITIVE_BOOLEAN_ARRAY == class_name {
                 rust_box_from_java_object!(jni_utils::boolean_array_from_jobject)
             } else {
                 Ok(Box::new(self.to_rust_deserialized(instance)?))
@@ -1364,15 +1360,15 @@ impl Jvm {
 
     /// Returns the Rust representation of the provided instance
     pub fn to_rust<T>(&self, instance: Instance) -> errors::Result<T>
-        where
-            T: DeserializeOwned + Any,
+    where
+        T: DeserializeOwned + Any,
     {
         self.to_rust_boxed(instance).map(|v| *v)
     }
 
     pub fn to_rust_deserialized<T>(&self, instance: Instance) -> errors::Result<T>
-        where
-            T: DeserializeOwned + Any,
+    where
+        T: DeserializeOwned + Any,
     {
         unsafe {
             debug("Invoking the getJson method");
@@ -1398,13 +1394,29 @@ impl Jvm {
     ///
     /// The function deploys __only__ the specified artifact, not its transitive dependencies.
     pub fn deploy_artifact<T: Any + JavaArtifact>(&self, artifact: &T) -> errors::Result<()> {
+        self.do_deploy_artifact(artifact, "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer")
+    }
+
+    /// Deploys an artifact along with its transitive dependencies in the default j4rs jars location.
+    ///
+    /// This is useful for build scripts that need jars for the runtime that can be downloaded from e.g. Maven.
+    ///
+    /// The function deploys the specified artifact __and__ its transitive dependencies.
+    pub fn deploy_artifact_and_deps(&self, artifact: &MavenArtifact) -> errors::Result<()> {
+        self.do_deploy_artifact(artifact, "org.astonbitecode.j4rs.api.deploy.MavenDeployer")
+    }
+
+    pub fn do_deploy_artifact<T: Any + JavaArtifact>(&self, artifact: &T, deployer_class: &str) -> errors::Result<()> {
         let artifact = artifact as &dyn Any;
         if let Some(maven_artifact) = artifact.downcast_ref::<MavenArtifact>() {
+            let mut found = false;
             for repo in get_maven_settings().repos.into_iter() {
                 let instance = self.create_instance(
-                    "org.astonbitecode.j4rs.api.deploy.SimpleMavenDeployer",
-                    &[InvocationArg::try_from(repo.uri)?,
-                        InvocationArg::try_from(&maven_artifact.base)?],
+                    deployer_class,
+                    &[
+                        InvocationArg::try_from(repo.uri)?,
+                        InvocationArg::try_from(&maven_artifact.base)?,
+                    ],
                 )?;
 
                 let res = self.invoke(
@@ -1419,11 +1431,18 @@ impl Jvm {
                 );
 
                 if res.is_ok() {
+                    found = true;
                     break;
                 }
             }
-
-            Ok(())
+            if !found {
+                Err(J4RsError::GeneralError(format!(
+                    "Could not deploy {}:{}:{}",
+                    maven_artifact.group, maven_artifact.id, maven_artifact.version
+                )))
+            } else {
+                Ok(())
+            }
         } else if let Some(local_jar_artifact) = artifact.downcast_ref::<LocalJarArtifact>() {
             let instance = self.create_instance(
                 "org.astonbitecode.j4rs.api.deploy.FileSystemDeployer",
@@ -1523,7 +1542,10 @@ impl Jvm {
         }
     }
 
-    unsafe fn get_throwable_string(throwable: jobject, jni_env: *mut JNIEnv) -> errors::Result<String> {
+    unsafe fn get_throwable_string(
+        throwable: jobject,
+        jni_env: *mut JNIEnv,
+    ) -> errors::Result<String> {
         let java_string = (opt_to_res(cache::get_jni_call_static_object_method())?)(
             jni_env,
             cache::get_utils_class()?,
@@ -1703,7 +1725,7 @@ impl<'a> JvmBuilder<'a> {
             javafx: false,
             default_classloader: false,
             java_vm_opt: None,
-            jobject_within_valid_classloader_opt: None
+            jobject_within_valid_classloader_opt: None,
         }
     }
 
@@ -1750,7 +1772,10 @@ impl<'a> JvmBuilder<'a> {
     ///
     /// This is useful when in the Java world a native method is called and in the native code someone needs to create a j4rs Jvm.
     /// If that Jvm detaches its current thread when being dropped, there will be problems for the Java world code to continue executing.
-    pub fn detach_thread_on_drop(&'a mut self, detach_thread_on_drop: bool) -> &'a mut JvmBuilder<'a> {
+    pub fn detach_thread_on_drop(
+        &'a mut self,
+        detach_thread_on_drop: bool,
+    ) -> &'a mut JvmBuilder<'a> {
         self.detach_thread_on_drop = detach_thread_on_drop;
         self
     }
@@ -1779,7 +1804,10 @@ impl<'a> JvmBuilder<'a> {
     }
 
     /// Defines the maven settings to use for provisioning maven artifacts.
-    pub fn with_maven_settings(&'a mut self, maven_settings: MavenSettings) -> &'a mut JvmBuilder<'a> {
+    pub fn with_maven_settings(
+        &'a mut self,
+        maven_settings: MavenSettings,
+    ) -> &'a mut JvmBuilder<'a> {
         self.maven_settings = maven_settings;
         self
     }
@@ -1791,7 +1819,7 @@ impl<'a> JvmBuilder<'a> {
     }
 
     /// Create the j4rs `Jvm` using an already created jni `JavaVM`.
-    /// 
+    ///
     /// Useful for Android apps, where the JVM is automatically created.
     pub fn with_java_vm(&'a mut self, java_vm: *mut JavaVM) -> &'a mut JvmBuilder<'a> {
         self.java_vm_opt = Some(java_vm);
@@ -1799,23 +1827,26 @@ impl<'a> JvmBuilder<'a> {
     }
 
     /// Instructs j4rs to use the classloader associated to the specified `jobject` when searching for classes.
-    /// 
+    ///
     /// Useful for pure native Android apps.
-    /// 
+    ///
     /// As described in Android documentation, the native libraries that spawn new threads cannot locate and use Java classes correctly.
     ///
     /// From the [docs]((https://developer.android.com/training/articles/perf-jni#faq:-why-didnt-findclass-find-my-class)):
-    /// 
-    /// > You can get into trouble if you create a thread yourself (perhaps by calling pthread_create and then attaching it with AttachCurrentThread). 
-    /// > Now there are no stack frames from your application. If you call FindClass from this thread, the JavaVM will start in the "system" class loader 
+    ///
+    /// > You can get into trouble if you create a thread yourself (perhaps by calling pthread_create and then attaching it with AttachCurrentThread).
+    /// > Now there are no stack frames from your application. If you call FindClass from this thread, the JavaVM will start in the "system" class loader
     /// > instead of the one associated with your application, so attempts to find app-specific classes will fail.
-    /// 
+    ///
     /// Even if it is proposed to load and cache classes during `JNI_OnLoad` (j4rs documentation about it [here](https://github.com/astonbitecode/j4rs?tab=readme-ov-file#j4rs-in-android))
-    /// `JNI_OnLoad` is not called on pure native apps. One solution to find the app-specific classes in this case, is to use the classloader 
-    /// of the `Activity` to find and use classes. `j4rs` will use the `jobject` passed here (the `jobject` of the `Activity`) to get the 
+    /// `JNI_OnLoad` is not called on pure native apps. One solution to find the app-specific classes in this case, is to use the classloader
+    /// of the `Activity` to find and use classes. `j4rs` will use the `jobject` passed here (the `jobject` of the `Activity`) to get the
     /// proper classloader and use it when needed.
     /// #[cfg(target_os = "android")]
-    pub fn with_classloader_of_activity(&'a mut self, jobject_within_valid_classloader: jobject) -> &'a mut JvmBuilder<'a> {
+    pub fn with_classloader_of_activity(
+        &'a mut self,
+        jobject_within_valid_classloader: jobject,
+    ) -> &'a mut JvmBuilder<'a> {
         self.jobject_within_valid_classloader_opt = Some(jobject_within_valid_classloader);
         // If the `jobject_within_valid_classloader_opt` is provided, it means that the object's classloader
         // should be used to load classes in case the traditional `FindClass` invocations fail.
@@ -1885,7 +1916,11 @@ impl<'a> JvmBuilder<'a> {
             for entry in std::fs::read_dir(jassets_path)? {
                 let path = entry?.path();
                 if let Some(file_name) = opt_to_res(path.file_name())?.to_str() {
-                    if !file_name.contains("j4rs-") || file_name.ends_with(&j4rs_jar_to_use) || file_name.ends_with(&j4rs_testing_jar_to_use)  || file_name.ends_with(&j4rs_javafx_jar_to_use) {
+                    if !file_name.contains("j4rs-")
+                        || file_name.ends_with(&j4rs_jar_to_use)
+                        || file_name.ends_with(&j4rs_testing_jar_to_use)
+                        || file_name.ends_with(&j4rs_javafx_jar_to_use)
+                    {
                         if !cp_string.is_empty() {
                             cp_string.push_str(utils::classpath_sep());
                         }
@@ -1930,7 +1965,10 @@ impl<'a> JvmBuilder<'a> {
             .for_each(|opt| jvm_options.push(opt.to_string()));
 
         // Pass to the Java world the name of the j4rs library.
-        let lib_name_opt = if self.lib_name_opt.is_none() && !self.skip_setting_native_lib && cfg!(not(target_os = "android")) {
+        let lib_name_opt = if self.lib_name_opt.is_none()
+            && !self.skip_setting_native_lib
+            && cfg!(not(target_os = "android"))
+        {
             let deps_dir = utils::deps_dir()?;
             let found_libs: Vec<String> = if Path::new(&deps_dir).exists() {
                 utils::find_j4rs_dynamic_libraries_names()?
@@ -1989,7 +2027,10 @@ impl<'a> JvmBuilder<'a> {
                 jvm.detach_thread_on_drop(false);
             }
             if self.jobject_within_valid_classloader_opt.is_some() {
-                cache_classloader_of(jvm.jni_env, self.jobject_within_valid_classloader_opt.unwrap())?;
+                cache_classloader_of(
+                    jvm.jni_env,
+                    self.jobject_within_valid_classloader_opt.unwrap(),
+                )?;
             }
             Ok(jvm)
         })
@@ -2128,8 +2169,8 @@ impl<'a> ToString for JavaOpt<'a> {
 
 #[cfg(test)]
 mod api_unit_tests {
-    use crate::lib_unit_tests::create_tests_jvm;
     use super::*;
+    use crate::lib_unit_tests::create_tests_jvm;
 
     #[test]
     fn jvm_builder() -> errors::Result<()> {
@@ -2228,7 +2269,15 @@ mod api_unit_tests {
     fn test_byte_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<i8> = vec![-3_i8, 7_i8, 8_i8];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_BYTE, &ia)?;
         let rust_value_from_java: Vec<i8> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2240,7 +2289,15 @@ mod api_unit_tests {
     fn test_short_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<i16> = vec![-3_i16, 7_i16, 10000_i16];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_SHORT, &ia)?;
         let rust_value_from_java: Vec<i16> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2252,7 +2309,15 @@ mod api_unit_tests {
     fn test_char_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<u16> = vec![3_u16, 7_u16, 10000_u16];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_CHAR, &ia)?;
         let rust_value_from_java: Vec<u16> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2264,7 +2329,15 @@ mod api_unit_tests {
     fn test_int_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<i32> = vec![-100_000, -1_000_000, 1_000_000];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_INT, &ia)?;
         let rust_value_from_java: Vec<i32> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2276,7 +2349,15 @@ mod api_unit_tests {
     fn test_long_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<i64> = vec![-100_000, -1_000_000, 1_000_000];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_LONG, &ia)?;
         let rust_value_from_java: Vec<i64> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2288,7 +2369,15 @@ mod api_unit_tests {
     fn test_float_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<f32> = vec![3_f32, 7.5_f32, -1000.5_f32];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_FLOAT, &ia)?;
         let rust_value_from_java: Vec<f32> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2300,7 +2389,15 @@ mod api_unit_tests {
     fn test_double_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<f64> = vec![3_f64, 7.5_f64, -1000.5_f64];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_DOUBLE, &ia)?;
         let rust_value_from_java: Vec<f64> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2312,7 +2409,15 @@ mod api_unit_tests {
     fn test_boolean_array_to_rust() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         let rust_value: Vec<bool> = vec![false, true, false];
-        let ia: Vec<_> = rust_value.iter().map(|x| InvocationArg::try_from(x).unwrap().into_primitive().unwrap()).collect();
+        let ia: Vec<_> = rust_value
+            .iter()
+            .map(|x| {
+                InvocationArg::try_from(x)
+                    .unwrap()
+                    .into_primitive()
+                    .unwrap()
+            })
+            .collect();
         let java_instance = jvm.create_java_array(PRIMITIVE_BOOLEAN, &ia)?;
         let rust_value_from_java: Vec<bool> = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
@@ -2326,7 +2431,8 @@ mod api_unit_tests {
         let rust_value: i32 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_INTEGER, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "intValue", InvocationArg::empty())?;
+        let java_primitive_instance =
+            jvm.invoke(&java_instance, "intValue", InvocationArg::empty())?;
         let rust_value_from_java: i32 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i32 = jvm.to_rust(java_primitive_instance)?;
@@ -2341,7 +2447,8 @@ mod api_unit_tests {
         let rust_value: i8 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_BYTE, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "byteValue", InvocationArg::empty())?;
+        let java_primitive_instance =
+            jvm.invoke(&java_instance, "byteValue", InvocationArg::empty())?;
         let rust_value_from_java: i8 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i8 = jvm.to_rust(java_primitive_instance)?;
@@ -2356,7 +2463,8 @@ mod api_unit_tests {
         let rust_value: i16 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_SHORT, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "shortValue", InvocationArg::empty())?;
+        let java_primitive_instance =
+            jvm.invoke(&java_instance, "shortValue", InvocationArg::empty())?;
         let rust_value_from_java: i16 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i16 = jvm.to_rust(java_primitive_instance)?;
@@ -2371,7 +2479,8 @@ mod api_unit_tests {
         let rust_value: u16 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_CHARACTER, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "charValue", InvocationArg::empty())?;
+        let java_primitive_instance =
+            jvm.invoke(&java_instance, "charValue", InvocationArg::empty())?;
         let rust_value_from_java: u16 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: u16 = jvm.to_rust(java_primitive_instance)?;
@@ -2386,7 +2495,8 @@ mod api_unit_tests {
         let rust_value: i64 = 3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_LONG, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "longValue", InvocationArg::empty())?;
+        let java_primitive_instance =
+            jvm.invoke(&java_instance, "longValue", InvocationArg::empty())?;
         let rust_value_from_java: i64 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: i64 = jvm.to_rust(java_primitive_instance)?;
@@ -2401,7 +2511,8 @@ mod api_unit_tests {
         let rust_value: f32 = 3.3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_FLOAT, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "floatValue", InvocationArg::empty())?;
+        let java_primitive_instance =
+            jvm.invoke(&java_instance, "floatValue", InvocationArg::empty())?;
         let rust_value_from_java: f32 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: f32 = jvm.to_rust(java_primitive_instance)?;
@@ -2416,7 +2527,8 @@ mod api_unit_tests {
         let rust_value: f64 = 3.3;
         let ia = InvocationArg::try_from(rust_value)?.into_primitive()?;
         let java_instance = jvm.create_instance(CLASS_DOUBLE, &[ia])?;
-        let java_primitive_instance = jvm.invoke(&java_instance, "doubleValue", InvocationArg::empty())?;
+        let java_primitive_instance =
+            jvm.invoke(&java_instance, "doubleValue", InvocationArg::empty())?;
         let rust_value_from_java: f64 = jvm.to_rust(java_instance)?;
         assert_eq!(rust_value_from_java, rust_value);
         let rust_value_from_java: f64 = jvm.to_rust(java_primitive_instance)?;
@@ -2442,9 +2554,9 @@ mod api_unit_tests {
 
         let res = jvm.create_instance("non.Existing", InvocationArg::empty());
         assert!(res.is_err());
-        let exception_sttring = format!("{}",res.err().unwrap());
+        let exception_sttring = format!("{}", res.err().unwrap());
         assert!(exception_sttring.contains("Cannot create instance of non.Existing"));
-        
+
         Ok(())
     }
 }

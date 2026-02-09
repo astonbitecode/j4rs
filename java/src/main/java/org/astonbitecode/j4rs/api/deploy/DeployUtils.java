@@ -18,6 +18,10 @@ import java.io.File;
 import java.net.MalformedURLException;
 
 public class DeployUtils {
+    private DeployUtils() {
+
+    }
+
     /**
      * Adds a jar to the classpath
      * @param fullJarPath The full path of the jar to add
@@ -29,5 +33,20 @@ public class DeployUtils {
             File jar = new File(fullJarPath);
             classLoader.add(jar.toURI().toURL());
         }
+    }
+
+    static String generateArtifactName(String artifactId, String version, String qualifier, String artifactType) {
+        StringBuilder jarName = new StringBuilder(String.format("%s-%s", artifactId, version));
+        if (qualifier != null && !qualifier.isEmpty()) {
+            jarName.append("-").append(qualifier);
+        }
+        jarName.append(".").append(artifactType);
+        return jarName.toString();
+    }
+
+    static boolean artifactExists(String groupId, String artifactId, String version, String qualifier, String artifactType, String deployTarget) {
+        String artifactName = generateArtifactName(artifactId, version, qualifier, artifactType);
+        String pathString = deployTarget + File.separator + artifactName;
+        return new File(pathString).exists();
     }
 }

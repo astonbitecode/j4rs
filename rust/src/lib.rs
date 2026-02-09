@@ -708,16 +708,40 @@ mod lib_unit_tests {
     fn deploy_maven_artifact() -> errors::Result<()> {
         let jvm = create_tests_jvm()?;
         assert!(jvm
-            .deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1"))
+            .deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.22.0"))
             .is_ok());
         let to_remove = format!(
-            "{}{}j4rs-0.5.1.jar",
+            "{}{}j4rs-0.22.0.jar",
             jassets_path().unwrap().to_str().unwrap(),
             MAIN_SEPARATOR
         );
-        let _ = std::fs::remove_dir_all(to_remove);
+        let _ = std::fs::remove_file(to_remove);
 
         assert!(jvm.deploy_artifact(&UnknownArtifact {}).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn deploy_maven_artifact_with_transitive_deps() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+        assert!(jvm
+            .deploy_artifact_and_deps(&MavenArtifact::from("org.openjfx:javafx-graphics:21.0.9"))
+            .is_ok());
+
+        let to_remove1 = format!(
+            "{}{}javafx-graphics-21.0.9.jar",
+            jassets_path().unwrap().to_str().unwrap(),
+            MAIN_SEPARATOR
+        );
+        std::fs::remove_file(to_remove1)?;
+
+        let to_remove2 = format!(
+            "{}{}javafx-base-21.0.9.jar",
+            jassets_path().unwrap().to_str().unwrap(),
+            MAIN_SEPARATOR
+        );
+        std::fs::remove_file(to_remove2)?;
 
         Ok(())
     }
@@ -731,10 +755,10 @@ mod lib_unit_tests {
             ]))
             .build()?;
         assert!(jvm
-            .deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.5.1"))
+            .deploy_artifact(&MavenArtifact::from("io.github.astonbitecode:j4rs:0.22.0"))
             .is_ok());
         let to_remove = format!(
-            "{}{}j4rs-0.5.1.jar",
+            "{}{}j4rs-0.22.0.jar",
             jassets_path().unwrap().to_str().unwrap(),
             MAIN_SEPARATOR
         );

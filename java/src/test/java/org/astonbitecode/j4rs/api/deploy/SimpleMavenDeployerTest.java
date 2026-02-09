@@ -30,11 +30,6 @@ public class SimpleMavenDeployerTest {
     }
 
     @Test
-    public void generateArtifactName() {
-        assert (new SimpleMavenDeployer().generateArtifactName("j4rs", "0.5.1", "").equals("j4rs-0.5.1.jar"));
-    }
-
-    @Test
     public void generateUrlTagret() throws IOException {
         assert (new SimpleMavenDeployer("https://my.artifactory.com", true, "depltarget")
                 .generateUrlTagret("io.github.astonbitecode", "j4rs", "0.5.1", "j4rs-0.5.1.jar")
@@ -68,7 +63,7 @@ public class SimpleMavenDeployerTest {
         SimpleMavenDeployer mdmock = mock(SimpleMavenDeployer.class);
         mdmock.deploy("io.github.astonbitecode", "j4rs", "0.5.1", "");
 
-        verify(mdmock, times(0)).deployFromLocalCache(any(), any(), any(), any());
+        verify(mdmock, times(0)).deployFromLocalCache(any(), any(), any(), any(), any());
 
         File f = new File("./j4rs-0.5.1.jar");
         f.delete();

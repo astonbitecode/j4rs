@@ -1,5 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
@@ -55,8 +56,9 @@
         <maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
         <build.plugins.plugin.version>3.11.0</build.plugins.plugin.version>
         <jackson.version>2.15.2</jackson.version>
-        <mockito.version>5.4.0</mockito.version>
+        <mockito.version>5.21.0</mockito.version>
         <javafx.version>21.0.2</javafx.version>
+        <mavenVersion>3.2.1</mavenVersion>
     </properties>
     <dependencies>
         <dependency>
@@ -68,6 +70,11 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-aether-provider</artifactId>
+            <version>${mavenVersion}</version>
         </dependency>
         <!-- Test dependencies -->
         <dependency>
@@ -118,8 +125,8 @@
                 </executions>
                 <configuration>
                     <encoding>UTF-8</encoding>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>11</source>
+                    <target>11</target>
                 </configuration>
             </plugin>
             <plugin>
