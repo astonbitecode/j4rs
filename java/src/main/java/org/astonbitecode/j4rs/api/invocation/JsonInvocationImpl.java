@@ -1,19 +1,35 @@
 /*
- * Copyright 2018 astonbitecode
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Copyright 2018 astonbitecode Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You may obtain a copy of the License
+ * at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package org.astonbitecode.j4rs.api.invocation;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.astonbitecode.j4rs.api.Instance;
 import org.astonbitecode.j4rs.api.JsonValue;
 import org.astonbitecode.j4rs.api.async.J4rsPolledFuture;
@@ -24,56 +40,43 @@ import org.astonbitecode.j4rs.api.value.JsonValueFactory;
 import org.astonbitecode.j4rs.errors.InvocationException;
 import org.astonbitecode.j4rs.rust.RustPointer;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.lang.reflect.WildcardType;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
 public class JsonInvocationImpl<T> implements Instance<T> {
 
     // The instance that this JsonInvocationImpl holds
-    private T object;
+    private final T object;
     // The class of the instance that this JsonInvocationImpl holds
-    private Class<T> clazz;
+    private final Class<T> clazz;
     // A list of Types that may have been defined for the instance that this
     // JsonInvocationImpl holds.
     // It is non empty in the case that the instance that this JsonInvocationImpl
     // holds is created using generics.
-    private List<Type> classGenTypes = new ArrayList<>();
-    private InvocationArgGenerator gen = new InvocationArgGenerator();
+    private final List<Type> classGenTypes;
+    private final InvocationArgGenerator gen = new InvocationArgGenerator();
+    private ConcurrentHashMap<String, Method> methodsCache = new ConcurrentHashMap<>();
+    private final boolean useMethodsCache;
 
     public JsonInvocationImpl(Class<T> clazz) {
-        this.object = null;
-        this.clazz = clazz;
+        this(null, clazz, new ArrayList<>());
     }
 
     public JsonInvocationImpl(T instance, Class<T> clazz) {
-        this.object = instance;
-        this.clazz = clazz;
+        this(instance, clazz, new ArrayList<>());
     }
 
     public JsonInvocationImpl(T instance, Class<T> clazz, List<Type> classGenTypes) {
         this.object = instance;
         this.clazz = clazz;
         this.classGenTypes = classGenTypes;
+        this.useMethodsCache = Boolean.parseBoolean(System.getProperty("j4rs.useMethodsCache"));
     }
 
     @Override
     public Instance invoke(String methodName, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz,
-                    createdInstance.classGenTypes);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
         } catch (Exception error) {
-            throw new InvocationException("While invoking method " + methodName + " of Class " + this.clazz.getName(),
-                    error);
+            throw new InvocationException("While invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }
     }
 
@@ -81,11 +84,9 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     public Instance invokeStatic(String methodName, InvocationArg... args) {
         try {
             CreatedInstance createdInstance = invokeMethod(methodName, gen.generateArgObjects(args));
-            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz,
-                    createdInstance.classGenTypes);
+            return InstanceGenerator.create(createdInstance.object, createdInstance.clazz, createdInstance.classGenTypes);
         } catch (Exception error) {
-            throw new InvocationException(
-                    "Error while invoking method " + methodName + " of Class " + this.clazz.getName(), error);
+            throw new InvocationException("Error while invoking method " + methodName + " of Class " + this.clazz.getName(), error);
         }
     }
 
@@ -102,8 +103,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                 return Void.TYPE;
             });
         } catch (Exception error) {
-            throw new InvocationException(
-                    "While invoking async method " + methodName + " of Class " + getObjectClassName(), error);
+            throw new InvocationException("While invoking async method " + methodName + " of Class " + getObjectClassName(), error);
         }
     }
 
@@ -124,8 +124,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         // Check that the class of the invocation extends the
         // NativeCallbackToRustChannelSupport
         if (!NativeCallbackToRustChannelSupport.class.isAssignableFrom(this.clazz)) {
-            throw new InvocationException("Cannot initialize callback channel for class " + this.clazz.getName()
-                    + ". The class does not extend the class " + NativeCallbackToRustChannelSupport.class.getName());
+            throw new InvocationException(
+                    "Cannot initialize callback channel for class " + this.clazz.getName() + ". The class does not extend the class " + NativeCallbackToRustChannelSupport.class.getName());
         } else {
             // Initialize the pointer
             ((NativeCallbackToRustChannelSupport) object).initPointer(new RustPointer(channelAddress));
@@ -138,8 +138,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
             CreatedInstance createdInstance = getField(fieldName);
             return new JsonInvocationImpl(createdInstance.object, createdInstance.clazz);
         } catch (Exception error) {
-            throw new InvocationException(
-                    "Error while accessing field " + fieldName + " of Class " + this.clazz.getName(), error);
+            throw new InvocationException("Error while accessing field " + fieldName + " of Class " + this.clazz.getName(), error);
         }
     }
 
@@ -229,9 +228,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         CompletableFuture<Object> future;
         Class<?> invokedMethodReturnType = methodToInvoke.getReturnType();
         if (!Future.class.isAssignableFrom(invokedMethodReturnType)) {
-            String message = String.format(
-                    "Attempted to asynchronously invoke method %s of class %s that returns %s instead of returning Future",
-                    methodName, this.clazz.getName(), returnType.getTypeName());
+            String message =
+                    String.format("Attempted to asynchronously invoke method %s of class %s that returns %s instead of returning Future", methodName, this.clazz.getName(), returnType.getTypeName());
             throw new InvocationException(message);
         }
         Future<Object> invocationReturnedFuture = (Future<Object>) methodToInvoke.invoke(this.object, argObjects);
@@ -249,11 +247,28 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         return Arrays.stream(m.getGenericParameterTypes()).filter(t -> t instanceof TypeVariable).count();
     }
 
+    private String generateMethodCacheName(Class clazz, String methodName, Class[] argTypes) {
+        String typesString = Arrays.stream(argTypes).map(cl -> cl.getName()).collect(Collectors.joining(","));
+        return String.format("%s#%s(%s)", clazz.getName(), methodName, typesString);
+    }
+
     Method findMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
+        if (useMethodsCache) {
+            final MethodSearcher ms = new MethodSearcher(clazz, methodName, argTypes);
+            try {
+                return methodsCache.computeIfAbsent(generateMethodCacheName(clazz, methodName, argTypes), s -> ms.apply(s));
+            } catch (NoSuchMethodRuntimeException rte) {
+                throw rte.getNoSuchMethodException();
+            }
+        } else {
+            return searchMethodInHierarchy(clazz, methodName, argTypes);
+        }
+    }
+
+    Method searchMethodInHierarchy(Class clazz, String methodName, Class[] argTypes) throws NoSuchMethodException {
         // Get the declared and methods defined in the interfaces of the class.
         Set<Method> methods = new HashSet<>(Arrays.asList(clazz.getDeclaredMethods()));
-        Set<Method> interfacesMethods = getInterfaces(clazz).stream().map(c -> c.getDeclaredMethods())
-                .flatMap(m -> Arrays.stream(m)).collect(Collectors.toSet());
+        Set<Method> interfacesMethods = getInterfaces(clazz).stream().map(c -> c.getDeclaredMethods()).flatMap(m -> Arrays.stream(m)).collect(Collectors.toSet());
         methods.addAll(interfacesMethods);
 
         List<Method> found = methods.stream()
@@ -275,8 +290,8 @@ public class JsonInvocationImpl<T> implements Instance<T> {
 
                         if (typ instanceof ParameterizedType) {
                             // The arg matches via the equals method. Eg. List<T>
-                            Type t = ((ParameterizedType)typ).getRawType();
-                            matchedParams.add(((Class<?>)t).isAssignableFrom(argTypes[i]));
+                            Type t = ((ParameterizedType) typ).getRawType();
+                            matchedParams.add(((Class<?>) t).isAssignableFrom(argTypes[i]));
                         } else if (typ instanceof GenericArrayType) {
                             // TODO: Improve by checking the actual types of the arrays?
                             matchedParams.add(argTypes[i].isArray());
@@ -296,7 +311,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                                     t = lowerBounds[0];
                                 }
                             }
-                            matchedParams.add(((Class<?>)t).isAssignableFrom(argTypes[i]));
+                            matchedParams.add(((Class<?>) t).isAssignableFrom(argTypes[i]));
                         } else {
                             // We get to this point if the TypeVariable is a generic, which is defined with
                             // a name like T, U etc.
@@ -317,17 +332,14 @@ public class JsonInvocationImpl<T> implements Instance<T> {
                 }).collect(Collectors.toList());
         if (found.size() == 1) {
             return found.get(0);
-        } else if(found.size() > 1) {
+        } else if (found.size() > 1) {
             return found.stream()
-            // Sort the methods to prefer methods with specific parameter types over methods with generic types
-            .sorted((m1, m2) -> Long.compare(getGenericTypeCount(m1), getGenericTypeCount(m2)))
-            .findFirst()
-            .get();
+                    // Sort the methods to prefer methods with specific parameter types over methods with generic types
+                    .sorted((m1, m2) -> Long.compare(getGenericTypeCount(m1), getGenericTypeCount(m2))).findFirst().get();
         } else {
             Class<?> superclass = clazz.getSuperclass();
             if (superclass == null) {
-                throw new NoSuchMethodException(
-                        "Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
+                throw new NoSuchMethodException("Method " + methodName + " was not found in " + this.clazz.getName() + " or its ancestors.");
             }
             return findMethodInHierarchy(superclass, methodName, argTypes);
         }
@@ -349,8 +361,7 @@ public class JsonInvocationImpl<T> implements Instance<T> {
     }
 
     private boolean validateSomeTypeSafety(Class c) {
-        List<Type> filteredTypeList = this.classGenTypes.stream().filter(cgt -> ((Class) cgt).isAssignableFrom(c))
-                .collect(Collectors.toList());
+        List<Type> filteredTypeList = this.classGenTypes.stream().filter(cgt -> ((Class) cgt).isAssignableFrom(c)).collect(Collectors.toList());
         // If ClassGenTypes exist, the class c should be one of them
         return this.classGenTypes.isEmpty() || filteredTypeList.isEmpty();
     }
@@ -380,4 +391,37 @@ public class JsonInvocationImpl<T> implements Instance<T> {
         }
     }
 
+    final class MethodSearcher implements Function<String, Method> {
+        final Class clazz;
+        final String methodName;
+        final Class[] argTypes;
+
+        MethodSearcher(Class clazz, String methodName, Class[] argTypes) {
+            this.clazz = clazz;
+            this.methodName = methodName;
+            this.argTypes = argTypes;
+        }
+
+        @Override
+        public Method apply(String s) {
+            try {
+                return searchMethodInHierarchy(clazz, methodName, argTypes);
+            } catch (NoSuchMethodException e) {
+                return null;
+            }
+        }
+    }
+
+    static class NoSuchMethodRuntimeException extends RuntimeException {
+        final NoSuchMethodException nsme;
+
+        NoSuchMethodRuntimeException(NoSuchMethodException error) {
+            super(error);
+            nsme = error;
+        }
+
+        NoSuchMethodException getNoSuchMethodException() {
+            return nsme;
+        }
+    }
 }

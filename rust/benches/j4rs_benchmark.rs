@@ -6,7 +6,7 @@ use std::convert::TryFrom;
 use criterion::Criterion;
 use criterion::{black_box, BenchmarkId};
 
-use j4rs::{self, Instance, InvocationArg, Jvm};
+use j4rs::{self, Instance, InvocationArg, JavaOpt, Jvm, JvmBuilder, MavenArtifact};
 
 fn do_instance_creation(jvm: &Jvm) -> Instance {
     jvm.create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
@@ -83,12 +83,15 @@ fn use_to_rust_boxed(jvm: &Jvm, instance: &Instance) {
 }
 
 fn j4rs_benchmark(c: &mut Criterion) {
-    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let jvm: Jvm = JvmBuilder::new().java_opt(JavaOpt::new("-Dj4rs.useMethodsCache=true")).build().unwrap();
+
+    jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", "0.25.0-SNAPSHOT").as_str())).unwrap();
+
     c.bench_function("instances creation", move |b| {
         b.iter(|| do_instance_creation(black_box(&jvm)))
     });
 
-    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let jvm: Jvm = JvmBuilder::new().java_opt(JavaOpt::new("-Dj4rs.useMethodsCache=true")).build().unwrap();
     let instance = jvm
         .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
@@ -96,7 +99,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
         b.iter(|| do_invocation_w_no_args(black_box(&jvm), black_box(&instance)))
     });
 
-    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let jvm: Jvm = JvmBuilder::new().java_opt(JavaOpt::new("-Dj4rs.useMethodsCache=true")).build().unwrap();
     let instance = jvm
         .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
@@ -104,7 +107,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
         b.iter(|| do_invocation_w_string_args(black_box(&jvm), black_box(&instance)))
     });
 
-    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let jvm: Jvm = JvmBuilder::new().java_opt(JavaOpt::new("-Dj4rs.useMethodsCache=true")).build().unwrap();
     let instance = jvm
         .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
@@ -113,7 +116,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
         move |b| b.iter(|| do_invocation_w_integer_args(black_box(&jvm), black_box(&instance))),
     );
 
-    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let jvm: Jvm = JvmBuilder::new().java_opt(JavaOpt::new("-Dj4rs.useMethodsCache=true")).build().unwrap();
     let instance = jvm
         .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
@@ -126,7 +129,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
         },
     );
 
-    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let jvm: Jvm = JvmBuilder::new().java_opt(JavaOpt::new("-Dj4rs.useMethodsCache=true")).build().unwrap();
     let instance = jvm
         .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
@@ -138,7 +141,10 @@ fn j4rs_benchmark(c: &mut Criterion) {
 fn bench_create_java_objects_and_to_rust(c: &mut Criterion) {
     let mut group = c.benchmark_group("create_java_objects_and_to_rust");
 
-    let jvm: Jvm = j4rs::new_jvm(Vec::new(), Vec::new()).unwrap();
+    let jvm: Jvm = JvmBuilder::new().java_opt(JavaOpt::new("-Dj4rs.useMethodsCache=true")).build().unwrap();
+
+    jvm.deploy_artifact(&MavenArtifact::from(format!("io.github.astonbitecode:j4rs-testing:{}", "0.25.0-SNAPSHOT").as_str())).unwrap();
+
     let instance = jvm
         .create_instance("org.astonbitecode.j4rs.tests.MyTest", InvocationArg::empty())
         .unwrap();
