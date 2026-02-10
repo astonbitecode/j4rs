@@ -68,8 +68,8 @@ public class MavenDeployer implements MavenDeployerApi {
             // For pom types the qualifiers should not be defined
             String pomArtifactName = DeployUtils.generateArtifactName(artifactId, version, "", POM_TYPE);
             String pathString = getDeployTarget() + File.separator + pomArtifactName;
+            File pomFile = new File(pathString);
             try {
-                File pomFile = new File(pathString);
                 List<Dependency> dependencies = parsePom(pomFile);
                 if (dependencies != null) {
                     for (Dependency dep : dependencies) {
@@ -79,14 +79,15 @@ public class MavenDeployer implements MavenDeployerApi {
                                 deploy(dep.getGroupId(), dep.getArtifactId(), dep.getVersion(), dep.getClassifier(), artifactType);
                             }
                         }
-                        if (!POM_TYPE.equals(artifactType)) {
-                            pomFile.delete();
-                        }
                     }
                 }
             } catch (Exception error) {
                 error.printStackTrace();
                 throw new IOException(error);
+            } finally {
+                if (!POM_TYPE.equals(artifactType)) {
+                    pomFile.delete();
+                }
             }
         }
     }
