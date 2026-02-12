@@ -25,6 +25,7 @@ import org.apache.maven.model.building.DefaultModelBuilderFactory;
 import org.apache.maven.model.building.DefaultModelBuildingRequest;
 import org.apache.maven.model.building.FileModelSource;
 import org.apache.maven.model.building.ModelBuilder;
+import org.apache.maven.model.building.ModelBuildingRequest;
 import org.apache.maven.model.building.ModelBuildingResult;
 import org.apache.maven.model.building.ModelSource;
 import org.apache.maven.model.resolution.InvalidRepositoryException;
@@ -96,6 +97,7 @@ public class MavenDeployer implements MavenDeployerApi {
         final DefaultModelBuildingRequest modelBuildingRequest = new DefaultModelBuildingRequest().setPomFile(pomFile);
         modelBuildingRequest.setModelResolver(new J4rsMavenModelResolver());
         modelBuildingRequest.setSystemProperties(System.getProperties());
+        modelBuildingRequest.setValidationLevel( ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL);
         ModelBuilder modelBuilder = new DefaultModelBuilderFactory().newInstance();
         ModelBuildingResult modelBuildingResult = modelBuilder.build(modelBuildingRequest);
 

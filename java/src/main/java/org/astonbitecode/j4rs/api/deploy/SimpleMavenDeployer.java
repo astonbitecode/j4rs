@@ -84,7 +84,7 @@ public class SimpleMavenDeployer implements MavenDeployerApi {
                 }
             }
             if (searchRemoteRepo) {
-                String urlString = generateUrlTagret(groupId, artifactId, version, jarName);
+                String urlString = generateUrlTagret(groupId, artifactId, version, jarName, artifactType);
                 ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(urlString).openStream());
                 try (FileOutputStream fileOutputStream = new FileOutputStream(fullJarDeployPath)) {
                     fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
@@ -107,16 +107,16 @@ public class SimpleMavenDeployer implements MavenDeployerApi {
         }
     }
 
-    String generateUrlTagret(String groupId, String artifactId, String version, String jarName) throws IOException {
+    String generateUrlTagret(String groupId, String artifactId, String version, String artifactName, String artifactType) throws IOException {
         if (version.endsWith("-SNAPSHOT")) {
-            String latestSnapshotJarName = getLatestSnapshotName(groupId, artifactId, version);
+            String latestSnapshotJarName = getLatestSnapshotName(groupId, artifactId, version, artifactType);
             return  String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, latestSnapshotJarName);
         } else {
-            return String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, jarName);
+            return String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, artifactName);
         }
     }
 
-    private String getLatestSnapshotName(String groupId, String artifactId, String version) throws IOException {
+    private String getLatestSnapshotName(String groupId, String artifactId, String version, String artifactType) throws IOException {
         String metadataXmlUrl = String.format("%s/%s/%s/%s/%s", repoBase, groupId.replace(".", "/"), artifactId, version, "maven-metadata.xml");
         ReadableByteChannel readableByteChannel = Channels.newChannel(new URL(metadataXmlUrl).openStream());
         try (InputStream inputStream = Channels.newInputStream(readableByteChannel)) {
@@ -127,7 +127,7 @@ public class SimpleMavenDeployer implements MavenDeployerApi {
             String timestamp = xPath.evaluate("/metadata/versioning/snapshot/timestamp", xmlDocument);
             String buildNumber = xPath.evaluate("/metadata/versioning/snapshot/buildNumber", xmlDocument);
             String snapshotVersion = version.replace("SNAPSHOT", (timestamp + "-" + buildNumber));
-            return  String.format("%s-%s.jar", artifactId, snapshotVersion);
+            return  String.format("%s-%s.%s", artifactId, snapshotVersion, artifactType);
         } catch (XPathExpressionException | ParserConfigurationException | SAXException e) {
             throw new RuntimeException(e);
         }
