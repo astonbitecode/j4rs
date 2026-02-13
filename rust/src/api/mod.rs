@@ -17,17 +17,17 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
+use std::ffi::CString;
 use std::ops::Drop;
 use std::os::raw::c_void;
 use std::path::{Path, PathBuf};
 use std::ptr;
+use std::str::FromStr;
 use std::sync::mpsc::channel;
 use std::{fs, thread, time};
 
 use jni_sys::{
-    self, jint, jobject, jsize, jstring, JNIEnv, JavaVM, JavaVMInitArgs, JavaVMOption,
-    JNI_EDETACHED, JNI_EEXIST, JNI_EINVAL, JNI_ENOMEM, JNI_ERR, JNI_EVERSION, JNI_OK, JNI_TRUE,
-    JNI_VERSION_1_6,
+    self, JNI_EDETACHED, JNI_EEXIST, JNI_EINVAL, JNI_ENOMEM, JNI_ERR, JNI_EVERSION, JNI_OK, JNI_TRUE, JNI_VERSION_1_6, JNIEnv, JNINativeMethod, JavaVM, JavaVMInitArgs, JavaVMOption, jint, jobject, jsize, jstring
 };
 use libc::c_char;
 use serde::de::DeserializeOwned;
@@ -1681,6 +1681,118 @@ impl Jvm {
             thread::yield_now();
         }
     }
+
+    
+    /// Dynamically registers native methods for a given class.
+    /// 
+    /// # Example
+    /// 
+    /// ```no_run
+    /// use j4rs::prelude::*;
+    /// use j4rs::{NativeMethod, JvmBuilder};
+    /// 
+    /// extern "C" fn hello(jni_env: *mut JNIEnv, _this: jobject) -> jobject {
+    ///     unsafe {
+    ///         let cstring = std::ffi::CString::new("Hello from Rust!").unwrap();
+    ///         ((**jni_env).v1_6.NewStringUTF)(jni_env, cstring.as_ptr())
+    ///     }
+    /// }
+    ///
+    /// let jvm = JvmBuilder::new().build().unwrap();
+    /// jvm.register_natives(
+    ///     "org/astonbitecode/j4rs/tests/TestDynamicRegister",
+    ///     vec![NativeMethod::new(
+    ///         "sayHello",
+    ///         "()Ljava/lang/String;",
+    ///         hello as *mut core::ffi::c_void,
+    ///     )],
+    /// ).unwrap();
+    /// ```
+    pub fn register_natives(
+        &self,
+        class_name: &str,
+        methods: Vec<NativeMethod>,
+    ) -> errors::Result<()> {
+        if self.jni_env.is_null() {
+            Err(J4RsError::RustError(
+                "Cannot register natives without jni environment".to_string(),
+            ))?
+        }
+
+        let methods: Vec<_> = methods
+            .into_iter()
+            .map(|method| JNINativeMethod {
+                name: CString::from_str(&method.name).unwrap().into_raw(),
+                signature: CString::from_str(&method.signature).unwrap().into_raw(),
+                fnPtr: method.fn_ptr,
+            })
+            .collect();
+
+        unsafe {
+            let class = crate::api_tweaks::find_class(self.jni_env, class_name)?;
+            let register_natives = (**self.jni_env).v1_6.RegisterNatives;
+            let result =
+                (register_natives)(self.jni_env, class, methods.as_ptr(), methods.len() as i32);
+
+            if result != 0 {
+                Err(J4RsError::RustError(
+                    "Failed to register natives".to_string(),
+                ))?
+            }
+        }
+
+        Ok(())
+    }
+    
+    /// Unregisters native methods for a given class.
+    /// 
+    /// # Example
+    /// 
+    /// ```no_run
+    /// use j4rs::JvmBuilder;
+    /// 
+    /// let jvm = JvmBuilder::new().build().unwrap();
+    /// jvm.unregister_native(
+    ///     "org/astonbitecode/j4rs/tests/TestDynamicRegister",
+    /// ).unwrap();
+    /// ```
+    pub fn unregister_native(&self, class_name: &str) -> errors::Result<()> {
+        unsafe {
+            let class = crate::api_tweaks::find_class(self.jni_env, class_name)?;
+            let unregister_natives = (**self.jni_env).v1_6.UnregisterNatives;
+            let result =
+                (unregister_natives)(self.jni_env, class);
+
+            if result != 0 {
+                Err(J4RsError::RustError(
+                    "Failed to unregister natives".to_string(),
+                ))?
+            }
+            
+            Ok(())
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeMethod {
+    name: String,
+    signature: String,
+    fn_ptr: *mut c_void,
+}
+
+impl NativeMethod {
+    pub fn new<S1: Into<String>, S2: Into<String>>(
+        name: S1,
+        signature: S2,
+        fn_ptr: *mut c_void,
+    ) -> Self {
+        NativeMethod {
+            name: name.into(),
+            signature: signature.into(),
+            fn_ptr,
+        }
+    }
 }
 
 impl Drop for Jvm {
@@ -2556,6 +2668,47 @@ mod api_unit_tests {
         assert!(res.is_err());
         let exception_sttring = format!("{}", res.err().unwrap());
         assert!(exception_sttring.contains("Cannot create instance of non.Existing"));
+
+        Ok(())
+    }
+    
+    #[test]
+    fn test_dynamic_register() -> errors::Result<()> {
+        let jvm = create_tests_jvm()?;
+
+        extern "C" fn hello(jni_env: *mut JNIEnv, _this: jobject) -> jstring {
+            unsafe {
+                let cstring = std::ffi::CString::new("Hello from Rust!").unwrap();
+                ((**jni_env).v1_6.NewStringUTF)(jni_env, cstring.as_ptr())
+            }
+        }
+
+        jvm.register_natives(
+            "org/astonbitecode/j4rs/tests/TestDynamicRegister",
+            vec![NativeMethod::new(
+                "sayHello",
+                "()Ljava/lang/String;",
+                hello as *mut c_void,
+            )],
+        )?;
+
+        let instance = jvm.create_instance(
+            "org.astonbitecode.j4rs.tests.TestDynamicRegister",
+            InvocationArg::empty(),
+        )?;
+        let result: String =
+            jvm.to_rust(jvm.invoke(&instance, "sayHello", InvocationArg::empty())?)?;
+
+        assert_eq!(result, "Hello from Rust!");
+        
+        let result = jvm.unregister_native("org/astonbitecode/j4rs/tests/TestDynamicRegister");
+        assert_eq!(result, Ok(()));
+        
+        let result = jvm.invoke(&instance, "sayHello", InvocationArg::empty());
+        
+        assert!(result.is_err());
+        let exception_string = format!("{}",result.err().unwrap());
+        assert!(exception_string.contains("java.lang.UnsatisfiedLinkError"));
 
         Ok(())
     }
