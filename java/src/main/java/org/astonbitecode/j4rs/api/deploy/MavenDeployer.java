@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Repository;
@@ -34,37 +35,56 @@ import org.apache.maven.model.resolution.UnresolvableModelException;
 
 public class MavenDeployer implements MavenDeployerApi {
     private static final String POM_TYPE = "pom";
+    private static final String DEBUG_LOGGING_LEVEL = "debug";
     private final SimpleMavenDeployer simpleMavenDeployer;
     private final Map<String, SimpleMavenDeployer> additionalDeployers = new HashMap<>();
+    private final boolean debugLoggingEnabled;
 
     public MavenDeployer() {
         this.simpleMavenDeployer = new SimpleMavenDeployer();
+        debugLoggingEnabled = DEBUG_LOGGING_LEVEL.equalsIgnoreCase(System.getenv("J4RS_CONSOLE_LOG_LEVEL"));
     }
 
     public MavenDeployer(String deployTarget) {
         this.simpleMavenDeployer = new SimpleMavenDeployer(deployTarget);
+        debugLoggingEnabled = DEBUG_LOGGING_LEVEL.equalsIgnoreCase(System.getenv("J4RS_CONSOLE_LOG_LEVEL"));
     }
 
     public MavenDeployer(String repoBase, String deployTarget) {
         this.simpleMavenDeployer = new SimpleMavenDeployer(repoBase, deployTarget);
+        debugLoggingEnabled = DEBUG_LOGGING_LEVEL.equalsIgnoreCase(System.getenv("J4RS_CONSOLE_LOG_LEVEL"));
     }
 
     public MavenDeployer(String repoBase, boolean checkLocalCache, String deployTarget) {
         this.simpleMavenDeployer = new SimpleMavenDeployer(repoBase, checkLocalCache, deployTarget);
+        debugLoggingEnabled = DEBUG_LOGGING_LEVEL.equalsIgnoreCase(System.getenv("J4RS_CONSOLE_LOG_LEVEL"));
     }
 
     @Override
     public void deploy(String groupId, String artifactId, String version, String qualifier) throws IOException {
-        this.deploy(groupId, artifactId, version, qualifier, "jar");
+        List<String> errors = this.doDeploy(groupId, artifactId, version, qualifier, "jar");
+        if (errors.size() > 0) {
+            String errorString = errors.stream().collect(Collectors.joining(","));
+            throw new IOException("Error during Maven artifact deployment: " + errorString);
+        }
     }
 
     @Override
     public void deploy(String groupId, String artifactId, String version, String qualifier, String artifactType) throws IOException {
+        List<String> errors = this.doDeploy(groupId, artifactId, version, qualifier, artifactType);
+        if (errors.size() > 0) {
+            String errorString = errors.stream().collect(Collectors.joining(","));
+            throw new IOException("Error during Maven artifact deployment: " + errorString);
+        }
+    }
+
+    public List<String> doDeploy(String groupId, String artifactId, String version, String qualifier, String artifactType) throws IOException {
+        List<String> errors = new ArrayList<>();
         if (!DeployUtils.artifactExists(groupId, artifactId, version, qualifier, artifactType, artifactType)) {
-            doDeploy(groupId, artifactId, version, qualifier, artifactType, gatherAllDeployers());
+            callSimpleMavenDeployer(groupId, artifactId, version, qualifier, artifactType, gatherAllDeployers());
             if (!artifactType.equals(POM_TYPE)) {
                 // For pom types the qualifiers should not be defined
-                doDeploy(groupId, artifactId, version, "", POM_TYPE, gatherAllDeployers());
+                callSimpleMavenDeployer(groupId, artifactId, version, "", POM_TYPE, gatherAllDeployers());
             }
             // For pom types the qualifiers should not be defined
             String pomArtifactName = DeployUtils.generateArtifactName(artifactId, version, "", POM_TYPE);
@@ -83,21 +103,24 @@ public class MavenDeployer implements MavenDeployerApi {
                     }
                 }
             } catch (Exception error) {
-                error.printStackTrace();
-                throw new IOException(error);
+                if (debugLoggingEnabled) {
+                    error.printStackTrace();
+                }
+                errors.add(error.getMessage());
             } finally {
                 if (!POM_TYPE.equals(artifactType)) {
                     pomFile.delete();
                 }
             }
         }
+        return errors;
     }
 
     List<Dependency> parsePom(File pomFile) throws Exception {
         final DefaultModelBuildingRequest modelBuildingRequest = new DefaultModelBuildingRequest().setPomFile(pomFile);
         modelBuildingRequest.setModelResolver(new J4rsMavenModelResolver());
         modelBuildingRequest.setSystemProperties(System.getProperties());
-        modelBuildingRequest.setValidationLevel( ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL);
+        modelBuildingRequest.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL);
         ModelBuilder modelBuilder = new DefaultModelBuilderFactory().newInstance();
         ModelBuildingResult modelBuildingResult = modelBuilder.build(modelBuildingRequest);
 
@@ -121,7 +144,7 @@ public class MavenDeployer implements MavenDeployerApi {
         return deployers;
     }
 
-    void doDeploy(String groupId, String artifactId, String version, String qualifier, String artifactType, List<SimpleMavenDeployer> deployers) throws IOException {
+    void callSimpleMavenDeployer(String groupId, String artifactId, String version, String qualifier, String artifactType, List<SimpleMavenDeployer> deployers) throws IOException {
         if (deployers != null && deployers.size() > 0) {
             try {
                 deployers.get(0).deploy(groupId, artifactId, version, qualifier, artifactType);
@@ -130,7 +153,7 @@ public class MavenDeployer implements MavenDeployerApi {
                     throw error;
                 } else {
                     List<SimpleMavenDeployer> reducedDeployers = deployers.subList(1, deployers.size() - 1);
-                    doDeploy(groupId, artifactId, version, qualifier, artifactType, reducedDeployers);
+                    callSimpleMavenDeployer(groupId, artifactId, version, qualifier, artifactType, reducedDeployers);
                 }
             }
         }
@@ -140,14 +163,13 @@ public class MavenDeployer implements MavenDeployerApi {
 
         @Override
         public ModelSource resolveModel(String groupId, String artifactId, String version) throws UnresolvableModelException {
-
             try {
-                doDeploy(groupId, artifactId, version, "", POM_TYPE, gatherAllDeployers());
+                callSimpleMavenDeployer(groupId, artifactId, version, "", POM_TYPE, gatherAllDeployers());
                 String pomArtifactName = DeployUtils.generateArtifactName(artifactId, version, "", POM_TYPE);
                 String pathString = getDeployTarget() + File.separator + pomArtifactName;
                 return new FileModelSource(new File(pathString));
             } catch (IOException error) {
-                throw new UnresolvableModelException("Could not resolve model", groupId, artifactId, version, error);
+                throw new UnresolvableModelException("Could not resolve model ", groupId, artifactId, version, error);
             }
         }
 

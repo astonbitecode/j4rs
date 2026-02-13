@@ -32,14 +32,14 @@ public class MavenDeployerTest {
     public void doDeployCallsFromApi() throws Exception {
         MavenDeployer mdspy = spy(new MavenDeployer(System.getProperty("java.io.tmpdir")));
         mdspy.deploy("org.openjfx", "javafx-graphics", "21.0.9", "", "jar");
-        verify(mdspy, times(6)).doDeploy(any(), any(), any(), any(), any(), any());
+        verify(mdspy, times(6)).callSimpleMavenDeployer(any(), any(), any(), any(), any(), any());
     }
 
     @Test()
     public void doDeployCallsFromApiForPomType() throws Exception {
         MavenDeployer mdspy = spy(new MavenDeployer(System.getProperty("java.io.tmpdir")));
         mdspy.deploy("org.openjfx", "javafx-graphics", "21.0.9", "", "pom");
-        verify(mdspy, times(2)).doDeploy(any(), any(), any(), any(), any(), any());
+        verify(mdspy, times(2)).callSimpleMavenDeployer(any(), any(), any(), any(), any(), any());
     }
 
     @Test()
@@ -51,7 +51,7 @@ public class MavenDeployerTest {
         SimpleMavenDeployer md2 = mock(SimpleMavenDeployer.class);
         doThrow(IOException.class).when(md2).deploy(any(), any(), any(), any(), any());
 
-        mdspy.doDeploy("org.openjfx", "javafx-graphics", "21.0.9", "", "jar", List.of(md1, md2));
-        verify(mdspy, times(2)).doDeploy(any(), any(), any(), any(), any(), any());
+        mdspy.callSimpleMavenDeployer("org.openjfx", "javafx-graphics", "21.0.9", "", "jar", List.of(md1, md2));
+        verify(mdspy, times(2)).callSimpleMavenDeployer(any(), any(), any(), any(), any(), any());
     }
 }
