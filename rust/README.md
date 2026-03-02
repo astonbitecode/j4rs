@@ -1,7 +1,7 @@
 # <img src="../static/j4rs-small.png" alt="j4rs">
 
 [![crates.io](https://img.shields.io/crates/v/j4rs.svg)](https://crates.io/crates/j4rs)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.24.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-0.25.0-blue.svg)](https://central.sonatype.com/artifact/io.github.astonbitecode/j4rs/)
 ![Build](https://github.com/astonbitecode/j4rs/actions/workflows/ci-workflow.yml/badge.svg)
 
 j4rs stands for __'Java for Rust'__ and allows effortless calls to Java code from Rust and vice-versa.
@@ -461,7 +461,16 @@ Maven artifacts are added automatically to the classpath and do not need to be e
 
 A good practice is that the deployment of maven artifacts is done by build scripts, during the crate's compilation. This ensures the classpath is properly populated during the actual Rust code execution.
 
-_Note: the deployment does not take care the transitive dependencies yet._
+`deploy_artifact` does not take care the transitive dependencies. 
+If you want to deploy a maven artifact along with all its transitive dependencies, please use `deploy_maven_artifact_with_transitive_deps` (v0.25.0 onwards):
+
+```rust
+jvm.deploy_artifact_and_deps(&MavenArtifact::from("io.my:library:1.2.3"))
+```
+
+Please note that deploying all the transitive dependencies is a "best effort" operation and the retrieval of some artifacts  might fail. The effective maven model declared by the artifacts' `pom` files might include dependencies that usualy are not required for the dependency to function properly (eg. test dependencies in different test maven profiles etc). 
+
+It should be expected that even if the result of the `deploy_artifact_and_deps` is an `Err`, the application might work correctly.
 
 ### Adding jars to the classpath
 
@@ -482,7 +491,7 @@ The jar for `j4rs` is available in the Maven Central. It may be used by adding t
 <dependency>
     <groupId>io.github.astonbitecode</groupId>
     <artifactId>j4rs</artifactId>
-    <version>0.24.0</version>
+    <version>0.25.0</version>
     <scope>provided</scope>
 </dependency>
 ```
