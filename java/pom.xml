@@ -55,7 +55,7 @@
         <maven.assembly.plugin.version>3.6.0</maven.assembly.plugin.version>
         <maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
         <build.plugins.plugin.version>3.11.0</build.plugins.plugin.version>
-        <jackson.version>2.15.2</jackson.version>
+        <jackson.version>2.18.6</jackson.version>
         <mockito.version>5.21.0</mockito.version>
         <javafx.version>21.0.2</javafx.version>
         <mavenVersion>3.2.1</mavenVersion>
