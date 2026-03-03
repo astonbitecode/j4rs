@@ -58,7 +58,7 @@
         <jackson.version>2.18.6</jackson.version>
         <mockito.version>5.21.0</mockito.version>
         <javafx.version>21.0.2</javafx.version>
-        <mavenVersion>3.2.1</mavenVersion>
+        <maven.aether.version>3.3.9</maven.aether.version>
     </properties>
     <dependencies>
         <dependency>
@@ -74,7 +74,7 @@
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-aether-provider</artifactId>
-            <version>${mavenVersion}</version>
+            <version>${maven.aether.version}</version>
         </dependency>
         <!-- Test dependencies -->
         <dependency>

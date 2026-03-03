@@ -15,36 +15,36 @@
 package org.astonbitecode.j4rs.api.deploy;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Random;
 import org.junit.Test;
 
 public class MavenDeployerTest {
 
-    @Test()
+    @Test
     public void doDeployCallsFromApi() throws Exception {
-        MavenDeployer mdspy = spy(new MavenDeployer(System.getProperty("java.io.tmpdir")));
+        MavenDeployer mdspy = spy(new MavenDeployer(getRandomTmpDeployTarget()));
         mdspy.deploy("org.openjfx", "javafx-graphics", "21.0.9", "", "jar");
-        verify(mdspy, times(6)).callSimpleMavenDeployer(any(), any(), any(), any(), any(), any());
+        verify(mdspy, times(12)).callSimpleMavenDeployer(any(), any(), any(), any(), any(), any());
     }
 
-    @Test()
+    @Test
     public void doDeployCallsFromApiForPomType() throws Exception {
-        MavenDeployer mdspy = spy(new MavenDeployer(System.getProperty("java.io.tmpdir")));
+        MavenDeployer mdspy = spy(new MavenDeployer(getRandomTmpDeployTarget()));
         mdspy.deploy("org.openjfx", "javafx-graphics", "21.0.9", "", "pom");
         verify(mdspy, times(2)).callSimpleMavenDeployer(any(), any(), any(), any(), any(), any());
     }
 
-    @Test()
+    @Test
     public void doDeployCallsUsesAllTheDefinedDeployers() throws Exception {
-        MavenDeployer mdspy = spy(new MavenDeployer(System.getProperty("java.io.tmpdir")));
+        MavenDeployer mdspy = spy(new MavenDeployer(getRandomTmpDeployTarget()));
 
         SimpleMavenDeployer md1 = mock(SimpleMavenDeployer.class);
         doThrow(IOException.class).when(md1).deploy(any(), any(), any(), any(), any());
@@ -53,5 +53,9 @@ public class MavenDeployerTest {
 
         mdspy.callSimpleMavenDeployer("org.openjfx", "javafx-graphics", "21.0.9", "", "jar", List.of(md1, md2));
         verify(mdspy, times(2)).callSimpleMavenDeployer(any(), any(), any(), any(), any(), any());
+    }
+
+    private String getRandomTmpDeployTarget() {
+        return System.getProperty("java.io.tmpdir") + File.separator + "j4rs-" + new Random().nextLong();
     }
 }

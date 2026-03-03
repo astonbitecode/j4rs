@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
+import org.apache.maven.model.Parent;
 import org.apache.maven.model.Repository;
 import org.apache.maven.model.building.DefaultModelBuilderFactory;
 import org.apache.maven.model.building.DefaultModelBuildingRequest;
@@ -80,7 +81,7 @@ public class MavenDeployer implements MavenDeployerApi {
 
     public List<String> doDeploy(String groupId, String artifactId, String version, String qualifier, String artifactType) throws IOException {
         List<String> errors = new ArrayList<>();
-        if (!DeployUtils.artifactExists(groupId, artifactId, version, qualifier, artifactType, artifactType)) {
+        if (!DeployUtils.artifactExists(groupId, artifactId, version, qualifier, artifactType, getDeployTarget())) {
             callSimpleMavenDeployer(groupId, artifactId, version, qualifier, artifactType, gatherAllDeployers());
             if (!artifactType.equals(POM_TYPE)) {
                 // For pom types the qualifiers should not be defined
@@ -174,8 +175,18 @@ public class MavenDeployer implements MavenDeployerApi {
         }
 
         @Override
+        public ModelSource resolveModel(Parent parent) throws UnresolvableModelException {
+            return this.resolveModel(parent.getGroupId(), parent.getArtifactId(), parent.getVersion());
+        }
+
+        @Override
         public void addRepository(Repository repository) throws InvalidRepositoryException {
             additionalDeployers.put(repository.getUrl(), new SimpleMavenDeployer(getRepoBase(), repository.getUrl()));
+        }
+
+        @Override
+        public void addRepository(Repository repository, boolean replace) throws InvalidRepositoryException {
+            this.addRepository(repository);
         }
 
         @Override
