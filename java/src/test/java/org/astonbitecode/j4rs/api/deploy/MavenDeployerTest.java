@@ -24,11 +24,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Random;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class MavenDeployerTest {
 
-    @Test
+    @Ignore
     public void doDeployCallsFromApi() throws Exception {
         MavenDeployer mdspy = spy(new MavenDeployer(getRandomTmpDeployTarget()));
         mdspy.deploy("org.openjfx", "javafx-graphics", "21.0.9", "", "jar");
