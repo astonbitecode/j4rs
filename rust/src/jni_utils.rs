@@ -542,7 +542,7 @@ pub(crate) unsafe fn string_from_jobject(
         let s = (opt_to_res(cache::get_jni_get_string_utf_chars())?)(jni_env, obj, ptr::null_mut())
             as *mut c_char;
         let rust_string = utils::to_rust_string(s)?;
-
+        (opt_to_res(cache::get_jni_release_string_utf_chars())?)(jni_env, obj, s as *const c_char);
         Ok(rust_string)
     }
 }
