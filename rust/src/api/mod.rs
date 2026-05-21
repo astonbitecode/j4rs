@@ -1271,12 +1271,10 @@ impl Jvm {
                     instance.jinstance,
                     cache::get_get_object_method()?,
                 );
-                let object_instance =
-                    jni_utils::create_global_ref_from_local_ref(object_instance, self.jni_env)?;
                 let v = Box::new($jni_transformation(object_instance, self.jni_env)?);
                 let v_any = v as Box<dyn Any>;
 
-                jni_utils::delete_java_ref(self.jni_env, object_instance);
+                jni_utils::delete_java_local_ref(self.jni_env, object_instance);
 
                 match v_any.downcast::<T>() {
                     Ok(v) => Ok(v),
@@ -1297,13 +1295,9 @@ impl Jvm {
                 instance.jinstance,
                 cache::get_get_object_class_name_method()?,
             );
-            let object_class_name_instance = jni_utils::create_global_ref_from_local_ref(
-                object_class_name_instance,
-                self.jni_env,
-            )?;
             let class_name =
                 &(jni_utils::string_from_jobject(object_class_name_instance, self.jni_env)?);
-            jni_utils::delete_java_ref(self.jni_env, object_class_name_instance);
+            jni_utils::delete_java_local_ref(self.jni_env, object_class_name_instance);
             if t_type == TypeId::of::<String>() && JavaClass::String.get_class_str() == class_name {
                 rust_box_from_java_object!(jni_utils::string_from_jobject)
             } else if t_type == TypeId::of::<i32>()
