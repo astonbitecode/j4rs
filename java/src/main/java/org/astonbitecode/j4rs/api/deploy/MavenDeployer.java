@@ -181,7 +181,7 @@ public class MavenDeployer implements MavenDeployerApi {
 
         @Override
         public void addRepository(Repository repository) throws InvalidRepositoryException {
-            additionalDeployers.put(repository.getUrl(), new SimpleMavenDeployer(getRepoBase(), repository.getUrl()));
+            additionalDeployers.put(repository.getUrl(), new SimpleMavenDeployer(getRepoBase(), getDeployTarget()));
         }
 
         @Override
