@@ -90,7 +90,7 @@ fn j4rs_benchmark(c: &mut Criterion) {
         .unwrap();
 
     jvm.deploy_artifact(&MavenArtifact::from(
-        format!("io.github.astonbitecode:j4rs-testing:{}", "0.25.2-SNAPSHOT").as_str(),
+        format!("io.github.astonbitecode:j4rs-testing:{}", "0.25.2").as_str(),
     ))
     .unwrap();
 
@@ -184,7 +184,7 @@ fn bench_create_java_objects_and_to_rust(c: &mut Criterion) {
         .unwrap();
 
     jvm.deploy_artifact(&MavenArtifact::from(
-        format!("io.github.astonbitecode:j4rs-testing:{}", "0.25.2-SNAPSHOT").as_str(),
+        format!("io.github.astonbitecode:j4rs-testing:{}", "0.25.2").as_str(),
     ))
     .unwrap();
 
