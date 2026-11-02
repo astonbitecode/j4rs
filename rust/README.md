@@ -529,7 +529,7 @@ const JNI_VERSION_1_6: jint = 0x00010006;
 #[no_mangle]
 pub extern fn jni_onload(env: *mut JavaVM, _reserved: jobject) -> jint {
     j4rs::set_java_vm(env);
-    jni_version_1_6
+    JNI_VERSION_1_6
 }
 ```
 
