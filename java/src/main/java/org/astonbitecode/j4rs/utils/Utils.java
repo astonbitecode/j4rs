@@ -25,6 +25,7 @@ import org.astonbitecode.j4rs.errors.InvocationException;
 public class Utils {
 
     private static boolean IsAndroid;
+    private static ClassLoader classloader = ClassLoader.getSystemClassLoader();
 
     static {
         try {
@@ -57,7 +58,7 @@ public class Utils {
                 return void.class;
             default:
                 if (!IsAndroid) {
-                    return Class.forName(className, true, ClassLoader.getSystemClassLoader());
+                    return Class.forName(className, true, classloader);
                 } else {
                     return Class.forName(className);
                 }
@@ -86,5 +87,14 @@ public class Utils {
         } else {
             return "Cannot create String out of a null Throwable";
         }
+    }
+
+    /** When the System ClassLoader is not able to load or retrieve your desired class,
+     * then use this method to update the behavior of Utils.forNameEnhanced()
+     *
+     * @param cl a ClassLoader with access to your class of interest.
+     */
+    public static void setClassloader(ClassLoader cl) {
+        classloader = cl;
     }
 }
