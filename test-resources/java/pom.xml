@@ -46,7 +46,7 @@
         <maven.surefire.version>3.6.0-M1</maven.surefire.version>
         <junit.version>4.13.2</junit.version>
         <maven.jar.plugin.version>3.5.1</maven.jar.plugin.version>
-        <sonatype.central.plugin.version>0.11.0</sonatype.central.plugin.version>
+        <sonatype.central.plugin.version>0.12.0</sonatype.central.plugin.version>
         <maven.gpg.plugin.version>3.2.8</maven.gpg.plugin.version>
         <maven.source.plugin.version>3.4.0</maven.source.plugin.version>
         <maven.javadoc.plugin.version>3.12.0</maven.javadoc.plugin.version>
